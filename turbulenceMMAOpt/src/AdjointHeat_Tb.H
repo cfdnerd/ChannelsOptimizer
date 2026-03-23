@@ -95,6 +95,96 @@ fvScalarMatrix TEqnb
    -fvm::div(-phi,Tb) 
    +fvm::laplacian(DT, Tb)
 );
+{
+   scalar adjointThermalRhsMin = GREAT;
+   scalar adjointThermalRhsMax = -GREAT;
+   label adjointThermalRhsNonFinite = 0;
+   word adjointThermalForceMode("MeanT");
+
+   if (useLogMeanTObjective)
+   {
+      adjointThermalForceMode = "LogMeanT";
+      const scalar logMeanSource = unitThermalSource.value()/Foam::max(MeanT, Tref);
+      adjointThermalRhsMin = logMeanSource;
+      adjointThermalRhsMax = logMeanSource;
+   }
+   else if (useKSHotspotObjective)
+   {
+      adjointThermalForceMode = "KSHotspot";
+      const scalar safeKsExpSum = Foam::max(ksExpSumLocal, SMALL);
+      forAll(T, cellI)
+      {
+         const scalar rhsValue = std::exp(ksRho*(T[cellI] - maxT))/safeKsExpSum;
+         if (!std::isfinite(static_cast<double>(rhsValue)))
+         {
+            adjointThermalRhsNonFinite++;
+            continue;
+         }
+         adjointThermalRhsMin = Foam::min(adjointThermalRhsMin, rhsValue);
+         adjointThermalRhsMax = Foam::max(adjointThermalRhsMax, rhsValue);
+      }
+   }
+   else if (useVarianceObjective)
+   {
+      adjointThermalForceMode = "VarianceT";
+      forAll(T, cellI)
+      {
+         const scalar rhsValue = 2.0*(T[cellI] - varianceMean)/area;
+         if (!std::isfinite(static_cast<double>(rhsValue)))
+         {
+            adjointThermalRhsNonFinite++;
+            continue;
+         }
+         adjointThermalRhsMin = Foam::min(adjointThermalRhsMin, rhsValue);
+         adjointThermalRhsMax = Foam::max(adjointThermalRhsMax, rhsValue);
+      }
+   }
+   else if (objFunction==2)
+   {
+      adjointThermalForceMode = "PnormT";
+      forAll(T, cellI)
+      {
+         scalar rhsValue = 0.0;
+         if (maxT > SMALL)
+         {
+            rhsValue = b2.value()*sumT*Foam::pow(T[cellI]/maxT, Pnorm-1);
+         }
+         if (!std::isfinite(static_cast<double>(rhsValue)))
+         {
+            adjointThermalRhsNonFinite++;
+            continue;
+         }
+         adjointThermalRhsMin = Foam::min(adjointThermalRhsMin, rhsValue);
+         adjointThermalRhsMax = Foam::max(adjointThermalRhsMax, rhsValue);
+      }
+   }
+   else
+   {
+      const scalar meanSource = unitThermalSource.value();
+      adjointThermalRhsMin = meanSource;
+      adjointThermalRhsMax = meanSource;
+   }
+
+   reduce(adjointThermalRhsMin, minOp<scalar>());
+   reduce(adjointThermalRhsMax, maxOp<scalar>());
+   reduce(adjointThermalRhsNonFinite, sumOp<label>());
+
+   Info<< "adjoint thermal forcing: mode=" << adjointThermalForceMode
+       << " rhs[min,max]=(" << adjointThermalRhsMin << ", " << adjointThermalRhsMax
+       << ") nonFinite=" << adjointThermalRhsNonFinite
+       << " MeanT=" << MeanT
+       << " maxT=" << maxT
+       << " varianceMean=" << varianceMean
+       << " sumT=" << sumT
+       << endl;
+
+   if (adjointThermalRhsNonFinite > 0)
+   {
+      FatalErrorInFunction
+         << "Adjoint thermal forcing contains non-finite values."
+         << exit(FatalError);
+   }
+}
 if (useLogMeanTObjective)
 {
    activeObjectiveLabel = "LogMeanT";
@@ -121,6 +211,7 @@ else
    activeObjectiveLabel = "MeanT";
    TEqnb -= unitThermalSource;
 }
+Info<< "adjoint thermal matrix assembled; entering Tb linear solve" << endl;
 const auto TbLinearSolvePerformance = TEqnb.solve();
 recordLinearSolve
 (

@@ -62,18 +62,6 @@ volScalarField turbulenceSinkCoeff
     dimensionedScalar("zero", alphaMax.dimensions(), 0.0),
     zeroGradientFvPatchScalarField::typeName
 );
-volScalarField dAlpha2
-(
-    IOobject
-    (
-        "dAlpha2",
-        runTime.timeName(),
-        mesh,
-        IOobject::MUST_READ,
-        IOobject::AUTO_WRITE
-    ),
-    mesh
-);
 volScalarField dAlpha
 (
     IOobject
@@ -116,6 +104,35 @@ volScalarField p
     ),
     mesh
 );
+wordList dAlpha2PatchTypes(p.boundaryField().types());
+forAll(mesh.boundary(), patchI)
+{
+    if (mesh.boundary()[patchI].type() == "wall")
+    {
+        dAlpha2PatchTypes[patchI] = "fixedValue";
+    }
+}
+volScalarField dAlpha2
+(
+    IOobject
+    (
+        "dAlpha2",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", sqr(dimLength), 0.0),
+    dAlpha2PatchTypes
+);
+forAll(mesh.boundary(), patchI)
+{
+    if (mesh.boundary()[patchI].type() == "wall")
+    {
+        dAlpha2.boundaryFieldRef()[patchI] == Zero;
+    }
+}
 Info<< "Reading field U\n" << endl;
 volVectorField U
 (

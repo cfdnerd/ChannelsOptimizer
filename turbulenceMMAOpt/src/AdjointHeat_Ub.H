@@ -106,41 +106,42 @@ Ub.storePrevIter();
 pb.storePrevIter();
 phib.storePrevIter();
 }
-
-scalar UbMaxMagLocal = 0;
-label UbNonFiniteLocal = 0;
-forAll(Ub, cellI)
 {
-    const scalar magValue = mag(Ub[cellI]);
-    if (!std::isfinite(static_cast<double>(magValue)))
+    scalar adjointHeatUbMaxMag = 0;
+    label adjointHeatUbNonFinite = 0;
+    forAll(Ub, cellI)
     {
-        UbNonFiniteLocal++;
-        continue;
+        const scalar magValue = mag(Ub[cellI]);
+        if (!std::isfinite(static_cast<double>(magValue)))
+        {
+            adjointHeatUbNonFinite++;
+            continue;
+        }
+        adjointHeatUbMaxMag = Foam::max(adjointHeatUbMaxMag, magValue);
     }
-    UbMaxMagLocal = Foam::max(UbMaxMagLocal, magValue);
-}
-reduce(UbMaxMagLocal, maxOp<scalar>());
-reduce(UbNonFiniteLocal, sumOp<label>());
+    reduce(adjointHeatUbMaxMag, maxOp<scalar>());
+    reduce(adjointHeatUbNonFinite, sumOp<label>());
 
-scalar pbLocalMin = GREAT;
-scalar pbLocalMax = -GREAT;
-label pbNonFiniteLocal = 0;
-forAll(pb, cellI)
-{
-    const scalar value = pb[cellI];
-    if (!std::isfinite(static_cast<double>(value)))
+    scalar adjointHeatPbMin = GREAT;
+    scalar adjointHeatPbMax = -GREAT;
+    label adjointHeatPbNonFinite = 0;
+    forAll(pb, cellI)
     {
-        pbNonFiniteLocal++;
-        continue;
+        const scalar value = pb[cellI];
+        if (!std::isfinite(static_cast<double>(value)))
+        {
+            adjointHeatPbNonFinite++;
+            continue;
+        }
+        adjointHeatPbMin = Foam::min(adjointHeatPbMin, value);
+        adjointHeatPbMax = Foam::max(adjointHeatPbMax, value);
     }
-    pbLocalMin = Foam::min(pbLocalMin, value);
-    pbLocalMax = Foam::max(pbLocalMax, value);
-}
-reduce(pbLocalMin, minOp<scalar>());
-reduce(pbLocalMax, maxOp<scalar>());
-reduce(pbNonFiniteLocal, sumOp<label>());
+    reduce(adjointHeatPbMin, minOp<scalar>());
+    reduce(adjointHeatPbMax, maxOp<scalar>());
+    reduce(adjointHeatPbNonFinite, sumOp<label>());
 
-Info<< "adjoint heat momentum solve complete: |Ub|max=" << UbMaxMagLocal
-    << " UbNonFinite=" << UbNonFiniteLocal
-    << " pb[min,max]=(" << pbLocalMin << ", " << pbLocalMax
-    << ") pbNonFinite=" << pbNonFiniteLocal << endl;
+    Info<< "adjoint heat momentum solve complete: |Ub|max=" << adjointHeatUbMaxMag
+        << " UbNonFinite=" << adjointHeatUbNonFinite
+        << " pb[min,max]=(" << adjointHeatPbMin << ", " << adjointHeatPbMax
+        << ") pbNonFinite=" << adjointHeatPbNonFinite << endl;
+}

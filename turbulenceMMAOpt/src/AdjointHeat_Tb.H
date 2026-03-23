@@ -17,76 +17,77 @@ reduce(ksExpSumLocal, sumOp<scalar>());
 reduce(varianceMeanLocal, sumOp<scalar>());
 sumT = maxT > SMALL ? std::pow(sumT, 1.0/Pnorm - 1.0) : 0.0;
 const scalar varianceMean = varianceMeanLocal/area;
-
-scalar TLocalMinTb = GREAT;
-scalar TLocalMaxTb = -GREAT;
-label TNonFiniteTb = 0;
-forAll(T, cellI)
 {
-   const scalar value = T[cellI];
-   if (!std::isfinite(static_cast<double>(value)))
+   scalar adjointThermalTMin = GREAT;
+   scalar adjointThermalTMax = -GREAT;
+   label adjointThermalTNonFinite = 0;
+   forAll(T, cellI)
    {
-      TNonFiniteTb++;
-      continue;
+      const scalar value = T[cellI];
+      if (!std::isfinite(static_cast<double>(value)))
+      {
+         adjointThermalTNonFinite++;
+         continue;
+      }
+      adjointThermalTMin = Foam::min(adjointThermalTMin, value);
+      adjointThermalTMax = Foam::max(adjointThermalTMax, value);
    }
-   TLocalMinTb = Foam::min(TLocalMinTb, value);
-   TLocalMaxTb = Foam::max(TLocalMaxTb, value);
-}
-reduce(TLocalMinTb, minOp<scalar>());
-reduce(TLocalMaxTb, maxOp<scalar>());
-reduce(TNonFiniteTb, sumOp<label>());
+   reduce(adjointThermalTMin, minOp<scalar>());
+   reduce(adjointThermalTMax, maxOp<scalar>());
+   reduce(adjointThermalTNonFinite, sumOp<label>());
 
-scalar TbLocalMin = GREAT;
-scalar TbLocalMax = -GREAT;
-label TbNonFinite = 0;
-forAll(Tb, cellI)
-{
-   const scalar value = Tb[cellI];
-   if (!std::isfinite(static_cast<double>(value)))
+   scalar adjointThermalTbMin = GREAT;
+   scalar adjointThermalTbMax = -GREAT;
+   label adjointThermalTbNonFinite = 0;
+   forAll(Tb, cellI)
    {
-      TbNonFinite++;
-      continue;
+      const scalar value = Tb[cellI];
+      if (!std::isfinite(static_cast<double>(value)))
+      {
+         adjointThermalTbNonFinite++;
+         continue;
+      }
+      adjointThermalTbMin = Foam::min(adjointThermalTbMin, value);
+      adjointThermalTbMax = Foam::max(adjointThermalTbMax, value);
    }
-   TbLocalMin = Foam::min(TbLocalMin, value);
-   TbLocalMax = Foam::max(TbLocalMax, value);
-}
-reduce(TbLocalMin, minOp<scalar>());
-reduce(TbLocalMax, maxOp<scalar>());
-reduce(TbNonFinite, sumOp<label>());
+   reduce(adjointThermalTbMin, minOp<scalar>());
+   reduce(adjointThermalTbMax, maxOp<scalar>());
+   reduce(adjointThermalTbNonFinite, sumOp<label>());
 
-scalar DTLocalMinTb = GREAT;
-scalar DTLocalMaxTb = -GREAT;
-label DTNonFiniteTb = 0;
-forAll(DT, cellI)
-{
-   const scalar value = DT[cellI];
-   if (!std::isfinite(static_cast<double>(value)))
+   scalar adjointThermalDTMin = GREAT;
+   scalar adjointThermalDTMax = -GREAT;
+   label adjointThermalDTNonFinite = 0;
+   forAll(DT, cellI)
    {
-      DTNonFiniteTb++;
-      continue;
+      const scalar value = DT[cellI];
+      if (!std::isfinite(static_cast<double>(value)))
+      {
+         adjointThermalDTNonFinite++;
+         continue;
+      }
+      adjointThermalDTMin = Foam::min(adjointThermalDTMin, value);
+      adjointThermalDTMax = Foam::max(adjointThermalDTMax, value);
    }
-   DTLocalMinTb = Foam::min(DTLocalMinTb, value);
-   DTLocalMaxTb = Foam::max(DTLocalMaxTb, value);
-}
-reduce(DTLocalMinTb, minOp<scalar>());
-reduce(DTLocalMaxTb, maxOp<scalar>());
-reduce(DTNonFiniteTb, sumOp<label>());
+   reduce(adjointThermalDTMin, minOp<scalar>());
+   reduce(adjointThermalDTMax, maxOp<scalar>());
+   reduce(adjointThermalDTNonFinite, sumOp<label>());
 
-Info<< "adjoint thermal diagnostics: "
-    << "T[min,max]=(" << TLocalMinTb << ", " << TLocalMaxTb << ") nonFinite=" << TNonFiniteTb
-    << " Tb[min,max]=(" << TbLocalMin << ", " << TbLocalMax << ") nonFinite=" << TbNonFinite
-    << " DT[min,max]=(" << DTLocalMinTb << ", " << DTLocalMaxTb << ") nonFinite=" << DTNonFiniteTb
-    << endl;
+   Info<< "adjoint thermal diagnostics: "
+       << "T[min,max]=(" << adjointThermalTMin << ", " << adjointThermalTMax << ") nonFinite=" << adjointThermalTNonFinite
+       << " Tb[min,max]=(" << adjointThermalTbMin << ", " << adjointThermalTbMax << ") nonFinite=" << adjointThermalTbNonFinite
+       << " DT[min,max]=(" << adjointThermalDTMin << ", " << adjointThermalDTMax << ") nonFinite=" << adjointThermalDTNonFinite
+       << endl;
 
-if (TNonFiniteTb > 0 || TbNonFinite > 0 || DTNonFiniteTb > 0 || DTLocalMinTb <= 0)
-{
-   FatalErrorInFunction
-      << "Invalid adjoint thermal inputs. "
-      << "TNonFinite=" << TNonFiniteTb
-      << ", TbNonFinite=" << TbNonFinite
-      << ", DTNonFinite=" << DTNonFiniteTb
-      << ", DTMin=" << DTLocalMinTb
-      << exit(FatalError);
+   if (adjointThermalTNonFinite > 0 || adjointThermalTbNonFinite > 0 || adjointThermalDTNonFinite > 0 || adjointThermalDTMin <= 0)
+   {
+      FatalErrorInFunction
+         << "Invalid adjoint thermal inputs. "
+         << "TNonFinite=" << adjointThermalTNonFinite
+         << ", TbNonFinite=" << adjointThermalTbNonFinite
+         << ", DTNonFinite=" << adjointThermalDTNonFinite
+         << ", DTMin=" << adjointThermalDTMin
+         << exit(FatalError);
+   }
 }
 
 fvScalarMatrix TEqnb
@@ -128,31 +129,32 @@ recordLinearSolve
   TbLinearSolvePerformance.finalResidual(),
   TbLinearSolvePerformance.nIterations()
 );
-
-TbLocalMin = GREAT;
-TbLocalMax = -GREAT;
-TbNonFinite = 0;
-forAll(Tb, cellI)
 {
-   const scalar value = Tb[cellI];
-   if (!std::isfinite(static_cast<double>(value)))
+   scalar adjointThermalTbSolvedMin = GREAT;
+   scalar adjointThermalTbSolvedMax = -GREAT;
+   label adjointThermalTbSolvedNonFinite = 0;
+   forAll(Tb, cellI)
    {
-      TbNonFinite++;
-      continue;
+      const scalar value = Tb[cellI];
+      if (!std::isfinite(static_cast<double>(value)))
+      {
+         adjointThermalTbSolvedNonFinite++;
+         continue;
+      }
+      adjointThermalTbSolvedMin = Foam::min(adjointThermalTbSolvedMin, value);
+      adjointThermalTbSolvedMax = Foam::max(adjointThermalTbSolvedMax, value);
    }
-   TbLocalMin = Foam::min(TbLocalMin, value);
-   TbLocalMax = Foam::max(TbLocalMax, value);
-}
-reduce(TbLocalMin, minOp<scalar>());
-reduce(TbLocalMax, maxOp<scalar>());
-reduce(TbNonFinite, sumOp<label>());
+   reduce(adjointThermalTbSolvedMin, minOp<scalar>());
+   reduce(adjointThermalTbSolvedMax, maxOp<scalar>());
+   reduce(adjointThermalTbSolvedNonFinite, sumOp<label>());
 
-Info<< "adjoint thermal solve complete: Tb[min,max]=(" << TbLocalMin
-    << ", " << TbLocalMax << ") nonFinite=" << TbNonFinite << endl;
+   Info<< "adjoint thermal solve complete: Tb[min,max]=(" << adjointThermalTbSolvedMin
+       << ", " << adjointThermalTbSolvedMax << ") nonFinite=" << adjointThermalTbSolvedNonFinite << endl;
 
-if (TbNonFinite > 0)
-{
-   FatalErrorInFunction
-      << "Adjoint thermal solve produced non-finite Tb values."
-      << exit(FatalError);
+   if (adjointThermalTbSolvedNonFinite > 0)
+   {
+      FatalErrorInFunction
+         << "Adjoint thermal solve produced non-finite Tb values."
+         << exit(FatalError);
+   }
 }

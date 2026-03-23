@@ -14,54 +14,55 @@ recordLinearSolve
   TLinearSolvePerformance.finalResidual(),
   TLinearSolvePerformance.nIterations()
 );
-
-scalar TLocalMin = GREAT;
-scalar TLocalMax = -GREAT;
-label TNonFiniteLocal = 0;
-forAll(T, cellI)
 {
-    const scalar value = T[cellI];
-    if (!std::isfinite(static_cast<double>(value)))
+    scalar primalThermalTMin = GREAT;
+    scalar primalThermalTMax = -GREAT;
+    label primalThermalTNonFinite = 0;
+    forAll(T, cellI)
     {
-        TNonFiniteLocal++;
-        continue;
+        const scalar value = T[cellI];
+        if (!std::isfinite(static_cast<double>(value)))
+        {
+            primalThermalTNonFinite++;
+            continue;
+        }
+        primalThermalTMin = Foam::min(primalThermalTMin, value);
+        primalThermalTMax = Foam::max(primalThermalTMax, value);
     }
-    TLocalMin = Foam::min(TLocalMin, value);
-    TLocalMax = Foam::max(TLocalMax, value);
-}
-reduce(TLocalMin, minOp<scalar>());
-reduce(TLocalMax, maxOp<scalar>());
-reduce(TNonFiniteLocal, sumOp<label>());
+    reduce(primalThermalTMin, minOp<scalar>());
+    reduce(primalThermalTMax, maxOp<scalar>());
+    reduce(primalThermalTNonFinite, sumOp<label>());
 
-scalar DTLocalMin = GREAT;
-scalar DTLocalMax = -GREAT;
-label DTNonFiniteLocal = 0;
-forAll(DT, cellI)
-{
-    const scalar value = DT[cellI];
-    if (!std::isfinite(static_cast<double>(value)))
+    scalar primalThermalDTMin = GREAT;
+    scalar primalThermalDTMax = -GREAT;
+    label primalThermalDTNonFinite = 0;
+    forAll(DT, cellI)
     {
-        DTNonFiniteLocal++;
-        continue;
+        const scalar value = DT[cellI];
+        if (!std::isfinite(static_cast<double>(value)))
+        {
+            primalThermalDTNonFinite++;
+            continue;
+        }
+        primalThermalDTMin = Foam::min(primalThermalDTMin, value);
+        primalThermalDTMax = Foam::max(primalThermalDTMax, value);
     }
-    DTLocalMin = Foam::min(DTLocalMin, value);
-    DTLocalMax = Foam::max(DTLocalMax, value);
-}
-reduce(DTLocalMin, minOp<scalar>());
-reduce(DTLocalMax, maxOp<scalar>());
-reduce(DTNonFiniteLocal, sumOp<label>());
+    reduce(primalThermalDTMin, minOp<scalar>());
+    reduce(primalThermalDTMax, maxOp<scalar>());
+    reduce(primalThermalDTNonFinite, sumOp<label>());
 
-Info<< "primal thermal diagnostics: T[min,max]=(" << TLocalMin << ", " << TLocalMax
-    << ") nonFinite=" << TNonFiniteLocal
-    << " DT[min,max]=(" << DTLocalMin << ", " << DTLocalMax
-    << ") nonFinite=" << DTNonFiniteLocal << endl;
+    Info<< "primal thermal diagnostics: T[min,max]=(" << primalThermalTMin << ", " << primalThermalTMax
+        << ") nonFinite=" << primalThermalTNonFinite
+        << " DT[min,max]=(" << primalThermalDTMin << ", " << primalThermalDTMax
+        << ") nonFinite=" << primalThermalDTNonFinite << endl;
 
-if (TNonFiniteLocal > 0 || DTNonFiniteLocal > 0 || DTLocalMin <= 0)
-{
-    FatalErrorInFunction
-        << "Invalid thermal state before adjoint stage. "
-        << "TNonFinite=" << TNonFiniteLocal
-        << ", DTNonFinite=" << DTNonFiniteLocal
-        << ", DTMin=" << DTLocalMin
-        << exit(FatalError);
+    if (primalThermalTNonFinite > 0 || primalThermalDTNonFinite > 0 || primalThermalDTMin <= 0)
+    {
+        FatalErrorInFunction
+            << "Invalid thermal state before adjoint stage. "
+            << "TNonFinite=" << primalThermalTNonFinite
+            << ", DTNonFinite=" << primalThermalDTNonFinite
+            << ", DTMin=" << primalThermalDTMin
+            << exit(FatalError);
+    }
 }

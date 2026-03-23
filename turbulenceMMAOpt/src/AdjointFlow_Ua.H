@@ -107,41 +107,42 @@ for(i=0;i<40;i++)
   pa.storePrevIter();
   phia.storePrevIter();
 }
-
-scalar UaMaxMagLocal = 0;
-label UaNonFiniteLocal = 0;
-forAll(Ua, cellI)
 {
-    const scalar magValue = mag(Ua[cellI]);
-    if (!std::isfinite(static_cast<double>(magValue)))
+    scalar adjointFlowUaMaxMag = 0;
+    label adjointFlowUaNonFinite = 0;
+    forAll(Ua, cellI)
     {
-        UaNonFiniteLocal++;
-        continue;
+        const scalar magValue = mag(Ua[cellI]);
+        if (!std::isfinite(static_cast<double>(magValue)))
+        {
+            adjointFlowUaNonFinite++;
+            continue;
+        }
+        adjointFlowUaMaxMag = Foam::max(adjointFlowUaMaxMag, magValue);
     }
-    UaMaxMagLocal = Foam::max(UaMaxMagLocal, magValue);
-}
-reduce(UaMaxMagLocal, maxOp<scalar>());
-reduce(UaNonFiniteLocal, sumOp<label>());
+    reduce(adjointFlowUaMaxMag, maxOp<scalar>());
+    reduce(adjointFlowUaNonFinite, sumOp<label>());
 
-scalar paLocalMin = GREAT;
-scalar paLocalMax = -GREAT;
-label paNonFiniteLocal = 0;
-forAll(pa, cellI)
-{
-    const scalar value = pa[cellI];
-    if (!std::isfinite(static_cast<double>(value)))
+    scalar adjointFlowPaMin = GREAT;
+    scalar adjointFlowPaMax = -GREAT;
+    label adjointFlowPaNonFinite = 0;
+    forAll(pa, cellI)
     {
-        paNonFiniteLocal++;
-        continue;
+        const scalar value = pa[cellI];
+        if (!std::isfinite(static_cast<double>(value)))
+        {
+            adjointFlowPaNonFinite++;
+            continue;
+        }
+        adjointFlowPaMin = Foam::min(adjointFlowPaMin, value);
+        adjointFlowPaMax = Foam::max(adjointFlowPaMax, value);
     }
-    paLocalMin = Foam::min(paLocalMin, value);
-    paLocalMax = Foam::max(paLocalMax, value);
-}
-reduce(paLocalMin, minOp<scalar>());
-reduce(paLocalMax, maxOp<scalar>());
-reduce(paNonFiniteLocal, sumOp<label>());
+    reduce(adjointFlowPaMin, minOp<scalar>());
+    reduce(adjointFlowPaMax, maxOp<scalar>());
+    reduce(adjointFlowPaNonFinite, sumOp<label>());
 
-Info<< "adjoint flow momentum solve complete: |Ua|max=" << UaMaxMagLocal
-    << " UaNonFinite=" << UaNonFiniteLocal
-    << " pa[min,max]=(" << paLocalMin << ", " << paLocalMax
-    << ") paNonFinite=" << paNonFiniteLocal << endl;
+    Info<< "adjoint flow momentum solve complete: |Ua|max=" << adjointFlowUaMaxMag
+        << " UaNonFinite=" << adjointFlowUaNonFinite
+        << " pa[min,max]=(" << adjointFlowPaMin << ", " << adjointFlowPaMax
+        << ") paNonFinite=" << adjointFlowPaNonFinite << endl;
+}

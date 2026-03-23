@@ -12,6 +12,10 @@ Reference logs examined:
 This note captures how a successful `laminarOptimizer` run behaves so it can be
 used later as a debugging baseline for `turbulenceMMAOpt`.
 
+See also:
+
+- [TurbulenceMMAOptDebugFindings.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceMMAOptDebugFindings.md) for the completed turbulent-branch isolation cycle and the resulting guidance on which runtime controls dominate divergence from this laminar baseline.
+
 ## Outcome
 
 - The run completes cleanly through iteration `200` and finalises normally.

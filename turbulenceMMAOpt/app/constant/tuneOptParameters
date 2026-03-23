@@ -22,10 +22,10 @@ frameworkSwitches
     useWrayAgarwalFallback          false;
     usePorosityWallDistance         true;
     useMeshWaveWallDistanceFallback false;
-    useBrinkmanSinkInKEpsilon       true;
-    useSplitRAMPControls            true;
-    useSingleQFallback              false;
-    useTurbulentThermalDiffusivity  true;
+    useBrinkmanSinkInKEpsilon       false;
+    useSplitRAMPControls            false;
+    useSingleQFallback              true;
+    useTurbulentThermalDiffusivity  false;
     usePowerConstraintRelaxation    true;
     useGCMMA                        false;
     useFullAdjointSymmetricStress   true;

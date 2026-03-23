@@ -4,6 +4,10 @@
 **Method:** Density-based topology optimization with RAMP/Helmholtz/Heaviside + MMA  
 **Target product:** Quasi-2D flow topology for **extruded cold plates**, not a full 3D topology optimization case
 
+See also:
+
+- [TurbulenceMMAOptDebugFindings.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceMMAOptDebugFindings.md) for the completed 2026-03 debugging cycle and the practical control guidance that followed from it.
+
 ---
 
 ## 1. Development Position

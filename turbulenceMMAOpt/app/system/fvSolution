@@ -41,44 +41,29 @@ solvers
         relTol          0;
         maxIter         5000;
     }
-     "(T)"
+     "T"
     {
-        solver          GAMG;
+        solver          PBiCGStab;
+        preconditioner  DILU;
         tolerance       1e-10;
         relTol          0;
-        smoother        GaussSeidel;
-        cacheAgglomeration true;
-        agglomerator    faceAreaPair;
-        mergeLevels     1;
-        nPreSweeps      0;
-        nPostSweeps     2;
-        nFinestSweeps   2;
-        nCellsInCoarsestLevel 20;
-        maxIter         20000;
+        maxIter         10000;
     }  
      "Tb"
     {
-        solver          smoothSolver;
-        smoother        symGaussSeidel;
-        nSweeps         2;
+        solver          PBiCGStab;
+        preconditioner  DILU;
         tolerance       1e-10;
         relTol          0;
-        maxIter         20000;
+        maxIter         10000;
     }
-     "(Ta|Tb)"
+     "Ta"
     {
-        solver          GAMG;
+        solver          PBiCGStab;
+        preconditioner  DILU;
         tolerance       1e-10;
         relTol          0;
-        smoother        GaussSeidel;
-        cacheAgglomeration true;
-        agglomerator    faceAreaPair;
-        mergeLevels     1;
-        nPreSweeps      0;
-        nPostSweeps     2;
-        nFinestSweeps   2;
-        nCellsInCoarsestLevel 20;
-        maxIter         20000;
+        maxIter         10000;
     }
      "(xp|dAlpha2|fsensMeanT|gsensVol|gsensPowerDiss)"
     {

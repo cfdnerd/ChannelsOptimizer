@@ -65,6 +65,14 @@ solvers
         relTol          0;
         maxIter         10000;
     }
+     "dAlpha2"
+    {
+        solver          PCG;
+        preconditioner  DIC;
+        tolerance       1e-8;
+        relTol          0;
+        maxIter         5000;
+    }
      "(xp|dAlpha2|fsensMeanT|gsensVol|gsensPowerDiss)"
     {
         solver          PCG;

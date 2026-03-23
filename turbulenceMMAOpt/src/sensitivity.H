@@ -9,12 +9,65 @@ for(i=0;i<n;i++)
  xhOld[i]=xh[i];
 }
 
-fsenshMeanT=alphaSensCoeff*(U&Ub)+b1*kappaSensCoeff*(fvc::grad(T)&fvc::grad(Tb));
+Info<< "sensitivity analysis: assemble raw objective sensitivity" << endl;
+volVectorField gradTField
+(
+    IOobject
+    (
+        "gradTField",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    fvc::grad(T)
+);
+volVectorField gradTbField
+(
+    IOobject
+    (
+        "gradTbField",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    fvc::grad(Tb)
+);
+fsenshMeanT =
+  alphaSensCoeff*(U&Ub)
+  + b1*kappaSensCoeff*(gradTField&gradTbField);
 if(DDHS)//design dependent heat source
 {
  fsenshMeanT -= b1*Tb*thermalSource*heatSourceSensCoeff;
 }
+Info<< "sensitivity analysis: assemble raw power sensitivity" << endl;
 gsenshPowerDiss=alphaSensCoeff*(U&Ua);
+Info<< "sensitivity analysis: sanitize raw sensitivities" << endl;
+label fsensRawNonFiniteLocal(0);
+label gsensRawNonFiniteLocal(0);
+forAll(fsenshMeanT, i)
+{
+  if (!std::isfinite(static_cast<double>(fsenshMeanT[i])))
+  {
+    fsenshMeanT[i] = 0.0;
+    fsensRawNonFiniteLocal++;
+  }
+
+  if (!std::isfinite(static_cast<double>(gsenshPowerDiss[i])))
+  {
+    gsenshPowerDiss[i] = 0.0;
+    gsensRawNonFiniteLocal++;
+  }
+}
+reduce(fsensRawNonFiniteLocal, sumOp<label>());
+reduce(gsensRawNonFiniteLocal, sumOp<label>());
+if (Pstream::master() && (fsensRawNonFiniteLocal > 0 || gsensRawNonFiniteLocal > 0))
+{
+  Info<< "sensitivity analysis: clamped non-finite raw sensitivities"
+      << " objective=" << fsensRawNonFiniteLocal
+      << " power=" << gsensRawNonFiniteLocal << endl;
+}
 gsensVolRaw = dimensionedScalar("one", dimless, 1.0);
 fsensMeanTRaw = fsenshMeanT;
 gsensPowerDissRaw = gsenshPowerDiss;

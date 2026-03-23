@@ -1,0 +1,28 @@
+# Ignore PDF documents
+*.pdf
+# other repo files
+**/linux64GccDPInt32Opt/
+**/processor*/
+**/polyMesh/
+*.log
+**/log
+*.hst
+*.jsonl
+**/solver_diagnostics/*
+CommitPush.sh
+*.html
+*.png
+*.jpg
+*.gif
+*.avi
+runLOG
+*.Out
+**/solverLogs/
+*.txt
+**/__pycache__/
+
+# Editor backup and temp files
+*~
+.#*
+#*#
+.*.swp

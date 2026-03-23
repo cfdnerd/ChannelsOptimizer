@@ -49,8 +49,7 @@ continuationSwitches
 // and constraint violation all remain small for several consecutive loops.
 convergenceControl
 {
-    // Intentionally empty: use solver defaults from createFields.H.
-    // Add only non-default overrides here when tuning is needed.
+    optPowerConstraintWeight        2.0;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -25,7 +25,7 @@ filterR             2.5;
 PowerDiss0          1.25e-3;
 PowerDissMax        10;
 PowerDissRelax      25;
-powerConstraintRelaxationRate 0.2;
+powerConstraintRelaxationRate 0.3;
 GeoDim              2;
 fluid_area          yes;
 solid_area          no;
@@ -45,9 +45,9 @@ qContinuationInterval 10;
 qContinuationFactor 0.9;
 beta0               0.2;
 betaMax             100;
-betaIncrement       0.3;
+betaIncrement       0.2;
 alphaRampEarlySlope 0.10;
-alphaRampLateFactor 1.02;
+alphaRampLateFactor 1.005;
 dAlphaPorosityEps   1e-3;
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //  

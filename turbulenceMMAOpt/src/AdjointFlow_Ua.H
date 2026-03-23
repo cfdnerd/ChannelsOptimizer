@@ -1,3 +1,4 @@
+Info<< "adjoint flow momentum solve" << endl;
 for(i=0;i<40;i++)
 { 
   volVectorField adjointTransposeConvectiona((fvc::grad(U) & Ua));
@@ -106,3 +107,41 @@ for(i=0;i<40;i++)
   pa.storePrevIter();
   phia.storePrevIter();
 }
+
+scalar UaMaxMagLocal = 0;
+label UaNonFiniteLocal = 0;
+forAll(Ua, cellI)
+{
+    const scalar magValue = mag(Ua[cellI]);
+    if (!std::isfinite(static_cast<double>(magValue)))
+    {
+        UaNonFiniteLocal++;
+        continue;
+    }
+    UaMaxMagLocal = Foam::max(UaMaxMagLocal, magValue);
+}
+reduce(UaMaxMagLocal, maxOp<scalar>());
+reduce(UaNonFiniteLocal, sumOp<label>());
+
+scalar paLocalMin = GREAT;
+scalar paLocalMax = -GREAT;
+label paNonFiniteLocal = 0;
+forAll(pa, cellI)
+{
+    const scalar value = pa[cellI];
+    if (!std::isfinite(static_cast<double>(value)))
+    {
+        paNonFiniteLocal++;
+        continue;
+    }
+    paLocalMin = Foam::min(paLocalMin, value);
+    paLocalMax = Foam::max(paLocalMax, value);
+}
+reduce(paLocalMin, minOp<scalar>());
+reduce(paLocalMax, maxOp<scalar>());
+reduce(paNonFiniteLocal, sumOp<label>());
+
+Info<< "adjoint flow momentum solve complete: |Ua|max=" << UaMaxMagLocal
+    << " UaNonFinite=" << UaNonFiniteLocal
+    << " pa[min,max]=(" << paLocalMin << ", " << paLocalMax
+    << ") paNonFinite=" << paNonFiniteLocal << endl;

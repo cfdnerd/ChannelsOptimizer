@@ -1,3 +1,4 @@
+Info<< "adjoint heat momentum solve" << endl;
 for(i=0;i<40;i++)
 {    
 volVectorField adjointTransposeConvectionb((fvc::grad(U) & Ub));
@@ -105,3 +106,41 @@ Ub.storePrevIter();
 pb.storePrevIter();
 phib.storePrevIter();
 }
+
+scalar UbMaxMagLocal = 0;
+label UbNonFiniteLocal = 0;
+forAll(Ub, cellI)
+{
+    const scalar magValue = mag(Ub[cellI]);
+    if (!std::isfinite(static_cast<double>(magValue)))
+    {
+        UbNonFiniteLocal++;
+        continue;
+    }
+    UbMaxMagLocal = Foam::max(UbMaxMagLocal, magValue);
+}
+reduce(UbMaxMagLocal, maxOp<scalar>());
+reduce(UbNonFiniteLocal, sumOp<label>());
+
+scalar pbLocalMin = GREAT;
+scalar pbLocalMax = -GREAT;
+label pbNonFiniteLocal = 0;
+forAll(pb, cellI)
+{
+    const scalar value = pb[cellI];
+    if (!std::isfinite(static_cast<double>(value)))
+    {
+        pbNonFiniteLocal++;
+        continue;
+    }
+    pbLocalMin = Foam::min(pbLocalMin, value);
+    pbLocalMax = Foam::max(pbLocalMax, value);
+}
+reduce(pbLocalMin, minOp<scalar>());
+reduce(pbLocalMax, maxOp<scalar>());
+reduce(pbNonFiniteLocal, sumOp<label>());
+
+Info<< "adjoint heat momentum solve complete: |Ub|max=" << UbMaxMagLocal
+    << " UbNonFinite=" << UbNonFiniteLocal
+    << " pb[min,max]=(" << pbLocalMin << ", " << pbLocalMax
+    << ") pbNonFinite=" << pbNonFiniteLocal << endl;

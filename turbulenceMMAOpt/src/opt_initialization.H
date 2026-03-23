@@ -274,6 +274,8 @@ bool hasPreviousObjectiveValue(false);
 bool stopOptimization(false);
 label optimizerConvergedStreak(0);
 word optimizerStopReason("running");
+bool continuationHealthOk(true);
+const scalar adjointRunawayRatioLimit(1e6);
 word activeObjectiveLabel("MeanT");
 word activeWallDistanceMode("meshWave");
 word activeTurbulenceModelMode("kEpsilon");

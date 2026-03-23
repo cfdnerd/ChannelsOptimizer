@@ -219,6 +219,12 @@ const scalar UbMeanMag = UbMeanMagLocal/area;
 const scalar fsensL2 = std::sqrt(fsensL2Local);
 const scalar gsensPowerL2 = std::sqrt(gsensPowerL2Local);
 const scalar gsensVolL2 = std::sqrt(gsensVolL2Local);
+const scalar primalVelocityScale = Foam::max(UMaxMagLocal, SMALL);
+const scalar adjointPowerToPrimalRatio = UaMaxMagLocal/primalVelocityScale;
+const scalar adjointHeatToPrimalRatio = UbMaxMagLocal/primalVelocityScale;
+const bool adjointRunaway =
+  adjointPowerToPrimalRatio > adjointRunawayRatioLimit
+  || adjointHeatToPrimalRatio > adjointRunawayRatioLimit;
 
 scalar objectiveValue = objectiveValueCurrent;
 word objectiveLabel(activeObjectiveLabel);
@@ -240,7 +246,12 @@ solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(xpFilter
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(fsensFilterLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(gsensPowerFilterLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(gsensVolFilterLinearSolveStats));
+if (adjointRunaway)
+{
+  solverSeverity = Foam::max(solverSeverity, label(2));
+}
 reduce(solverSeverity, maxOp<label>());
+continuationHealthOk = !adjointRunaway;
 
 const scalar objectiveRelativeDelta = Foam::mag(objectiveDelta)/Foam::max(Foam::mag(objectiveValue), SMALL);
 const scalar powerConstraintWeightSafe = Foam::max(optPowerConstraintWeight, SMALL);
@@ -376,6 +387,7 @@ if (Pstream::master())
   writeRow("thermal field", "TMin="+fmtScalar(TLocalMin), "TMax="+fmtScalar(TLocalMax));
   writeRow("adjoint power", "|Ua|max="+fmtScalar(UaMaxMagLocal), "|Ua|mean="+fmtScalar(UaMeanMag), "paMin="+fmtScalar(paLocalMin), "paMax="+fmtScalar(paLocalMax));
   writeRow("adjoint heat", "|Ub|max="+fmtScalar(UbMaxMagLocal), "|Ub|mean="+fmtScalar(UbMeanMag), "pbMin="+fmtScalar(pbLocalMin), "pbMax="+fmtScalar(pbLocalMax));
+  writeRow("adjoint ratios", "Ua/U="+fmtScalar(adjointPowerToPrimalRatio), "Ub/U="+fmtScalar(adjointHeatToPrimalRatio), "limit="+fmtScalar(adjointRunawayRatioLimit), "hardening="+std::string(continuationHealthOk ? "on" : "frozen"));
 
   writeSectionHeader("Interpolation Diagnostics");
   writeRow("interp bounds", "alphaMin="+fmtScalar(alphaLocalMin), "alphaMax="+fmtScalar(alphaLocalMax), "DTMin="+fmtScalar(DTLocalMin), "DTMax="+fmtScalar(DTLocalMax));
@@ -490,6 +502,9 @@ if (Pstream::master())
       << ",\"ubMeanMag\":" << UbMeanMag
       << ",\"pbMin\":" << pbLocalMin
       << ",\"pbMax\":" << pbLocalMax
+      << ",\"uaToUMaxRatio\":" << adjointPowerToPrimalRatio
+      << ",\"ubToUMaxRatio\":" << adjointHeatToPrimalRatio
+      << ",\"adjointRunaway\":" << (adjointRunaway ? 1 : 0)
     << "}"
       << ",\"interpolation\":{"
       << "\"alphaMin\":" << alphaLocalMin

@@ -28,7 +28,7 @@ frameworkSwitches
     useTurbulentThermalDiffusivity  true;
     usePowerConstraintRelaxation    false;
     useGCMMA                        false;
-    useFullAdjointSymmetricStress   true;
+    useFullAdjointSymmetricStress   false;
 }
 
 objectiveSwitches

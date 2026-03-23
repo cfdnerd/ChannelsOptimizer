@@ -21,9 +21,10 @@ const scalar continuationPowerLimit =
 const scalar powerFeasibilityRatio =
   continuationPowerLimit > SMALL ? PowerDiss/continuationPowerLimit : 0.0;
 const bool allowContinuationHardening =
-  powerFeasibilityRatio <= continuationFeasibilityTol;
+  powerFeasibilityRatio <= continuationFeasibilityTol
+  && continuationHealthOk;
 
-if(opt<=63)
+if(opt<=63 && allowContinuationHardening)
 {
   alphaMax=alphamax*(opt*alphaRampEarlySlope+1.0);
 }

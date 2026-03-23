@@ -69,12 +69,10 @@ volScalarField dAlpha2
         "dAlpha2",
         runTime.timeName(),
         mesh,
-        IOobject::NO_READ,
+        IOobject::MUST_READ,
         IOobject::AUTO_WRITE
     ),
-    mesh,
-    dimensionedScalar("zero", sqr(dimLength), 0.0),
-    zeroGradientFvPatchScalarField::typeName
+    mesh
 );
 volScalarField dAlpha
 (

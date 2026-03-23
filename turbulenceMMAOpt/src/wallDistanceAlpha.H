@@ -10,7 +10,7 @@ if (usePorosityWallDistance && !useMeshWaveWallDistanceFallback)
     );
     recordLinearSolve
     (
-      xpFilterLinearSolveStats,
+      dAlphaLinearSolveStats,
       dAlphaLinearSolvePerformance.initialResidual(),
       dAlphaLinearSolvePerformance.finalResidual(),
       dAlphaLinearSolvePerformance.nIterations()

@@ -247,6 +247,7 @@ LinearSolveStats UbLinearSolveStats;
 LinearSolveStats pbLinearSolveStats;
 LinearSolveStats UaLinearSolveStats;
 LinearSolveStats paLinearSolveStats;
+LinearSolveStats dAlphaLinearSolveStats;
 LinearSolveStats xpFilterLinearSolveStats;
 LinearSolveStats fsensFilterLinearSolveStats;
 LinearSolveStats gsensPowerFilterLinearSolveStats;

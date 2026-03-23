@@ -235,6 +235,7 @@ solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(UbLinear
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(pbLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(UaLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(paLinearSolveStats));
+solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(dAlphaLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(xpFilterLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(fsensFilterLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(gsensPowerFilterLinearSolveStats));

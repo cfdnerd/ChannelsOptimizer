@@ -81,6 +81,7 @@ if (Pstream::master())
     << "\n"
     << "[Filter And Projection Equations]\n";
   writeTableHeader();
+  writeSolveStats("dAlpha wallDist", dAlphaLinearSolveStats);
   writeSolveStats("xp filter", xpFilterLinearSolveStats);
   writeSolveStats("fsens filter", fsensFilterLinearSolveStats);
   writeSolveStats("gsensPower filter", gsensPowerFilterLinearSolveStats);

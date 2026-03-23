@@ -10,6 +10,7 @@ for(i=0;i<n;i++)
 }
 
 Info<< "sensitivity analysis: assemble raw objective sensitivity" << endl;
+Info<< "sensitivity analysis: compute grad(T)" << endl;
 volVectorField gradTField
 (
     IOobject
@@ -22,6 +23,7 @@ volVectorField gradTField
     ),
     fvc::grad(T)
 );
+Info<< "sensitivity analysis: compute grad(Tb)" << endl;
 volVectorField gradTbField
 (
     IOobject
@@ -34,15 +36,36 @@ volVectorField gradTbField
     ),
     fvc::grad(Tb)
 );
-fsenshMeanT =
-  alphaSensCoeff*(U&Ub)
-  + b1*kappaSensCoeff*(gradTField&gradTbField);
-if(DDHS)//design dependent heat source
+Info<< "sensitivity analysis: assemble objective cells" << endl;
+forAll(fsenshMeanT, cellI)
 {
- fsenshMeanT -= b1*Tb*thermalSource*heatSourceSensCoeff;
+  const scalar brinkmanTerm = alphaSensCoeff[cellI]*(U[cellI] & Ub[cellI]);
+  const scalar thermalGradTerm =
+    b1.value()*kappaSensCoeff[cellI]*(gradTField[cellI] & gradTbField[cellI]);
+  scalar objectiveSensitivity = brinkmanTerm + thermalGradTerm;
+
+  if (DDHS)
+  {
+    objectiveSensitivity -=
+      b1.value()*Tb[cellI]*thermalSource.value()*heatSourceSensCoeff[cellI];
+  }
+
+  if (std::isfinite(static_cast<double>(objectiveSensitivity)))
+  {
+    fsenshMeanT[cellI] = objectiveSensitivity;
+  }
+  else
+  {
+    fsenshMeanT[cellI] = 0.0;
+  }
 }
 Info<< "sensitivity analysis: assemble raw power sensitivity" << endl;
-gsenshPowerDiss=alphaSensCoeff*(U&Ua);
+forAll(gsenshPowerDiss, cellI)
+{
+  const scalar powerSensitivity = alphaSensCoeff[cellI]*(U[cellI] & Ua[cellI]);
+  gsenshPowerDiss[cellI] =
+    std::isfinite(static_cast<double>(powerSensitivity)) ? powerSensitivity : 0.0;
+}
 Info<< "sensitivity analysis: sanitize raw sensitivities" << endl;
 label fsensRawNonFiniteLocal(0);
 label gsensRawNonFiniteLocal(0);

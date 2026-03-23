@@ -26,20 +26,108 @@ if (Pstream::master())
     << '\n';
 
   std::ofstream debugLogFile(debugOptimizerLogFile, std::ios::out);
+  auto writeRuntimeOption =
+  [&](const char* key, const scalar value)
+  {
+    debugLogFile << "  " << std::left << std::setw(36) << key
+                 << std::scientific << std::setprecision(6) << value << "\n";
+  };
+  auto writeRuntimeSwitch =
+  [&](const char* key, const bool value)
+  {
+    debugLogFile << "  " << std::left << std::setw(36) << key
+                 << (value ? "true" : "false") << "\n";
+  };
+
   debugLogFile
     << "# turbulenceMMAOpt optimizer debug log\n"
     << "# Structured per-iteration diagnostics for optimizer development\n"
     << "# Format: sectioned human-readable report, one block per optimization iteration\n"
     << "\n[Runtime Option Dump]\n"
-    << "\n--- optProperties ---\n"
-    << optProperties
-    << "\n--- tuneOptParameters ---\n"
-    << tuneOptParameters
-    << "\n--- transportProperties ---\n"
-    << transportProperties
-    << "\n--- thermalProperties ---\n"
-    << thermalProperties
-    << "\n";
+    << "\n--- optProperties ---\n";
+  writeRuntimeOption("raa0", raa0);
+  writeRuntimeOption("mma_init", mma_init);
+  writeRuntimeOption("mma_dec", mma_dec);
+  writeRuntimeOption("mma_inc", mma_inc);
+  writeRuntimeOption("movlim", movlim);
+  writeRuntimeOption("voluse", voluse);
+  writeRuntimeOption("PowerDiss0", PowerDiss0);
+  writeRuntimeOption("PowerDissMax", PowerDissMax);
+  writeRuntimeOption("PowerDissRelax", PowerDissRelax);
+  writeRuntimeOption("powerConstraintRelaxationRate", powerConstraintRelaxationRate);
+  writeRuntimeOption("filterR", filterR);
+  writeRuntimeOption("GeoDim", GeoDim);
+  writeRuntimeOption("Pnorm", Pnorm);
+  writeRuntimeOption("objFunction", objFunction);
+  writeRuntimeOption("qAlpha0", qAlpha0);
+  writeRuntimeOption("qAlphaMin", qAlphaMin);
+  writeRuntimeOption("qKappa0", qKappa0);
+  writeRuntimeOption("qKappaMin", qKappaMin);
+  writeRuntimeOption("qHeat0", qHeat0);
+  writeRuntimeOption("qHeatMin", qHeatMin);
+  writeRuntimeOption("qSingle0", qSingle0);
+  writeRuntimeOption("qSingleMin", qSingleMin);
+  writeRuntimeOption("qContinuationStartIter", qContinuationStartIter);
+  writeRuntimeOption("qContinuationInterval", qContinuationInterval);
+  writeRuntimeOption("qContinuationFactor", qContinuationFactor);
+  writeRuntimeOption("beta0", beta0);
+  writeRuntimeOption("betaMax", betaMax);
+  writeRuntimeOption("betaIncrement", betaIncrement);
+  writeRuntimeOption("alphaRampEarlySlope", alphaRampEarlySlope);
+  writeRuntimeOption("alphaRampLateFactor", alphaRampLateFactor);
+  writeRuntimeOption("dAlphaPorosityEps", dAlphaPorosityEps);
+  writeRuntimeSwitch("solid_area", solid_area);
+  writeRuntimeSwitch("fluid_area", fluid_area);
+  writeRuntimeSwitch("test_area", test_area);
+
+  debugLogFile << "\n--- frameworkSwitches ---\n";
+  writeRuntimeSwitch("useFrozenTurbulenceAdjoint", useFrozenTurbulenceAdjoint);
+  writeRuntimeSwitch("useKEpsilonModel", useKEpsilonModel);
+  writeRuntimeSwitch("useWrayAgarwalFallback", useWrayAgarwalFallback);
+  writeRuntimeSwitch("usePorosityWallDistance", usePorosityWallDistance);
+  writeRuntimeSwitch("useMeshWaveWallDistanceFallback", useMeshWaveWallDistanceFallback);
+  writeRuntimeSwitch("useBrinkmanSinkInKEpsilon", useBrinkmanSinkInKEpsilon);
+  writeRuntimeSwitch("useSplitRAMPControls", useSplitRAMPControls);
+  writeRuntimeSwitch("useSingleQFallback", useSingleQFallback);
+  writeRuntimeSwitch("useTurbulentThermalDiffusivity", useTurbulentThermalDiffusivity);
+  writeRuntimeSwitch("usePowerConstraintRelaxation", usePowerConstraintRelaxation);
+  writeRuntimeSwitch("useGCMMA", useGCMMA);
+  writeRuntimeSwitch("useFullAdjointSymmetricStress", useFullAdjointSymmetricStress);
+
+  debugLogFile << "\n--- objectiveSwitches ---\n";
+  writeRuntimeSwitch("useLogMeanTObjective", useLogMeanTObjective);
+  writeRuntimeSwitch("useKSHotspotObjective", useKSHotspotObjective);
+  writeRuntimeSwitch("useVarianceObjective", useVarianceObjective);
+  writeRuntimeSwitch("useRobustMultiCaseObjective", useRobustMultiCaseObjective);
+
+  debugLogFile << "\n--- continuationSwitches ---\n";
+  writeRuntimeSwitch("useStagnationTriggeredBeta", useStagnationTriggeredBeta);
+
+  debugLogFile << "\n--- convergenceControl ---\n";
+  writeRuntimeOption("optMinIterations", optMinIterations);
+  writeRuntimeOption("optStallWindow", optStallWindow);
+  writeRuntimeOption("optObjectiveTol", optObjectiveTol);
+  writeRuntimeOption("optConstraintTol", optConstraintTol);
+  writeRuntimeOption("optStepTol", optStepTol);
+  writeRuntimeOption("optPowerConstraintWeight", optPowerConstraintWeight);
+  writeRuntimeOption("optVolumeConstraintWeight", optVolumeConstraintWeight);
+
+  debugLogFile << "\n--- transportProperties ---\n";
+  writeRuntimeOption("nu", nu.value());
+  writeRuntimeOption("alphaMax", alphaMax.value());
+  writeRuntimeOption("alphaMAX", alphaMAX.value());
+
+  debugLogFile << "\n--- thermalProperties ---\n";
+  writeRuntimeOption("rhoCp", rhoCp.value());
+  writeRuntimeOption("kf", kf.value());
+  writeRuntimeOption("ks", ks.value());
+  writeRuntimeOption("heatSource", heatSource.value());
+  writeRuntimeOption("thermalSource", thermalSource.value());
+  writeRuntimeOption("Prt", Prt);
+  writeRuntimeOption("Tref", Tref);
+  writeRuntimeOption("ksRho", ksRho);
+  writeRuntimeSwitch("DDHS", DDHS);
+  debugLogFile << "\n";
 
   std::ofstream gradientLogFile(gradientOptFile, std::ios::out);
   gradientLogFile
@@ -167,6 +255,7 @@ LinearSolveStats gsensVolFilterLinearSolveStats;
 int i=0,opt=0;
 double del=0;
 scalar n(0),N(0),eta0(0),eta5(0.5),eta1(1),y0(0),y5(0);
+scalar qAlphaActive(0), qKappaActive(0), qHeatActive(0);
 n=x.size();//n:length of x in the i-th core
 N=x.size();//N:design freedom
 reduce(N, sumOp<scalar>()); 

@@ -1,6 +1,6 @@
-const scalar qAlphaActive = useSplitRAMPControls ? qAlpha : qSingle;
-const scalar qKappaActive = useSplitRAMPControls ? qKappa : qSingle;
-const scalar qHeatActive = useSplitRAMPControls ? qHeat : qSingle;
+qAlphaActive = useSplitRAMPControls ? qAlpha : qSingle;
+qKappaActive = useSplitRAMPControls ? qKappa : qSingle;
+qHeatActive = useSplitRAMPControls ? qHeat : qSingle;
 
 alpha = alphaMax*qAlphaActive*(1.0 - xh)/(qAlphaActive + xh);
 alphaSensCoeff = -alphaMax*(1.0 + qAlphaActive)*qAlphaActive/((qAlphaActive + xh)*(qAlphaActive + xh));

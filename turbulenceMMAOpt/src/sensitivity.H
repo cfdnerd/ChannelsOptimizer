@@ -103,8 +103,16 @@ const scalar powerLimit =
   ? Foam::max(PowerDissRelax - opt*powerConstraintRelaxationRate, PowerDissMax)
   : PowerDissMax;
 activePowerLimit = powerLimit;
+const scalar powerViolationScale =
+  Foam::pow
+  (
+    Foam::max(PowerDiss/Foam::max(powerLimit, SMALL), scalar(1.0)),
+    optPowerViolationScaleExponent
+  );
+const scalar effectivePowerConstraintWeight =
+  optPowerConstraintWeight*powerViolationScale;
 const scalar weightedPowerConstraint =
-  optPowerConstraintWeight*(PowerDiss/powerLimit-1.0);
+  effectivePowerConstraintWeight*(PowerDiss/powerLimit-1.0);
 const scalar weightedVolumeConstraint = optVolumeConstraintWeight*V;
 gx[0]=weightedPowerConstraint;
 gx[1]=weightedVolumeConstraint;
@@ -113,7 +121,7 @@ for(i=0;i<n;i++)
 {
  xmma[i] = x[i];
  dfdx[i]=fsensMeanT[i]/N;//sensitivities of objective function
- dgdx[0][i]=optPowerConstraintWeight*(gsensPowerDiss[i]/N);//sensitivities of constraint function
+ dgdx[0][i]=effectivePowerConstraintWeight*(gsensPowerDiss[i]/N);//sensitivities of constraint function
  dgdx[1][i]=optVolumeConstraintWeight*(gsensVol[i]/N);//sensitivities of constraint function
 }
 

@@ -220,6 +220,10 @@ scalar optPowerConstraintWeight
 (
   convergenceControl.lookupOrDefault<scalar>("optPowerConstraintWeight", 1.0)
 );
+scalar optPowerViolationScaleExponent
+(
+  convergenceControl.lookupOrDefault<scalar>("optPowerViolationScaleExponent", 1.0)
+);
 scalar optVolumeConstraintWeight
 (
   convergenceControl.lookupOrDefault<scalar>("optVolumeConstraintWeight", 1.0)
@@ -229,6 +233,13 @@ if (optPowerConstraintWeight <= 0.0)
   FatalErrorInFunction
     << "tuneOptParameters.convergenceControl.optPowerConstraintWeight must be > 0. Found "
     << optPowerConstraintWeight
+    << exit(FatalError);
+}
+if (optPowerViolationScaleExponent < 0.0)
+{
+  FatalErrorInFunction
+    << "tuneOptParameters.convergenceControl.optPowerViolationScaleExponent must be >= 0. Found "
+    << optPowerViolationScaleExponent
     << exit(FatalError);
 }
 if (optVolumeConstraintWeight <= 0.0)

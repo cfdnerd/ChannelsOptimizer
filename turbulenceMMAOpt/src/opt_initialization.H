@@ -94,6 +94,9 @@ if (Pstream::master())
   writeRuntimeSwitch("usePowerConstraintRelaxation", usePowerConstraintRelaxation);
   writeRuntimeSwitch("useGCMMA", useGCMMA);
   writeRuntimeSwitch("useFullAdjointSymmetricStress", useFullAdjointSymmetricStress);
+  writeRuntimeOption("optPowerConstraintWeight", optPowerConstraintWeight);
+  writeRuntimeOption("optPowerViolationScaleExponent", optPowerViolationScaleExponent);
+  writeRuntimeOption("optVolumeConstraintWeight", optVolumeConstraintWeight);
 
   debugLogFile << "\n--- objectiveSwitches ---\n";
   writeRuntimeSwitch("useLogMeanTObjective", useLogMeanTObjective);

@@ -49,8 +49,8 @@ continuationSwitches
 // and constraint violation all remain small for several consecutive loops.
 convergenceControl
 {
-    optPowerConstraintWeight        8.0;
-    optPowerViolationScaleExponent  2.0;
+    optPowerConstraintWeight        6.0;
+    optPowerViolationScaleExponent  1.5;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

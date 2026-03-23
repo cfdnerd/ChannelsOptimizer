@@ -35,7 +35,7 @@ boundaryField
 
     Wall
     {
-        type            epsilonWallFunction;
+        type            fixedValue;
         value           uniform 1e-4;
     }
 

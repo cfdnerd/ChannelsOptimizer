@@ -44,8 +44,6 @@ int main(int argc, char *argv[])
             Ub.correctBoundaryConditions();
             pa.correctBoundaryConditions();
             pb.correctBoundaryConditions();
-            phia.correctBoundaryConditions();
-            phib.correctBoundaryConditions();
             Tb.correctBoundaryConditions();
         }
         #include "AdjointHeat_Tb.H"

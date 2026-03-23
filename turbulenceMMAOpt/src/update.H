@@ -16,11 +16,18 @@ if(fluid_area)
 }
 xh.correctBoundaryConditions();
 
+const scalar continuationPowerLimit =
+  usePowerConstraintRelaxation ? activePowerLimit : PowerDissMax;
+const scalar powerFeasibilityRatio =
+  continuationPowerLimit > SMALL ? PowerDiss/continuationPowerLimit : 0.0;
+const bool allowContinuationHardening =
+  powerFeasibilityRatio <= continuationFeasibilityTol;
+
 if(opt<=63)
 {
   alphaMax=alphamax*(opt*alphaRampEarlySlope+1.0);
 }
-if(opt>100)
+if(opt>100 && allowContinuationHardening)
 {
   alphaMax=alphaMax*alphaRampLateFactor;
 }
@@ -42,9 +49,12 @@ if (qContinuationInterval > 0 && opt >= qContinuationStartIter && ((opt - qConti
 
 if (!useStagnationTriggeredBeta)
 {
-  del = Foam::min(del + betaIncrement, betaMax);
+  if (allowContinuationHardening)
+  {
+    del = Foam::min(del + betaIncrement, betaMax);
+  }
 }
-else if (optimizerConvergedStreak > 0)
+else if (optimizerConvergedStreak > 0 && allowContinuationHardening)
 {
   del = Foam::min(del + betaIncrement, betaMax);
 }

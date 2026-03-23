@@ -55,6 +55,7 @@ if (Pstream::master())
   writeRuntimeOption("PowerDissMax", PowerDissMax);
   writeRuntimeOption("PowerDissRelax", PowerDissRelax);
   writeRuntimeOption("powerConstraintRelaxationRate", powerConstraintRelaxationRate);
+  writeRuntimeOption("continuationFeasibilityTol", continuationFeasibilityTol);
   writeRuntimeOption("filterR", filterR);
   writeRuntimeOption("GeoDim", GeoDim);
   writeRuntimeOption("Pnorm", Pnorm);

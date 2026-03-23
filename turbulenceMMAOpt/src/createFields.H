@@ -60,6 +60,10 @@ scalar powerConstraintRelaxationRate
 (
   optProperties.lookupOrDefault<scalar>("powerConstraintRelaxationRate", 0.2)
 );
+scalar continuationFeasibilityTol
+(
+  optProperties.lookupOrDefault<scalar>("continuationFeasibilityTol", 1.05)
+);
 scalar dAlphaPorosityEps
 (
   optProperties.lookupOrDefault<scalar>("dAlphaPorosityEps", 1e-3)

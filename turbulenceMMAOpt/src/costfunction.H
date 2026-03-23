@@ -1,6 +1,57 @@
 Info<<"cost function"<<endl;
 MeanT=fvc::domainIntegrate(T).value()/area;
+maxT=gMax(T);
 V=fvc::domainIntegrate(xh).value()/area-(voluse+0*Foam::max(0,0.5-opt*0.015));  
+varianceObjectiveValue = 0.0;
+ksObjectiveValue = MeanT;
+
+if (useKSHotspotObjective)
+{
+  scalar ksExpSumLocal(0);
+  forAll(T, i)
+  {
+    ksExpSumLocal += std::exp(ksRho*(T[i] - maxT))*mesh.V()[i];
+  }
+  reduce(ksExpSumLocal, sumOp<scalar>());
+  ksObjectiveValue = maxT + std::log(Foam::max(ksExpSumLocal/area, SMALL))/ksRho;
+  objectiveValueCurrent = ksObjectiveValue;
+  activeObjectiveLabel = "KSHotspot";
+}
+else if (useVarianceObjective)
+{
+  scalar weightedMeanLocal(0);
+  forAll(T, i)
+  {
+    weightedMeanLocal += T[i]*mesh.V()[i];
+  }
+  reduce(weightedMeanLocal, sumOp<scalar>());
+  const scalar weightedMean = weightedMeanLocal/area;
+  scalar varianceLocal(0);
+  forAll(T, i)
+  {
+    const scalar deltaT = T[i] - weightedMean;
+    varianceLocal += deltaT*deltaT*mesh.V()[i];
+  }
+  reduce(varianceLocal, sumOp<scalar>());
+  varianceObjectiveValue = varianceLocal/area;
+  objectiveValueCurrent = varianceObjectiveValue;
+  activeObjectiveLabel = "VarianceT";
+}
+else if (useLogMeanTObjective)
+{
+  objectiveValueCurrent = std::log(Foam::max(MeanT, Tref)/Foam::max(Tref, SMALL));
+  activeObjectiveLabel = "LogMeanT";
+}
+else if (objFunction == 2)
+{
+  objectiveValueCurrent = maxT;
+  activeObjectiveLabel = "PnormT";
+}
+else
+{
+  objectiveValueCurrent = MeanT;
+  activeObjectiveLabel = "MeanT";
+}
 
 PowerDiss=0;
 for (i=0; i<nObjPatch; i++)
@@ -48,7 +99,7 @@ if (Pstream::master())
       << std::setw(16) << PDActLog
       << std::setw(16) << PowerDiss
       << std::setw(16) << V
-      << std::setw(16) << MeanT
+      << std::setw(16) << objectiveValueCurrent
       << std::setw(16) << maxT
       << '\n';
 }

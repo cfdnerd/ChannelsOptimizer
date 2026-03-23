@@ -2,12 +2,14 @@ Info<< "Initialization\n" << endl;
 const char* optimizationHistoryFile = "optimization.hst";
 const char* debugOptimizerJsonFile = "debugOptimizer.jsonl";
 const char* debugOptimizerLogFile = "debugOptimizer.log";
+const char* gradientOptFile = "gradientOpt.log";
 const char* solverConvergenceFile = "solverConvergences.log";
 if (Pstream::master())
 {
   std::remove(optimizationHistoryFile);
   std::remove(debugOptimizerJsonFile);
   std::remove(debugOptimizerLogFile);
+  std::remove(gradientOptFile);
   std::remove(solverConvergenceFile);
   std::ofstream historyFile(optimizationHistoryFile, std::ios::out);
   historyFile
@@ -27,7 +29,22 @@ if (Pstream::master())
   debugLogFile
     << "# turbulenceMMAOpt optimizer debug log\n"
     << "# Structured per-iteration diagnostics for optimizer development\n"
-    << "# Format: sectioned human-readable report, one block per optimization iteration\n";
+    << "# Format: sectioned human-readable report, one block per optimization iteration\n"
+    << "\n[Runtime Option Dump]\n"
+    << "\n--- optProperties ---\n"
+    << optProperties
+    << "\n--- tuneOptParameters ---\n"
+    << tuneOptParameters
+    << "\n--- transportProperties ---\n"
+    << transportProperties
+    << "\n--- thermalProperties ---\n"
+    << thermalProperties
+    << "\n";
+
+  std::ofstream gradientLogFile(gradientOptFile, std::ios::out);
+  gradientLogFile
+    << "# turbulenceMMAOpt gradient and sensitivity diagnostics\n"
+    << "# Structured one-block-per-iteration report\n";
 
   std::ofstream solverConvergenceLogFile(solverConvergenceFile, std::ios::out);
   solverConvergenceLogFile
@@ -155,13 +172,20 @@ N=x.size();//N:design freedom
 reduce(N, sumOp<scalar>()); 
 
 scalar V(0),area=gSum(mesh.V()),MeanT(0),PowerDiss(0),PowerDissActual(0),PDActLog(0),PowerDissActualOverBase(0),maxT(0),sumT(0);
+scalar objectiveValueCurrent(0);
+scalar ksObjectiveValue(0);
+scalar varianceObjectiveValue(0);
 scalar previousObjectiveValue(0);
 bool hasPreviousObjectiveValue(false);
 bool stopOptimization(false);
 label optimizerConvergedStreak(0);
 word optimizerStopReason("running");
+word activeObjectiveLabel("MeanT");
+word activeWallDistanceMode("meshWave");
+word activeTurbulenceModelMode("kEpsilon");
 double len=std::pow(area/N, 1.0/3);
 b.value()=1.0/(filterR*len/3.464)/(filterR*len/3.464);
+del=beta0;
 //***********************************//MMA
 int m=2;//number of constraint
 MMA mma(n,m);

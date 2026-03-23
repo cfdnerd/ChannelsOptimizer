@@ -40,6 +40,172 @@ Switch fluid_area(optProperties.lookup("fluid_area"));
 Switch test_area(optProperties.lookup("test_area"));
 scalar Pnorm(readScalar(optProperties.lookup("Pnorm")));
 scalar objFunction(readScalar(optProperties.lookup("objFunction")));
+scalar qAlpha0(optProperties.lookupOrDefault<scalar>("qAlpha0", 0.1));
+scalar qAlphaMin(optProperties.lookupOrDefault<scalar>("qAlphaMin", 1e-3));
+scalar qKappa0(optProperties.lookupOrDefault<scalar>("qKappa0", 0.1));
+scalar qKappaMin(optProperties.lookupOrDefault<scalar>("qKappaMin", 1e-3));
+scalar qHeat0(optProperties.lookupOrDefault<scalar>("qHeat0", 0.1));
+scalar qHeatMin(optProperties.lookupOrDefault<scalar>("qHeatMin", 1e-3));
+scalar qSingle0(optProperties.lookupOrDefault<scalar>("qSingle0", 0.1));
+scalar qSingleMin(optProperties.lookupOrDefault<scalar>("qSingleMin", 1e-3));
+label qContinuationStartIter(optProperties.lookupOrDefault<label>("qContinuationStartIter", 20));
+label qContinuationInterval(optProperties.lookupOrDefault<label>("qContinuationInterval", 10));
+scalar qContinuationFactor(optProperties.lookupOrDefault<scalar>("qContinuationFactor", 0.9));
+scalar beta0(optProperties.lookupOrDefault<scalar>("beta0", 0.2));
+scalar betaMax(optProperties.lookupOrDefault<scalar>("betaMax", 100.0));
+scalar betaIncrement(optProperties.lookupOrDefault<scalar>("betaIncrement", 0.2));
+scalar alphaRampEarlySlope(optProperties.lookupOrDefault<scalar>("alphaRampEarlySlope", 1.0/7.0));
+scalar alphaRampLateFactor(optProperties.lookupOrDefault<scalar>("alphaRampLateFactor", 1.05));
+scalar powerConstraintRelaxationRate
+(
+  optProperties.lookupOrDefault<scalar>("powerConstraintRelaxationRate", 0.2)
+);
+scalar dAlphaPorosityEps
+(
+  optProperties.lookupOrDefault<scalar>("dAlphaPorosityEps", 1e-3)
+);
+
+dictionary frameworkSwitches;
+if (tuneOptParameters.found("frameworkSwitches"))
+{
+  frameworkSwitches = tuneOptParameters.subDict("frameworkSwitches");
+}
+dictionary objectiveSwitches;
+if (tuneOptParameters.found("objectiveSwitches"))
+{
+  objectiveSwitches = tuneOptParameters.subDict("objectiveSwitches");
+}
+dictionary continuationSwitches;
+if (tuneOptParameters.found("continuationSwitches"))
+{
+  continuationSwitches = tuneOptParameters.subDict("continuationSwitches");
+}
+
+Switch useFrozenTurbulenceAdjoint
+(
+  frameworkSwitches.lookupOrDefault<Switch>("useFrozenTurbulenceAdjoint", true)
+);
+Switch useKEpsilonModel
+(
+  frameworkSwitches.lookupOrDefault<Switch>("useKEpsilonModel", true)
+);
+Switch useWrayAgarwalFallback
+(
+  frameworkSwitches.lookupOrDefault<Switch>("useWrayAgarwalFallback", false)
+);
+Switch usePorosityWallDistance
+(
+  frameworkSwitches.lookupOrDefault<Switch>("usePorosityWallDistance", true)
+);
+Switch useMeshWaveWallDistanceFallback
+(
+  frameworkSwitches.lookupOrDefault<Switch>("useMeshWaveWallDistanceFallback", false)
+);
+Switch useBrinkmanSinkInKEpsilon
+(
+  frameworkSwitches.lookupOrDefault<Switch>("useBrinkmanSinkInKEpsilon", true)
+);
+Switch useSplitRAMPControls
+(
+  frameworkSwitches.lookupOrDefault<Switch>("useSplitRAMPControls", true)
+);
+Switch useSingleQFallback
+(
+  frameworkSwitches.lookupOrDefault<Switch>("useSingleQFallback", false)
+);
+Switch useTurbulentThermalDiffusivity
+(
+  frameworkSwitches.lookupOrDefault<Switch>("useTurbulentThermalDiffusivity", true)
+);
+Switch usePowerConstraintRelaxation
+(
+  frameworkSwitches.lookupOrDefault<Switch>("usePowerConstraintRelaxation", true)
+);
+Switch useGCMMA
+(
+  frameworkSwitches.lookupOrDefault<Switch>("useGCMMA", false)
+);
+Switch useFullAdjointSymmetricStress
+(
+  frameworkSwitches.lookupOrDefault<Switch>("useFullAdjointSymmetricStress", true)
+);
+Switch useLogMeanTObjective
+(
+  objectiveSwitches.lookupOrDefault<Switch>("useLogMeanTObjective", false)
+);
+Switch useKSHotspotObjective
+(
+  objectiveSwitches.lookupOrDefault<Switch>("useKSHotspotObjective", false)
+);
+Switch useVarianceObjective
+(
+  objectiveSwitches.lookupOrDefault<Switch>("useVarianceObjective", false)
+);
+Switch useRobustMultiCaseObjective
+(
+  objectiveSwitches.lookupOrDefault<Switch>("useRobustMultiCaseObjective", false)
+);
+Switch useStagnationTriggeredBeta
+(
+  continuationSwitches.lookupOrDefault<Switch>("useStagnationTriggeredBeta", false)
+);
+
+if (useGCMMA)
+{
+  FatalErrorInFunction
+    << "useGCMMA=true is not implemented in turbulenceMMAOpt yet."
+    << exit(FatalError);
+}
+if (useWrayAgarwalFallback || !useKEpsilonModel)
+{
+  FatalErrorInFunction
+    << "The Wray-Agarwal fallback path is not implemented yet. "
+    << "Use the baseline kEpsilon branch with useKEpsilonModel=true and useWrayAgarwalFallback=false."
+    << exit(FatalError);
+}
+if (!useFrozenTurbulenceAdjoint)
+{
+  FatalErrorInFunction
+    << "Non-frozen turbulence adjoint mode is not implemented yet. "
+    << "Keep useFrozenTurbulenceAdjoint=true for the baseline turbulent MMA branch."
+    << exit(FatalError);
+}
+if (useSplitRAMPControls && useSingleQFallback)
+{
+  FatalErrorInFunction
+    << "useSplitRAMPControls and useSingleQFallback cannot both be true."
+    << exit(FatalError);
+}
+if (!useSplitRAMPControls && !useSingleQFallback)
+{
+  FatalErrorInFunction
+    << "Either useSplitRAMPControls or useSingleQFallback must be true."
+    << exit(FatalError);
+}
+if (!usePorosityWallDistance && !useMeshWaveWallDistanceFallback)
+{
+  FatalErrorInFunction
+    << "At least one wall-distance mode must be enabled."
+    << exit(FatalError);
+}
+
+label objectiveModeCount = 0;
+objectiveModeCount += useLogMeanTObjective ? 1 : 0;
+objectiveModeCount += useKSHotspotObjective ? 1 : 0;
+objectiveModeCount += useVarianceObjective ? 1 : 0;
+if (objectiveModeCount > 1)
+{
+  FatalErrorInFunction
+    << "Only one primary thermal objective may be active at a time."
+    << exit(FatalError);
+}
+if (useRobustMultiCaseObjective)
+{
+  FatalErrorInFunction
+    << "useRobustMultiCaseObjective=true is not implemented yet for turbulenceMMAOpt."
+    << exit(FatalError);
+}
+
 const dictionary& convergenceControl = tuneOptParameters.subDict("convergenceControl");
 label optMinIterations(convergenceControl.lookupOrDefault<label>("optMinIterations", 50));
 label optStallWindow(convergenceControl.lookupOrDefault<label>("optStallWindow", 5));
@@ -147,6 +313,20 @@ volScalarField gsensVol
     zeroGradientFvPatchScalarField::typeName
 );
 volScalarField gsenshVol(xh);
+volScalarField gsensVolRaw
+(
+    IOobject
+    (
+        "gsensVolRaw",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", dimless, 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
 
 // find the cells on the boundary
 dictionary conFunc = mesh.solutionDict().subDict("constraintFunctionDict_flow");

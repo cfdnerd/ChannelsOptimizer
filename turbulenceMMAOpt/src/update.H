@@ -18,17 +18,35 @@ xh.correctBoundaryConditions();
 
 if(opt<=63)
 {
-  alphaMax=alphamax*(opt/7.0+1.0);
+  alphaMax=alphamax*(opt*alphaRampEarlySlope+1.0);
 }
 if(opt>100)
 {
-  alphaMax=alphaMax*1.05;
+  alphaMax=alphaMax*alphaRampLateFactor;
 }
 alphaMax.value()=Foam::min(alphaMax.value(),alphaMAX.value());
-if(opt>=80)
+
+if (qContinuationInterval > 0 && opt >= qContinuationStartIter && ((opt - qContinuationStartIter) % qContinuationInterval == 0))
 {
-  qu=0.005+(opt-80)*1e-4;
+  if (useSplitRAMPControls)
+  {
+    qAlpha = Foam::max(qAlpha*qContinuationFactor, qAlphaMin);
+    qKappa = Foam::max(qKappa*qContinuationFactor, qKappaMin);
+    qHeat = Foam::max(qHeat*qContinuationFactor, qHeatMin);
+  }
+  else
+  {
+    qSingle = Foam::max(qSingle*qContinuationFactor, qSingleMin);
+  }
 }
-qu=Foam::min(qu,0.01);
-alpha=alphaMax*qu*(1-xh)/(qu+xh);
-DT=(ks+(kf-ks)*xh*(1+qu)/(qu+xh))/rhoCp;
+
+if (!useStagnationTriggeredBeta)
+{
+  del = Foam::min(del + betaIncrement, betaMax);
+}
+else if (optimizerConvergedStreak > 0)
+{
+  del = Foam::min(del + betaIncrement, betaMax);
+}
+
+#include "updateInterpolationFields.H"

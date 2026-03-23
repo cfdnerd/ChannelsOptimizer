@@ -9,18 +9,26 @@ for(i=0;i<n;i++)
  xhOld[i]=xh[i];
 }
 
-fsenshMeanT=-alphaMax*(1+qu)*qu/((qu+xh)*(qu+xh))*(U&Ub)+b1*(kf-ks)*(1+qu)*qu/((qu+xh)*(qu+xh))*(fvc::grad(T)&fvc::grad(Tb))/rhoCp;
+fsenshMeanT=alphaSensCoeff*(U&Ub)+b1*kappaSensCoeff*(fvc::grad(T)&fvc::grad(Tb));
 if(DDHS)//design dependent heat source
 {
- fsenshMeanT += b1*Tb*thermalSource;
+ fsenshMeanT -= b1*Tb*thermalSource*heatSourceSensCoeff;
 }
-gsenshPowerDiss=-alphaMax*(1+qu)*qu/((qu+xh)*(qu+xh))*(U&Ua);
+gsenshPowerDiss=alphaSensCoeff*(U&Ua);
+gsensVolRaw = dimensionedScalar("one", dimless, 1.0);
+fsensMeanTRaw = fsenshMeanT;
+gsensPowerDissRaw = gsenshPowerDiss;
 
 
 #include "filter_chainrule.H"
 
+const scalar powerLimit =
+  usePowerConstraintRelaxation
+  ? Foam::max(PowerDissRelax - opt*powerConstraintRelaxationRate, PowerDissMax)
+  : PowerDissMax;
+activePowerLimit = powerLimit;
 const scalar weightedPowerConstraint =
-  optPowerConstraintWeight*(PowerDiss/Foam::max(PowerDissRelax-opt*0.2,PowerDissMax)-1.0);
+  optPowerConstraintWeight*(PowerDiss/powerLimit-1.0);
 const scalar weightedVolumeConstraint = optVolumeConstraintWeight*V;
 gx[0]=weightedPowerConstraint;
 gx[1]=weightedVolumeConstraint;
@@ -42,5 +50,7 @@ for(i=0;i<n;i++)
 }
 
 #include "filter_x.H"
+#include "updateInterpolationFields.H"
+#include "gradientOptWrite.H"
 #include "debugOptimizer.H"
 #include "solverConvergenceWrite.H"

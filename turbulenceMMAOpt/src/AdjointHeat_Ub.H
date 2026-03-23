@@ -1,12 +1,31 @@
 for(i=0;i<40;i++)
 {    
 volVectorField adjointTransposeConvectionb((fvc::grad(U) & Ub));
+volVectorField explicitAdjointStressCorrectionB
+(
+    IOobject
+    (
+        "explicitAdjointStressCorrectionB",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    mesh,
+    dimensionedVector("zero", dimensionSet(0,1,-2,0,0,0,0), vector::zero)
+);
+if (useFullAdjointSymmetricStress)
+{
+    explicitAdjointStressCorrectionB =
+      -fvc::div(nuEffAdjoint*Foam::T(fvc::grad(Ub)));
+}
 
 tmp<fvVectorMatrix> tUbEqn
 (
     fvm::div(-phi, Ub)
   + adjointTransposeConvectionb
-  - fvm::laplacian(nu,Ub)
+  - fvm::laplacian(nuEffAdjoint,Ub)
+  + explicitAdjointStressCorrectionB
   + fvm::Sp(alpha, Ub)
   + b1*Tb*fvc::grad(T)
  ==

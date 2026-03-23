@@ -4,14 +4,7 @@ fvScalarMatrix TEqn
     fvm::div(phi,T)
    -fvm::laplacian(DT, T)
 );
-if(DDHS)
-{
- TEqn-=thermalSource*(1-xh);
-}
-else
-{
- TEqn-=thermalSource;
-}
+TEqn -= thermalSourceField;
 const auto TLinearSolvePerformance = TEqn.solve();
 recordLinearSolve
 (

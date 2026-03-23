@@ -71,7 +71,7 @@ solvers
         nCellsInCoarsestLevel 20;
         maxIter         20000;
     }
-     "(xp|fsensMeanT|gsensVol|gsensPowerDiss)"
+     "(xp|dAlpha2|fsensMeanT|gsensVol|gsensPowerDiss)"
     {
         solver          PCG;
         preconditioner  DIC;

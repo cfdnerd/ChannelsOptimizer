@@ -220,20 +220,8 @@ const scalar fsensL2 = std::sqrt(fsensL2Local);
 const scalar gsensPowerL2 = std::sqrt(gsensPowerL2Local);
 const scalar gsensVolL2 = std::sqrt(gsensVolL2Local);
 
-scalar objectiveValue = MeanT;
-word objectiveLabel("MeanT");
-if (objFunction == 2)
-{
-  objectiveLabel = "PnormT";
-  if (maxT > SMALL)
-  {
-    objectiveValue = maxT*std::pow(objectivePnormSumLocal, 1.0/Pnorm);
-  }
-  else
-  {
-    objectiveValue = 0;
-  }
-}
+scalar objectiveValue = objectiveValueCurrent;
+word objectiveLabel(activeObjectiveLabel);
 const scalar objectiveDelta = hasPreviousObjectiveValue ? objectiveValue - previousObjectiveValue : 0;
 previousObjectiveValue = objectiveValue;
 hasPreviousObjectiveValue = true;
@@ -360,7 +348,7 @@ if (Pstream::master())
   writeRow("xh step", "max="+fmtScalar(maxAbsXhChangeLocal), "l2="+fmtScalar(l2XhChange), "l2/sqrtN="+fmtScalar(normalizedL2XhChange));
 
   writeSectionHeader("Filter Diagnostics");
-  writeRow("projection", "del="+fmtScalar(del), "eta5="+fmtScalar(eta5));
+  writeRow("projection", "beta="+fmtScalar(del), "eta5="+fmtScalar(eta5));
   writeRow("drho bounds", "min="+fmtScalar(drhoLocalMin), "max="+fmtScalar(drhoLocalMax));
   writeRow("obj sens", "min="+fmtScalar(fsensLocalMin), "max="+fmtScalar(fsensLocalMax));
   writeRow("power sens", "min="+fmtScalar(gsensPowerLocalMin), "max="+fmtScalar(gsensPowerLocalMax));
@@ -368,7 +356,7 @@ if (Pstream::master())
 
   writeSectionHeader("Objective And Constraints");
   writeRow("objective", "value="+fmtScalar(objectiveValue), "delta="+fmtScalar(objectiveDelta));
-  writeRow("power diss", "actual="+fmtScalar(PowerDissActual), "act/base="+fmtScalar(PowerDissActualOverBase), "constraint="+fmtScalar(PowerDiss), "margin="+fmtScalar(powerConstraintMargin));
+  writeRow("power diss", "actual="+fmtScalar(PowerDissActual), "act/base="+fmtScalar(PowerDissActualOverBase), "constraint="+fmtScalar(PowerDiss), "limit="+fmtScalar(activePowerLimit));
   writeRow("volume", "value="+fmtScalar(V), "margin="+fmtScalar(volumeConstraintMargin));
   writeRow("thermal", "meanT="+fmtScalar(MeanT), "maxT="+fmtScalar(maxT));
 
@@ -390,7 +378,8 @@ if (Pstream::master())
 
   writeSectionHeader("Interpolation Diagnostics");
   writeRow("interp bounds", "alphaMin="+fmtScalar(alphaLocalMin), "alphaMax="+fmtScalar(alphaLocalMax), "DTMin="+fmtScalar(DTLocalMin), "DTMax="+fmtScalar(DTLocalMax));
-  writeRow("continuation", "alphaMax="+fmtScalar(alphaMax.value()), "qu="+fmtScalar(qu));
+  writeRow("continuation", "alphaMax="+fmtScalar(alphaMax.value()), "qAlpha="+fmtScalar(qAlpha), "qKappa="+fmtScalar(qKappa), "qHeat="+fmtScalar(qHeat));
+  writeRow("modes", "objective="+std::string(activeObjectiveLabel.c_str()), "wallDist="+std::string(activeWallDistanceMode.c_str()), "turbulence="+std::string(activeTurbulenceModelMode.c_str()), "beta="+fmtScalar(del));
   writeRow("thermal props", "heatSource="+fmtScalar(heatSource.value()), "thermalSrc="+fmtScalar(thermalSource.value()), "rhoCp="+fmtScalar(rhoCp.value()));
 
   std::ofstream debugJsonFile(debugOptimizerJsonFile, std::ios::app);
@@ -435,8 +424,8 @@ if (Pstream::master())
       << ",\"xhStepMax\":" << maxAbsXhChangeLocal
       << ",\"xhStepL2\":" << l2XhChange
     << "}"
-    << ",\"filter\":{"
-      << "\"del\":" << del
+      << ",\"filter\":{"
+      << "\"beta\":" << del
       << ",\"eta5\":" << eta5
       << ",\"drhoMin\":" << drhoLocalMin
       << ",\"drhoMax\":" << drhoLocalMax
@@ -447,7 +436,7 @@ if (Pstream::master())
       << ",\"volumeConstraintSensitivityFilteredMin\":" << gsensVolLocalMin
       << ",\"volumeConstraintSensitivityFilteredMax\":" << gsensVolLocalMax
     << "}"
-    << ",\"objective\":{"
+      << ",\"objective\":{"
       << "\"name\":\"" << objectiveLabel << "\""
       << ",\"value\":" << objectiveValue
       << ",\"delta\":" << objectiveDelta
@@ -501,13 +490,18 @@ if (Pstream::master())
       << ",\"pbMin\":" << pbLocalMin
       << ",\"pbMax\":" << pbLocalMax
     << "}"
-    << ",\"interpolation\":{"
+      << ",\"interpolation\":{"
       << "\"alphaMin\":" << alphaLocalMin
       << ",\"alphaMax\":" << alphaLocalMax
       << ",\"dtMin\":" << DTLocalMin
       << ",\"dtMax\":" << DTLocalMax
       << ",\"alphaMaxSchedule\":" << alphaMax.value()
-      << ",\"qu\":" << qu
+      << ",\"qAlpha\":" << qAlpha
+      << ",\"qKappa\":" << qKappa
+      << ",\"qHeat\":" << qHeat
+      << ",\"beta\":" << del
+      << ",\"wallDistanceMode\":\"" << activeWallDistanceMode << "\""
+      << ",\"turbulenceModelMode\":\"" << activeTurbulenceModelMode << "\""
       << ",\"heatSource\":" << heatSource.value()
       << ",\"thermalSource\":" << thermalSource.value()
       << ",\"rhoCp\":" << rhoCp.value()

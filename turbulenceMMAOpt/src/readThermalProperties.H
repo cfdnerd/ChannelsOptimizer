@@ -19,6 +19,9 @@ dimensionedScalar thermalSource("thermalSource", heatSource/rhoCp);//temperature
 dimensionedScalar unitThermalSource("unitThermalSource", thermalSource.dimensions(), 1.0);//unit source used for adjoint forcing
 dimensionedScalar b2("b2", dimensionSet(0,0,-1,2-Pnorm,0,0,0),1);
 Switch DDHS(thermalProperties.lookup("DDHS"));//design dependent heat source
+scalar Prt(thermalProperties.lookupOrDefault<scalar>("Prt", 0.85));
+scalar Tref(thermalProperties.lookupOrDefault<scalar>("Tref", 1.0));
+scalar ksRho(thermalProperties.lookupOrDefault<scalar>("ksRho", 25.0));
 volScalarField DT
 (
     IOobject
@@ -27,9 +30,67 @@ volScalarField DT
         runTime.timeName(),
         mesh,
         IOobject::READ_IF_PRESENT,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", nu.dimensions(), 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField thermalSourceField
+(
+    IOobject
+    (
+        "thermalSourceField",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", thermalSource.dimensions(), 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField turbulentDT
+(
+    IOobject
+    (
+        "turbulentDT",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", nu.dimensions(), 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField heatSourceSensCoeff
+(
+    IOobject
+    (
+        "heatSourceSensCoeff",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
         IOobject::NO_WRITE
     ),
-    (ks+(kf-ks)*xh*(1+qu)/(qu+xh))/rhoCp
+    mesh,
+    dimensionedScalar("zero", dimless, 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField kappaSensCoeff
+(
+    IOobject
+    (
+        "kappaSensCoeff",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", (kf/rhoCp).dimensions(), 0.0),
+    zeroGradientFvPatchScalarField::typeName
 );
 Info<< "Reading field T\n" << endl;
     volScalarField T
@@ -68,7 +129,22 @@ volScalarField fsensMeanT
         IOobject::NO_READ,
         IOobject::NO_WRITE
     ),
-    -alphaMax*(1+qu)*qu/((qu+xh)*(qu+xh))*(U&Ub),
+    mesh,
+    dimensionedScalar("zero", alphaMax.dimensions(), 0.0),
     zeroGradientFvPatchScalarField::typeName
 );
 volScalarField fsenshMeanT(fsensMeanT);
+volScalarField fsensMeanTRaw
+(
+    IOobject
+    (
+        "fsensMeanTRaw",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", alphaMax.dimensions(), 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);

@@ -107,6 +107,11 @@ if (Pstream::master())
   debugLogFile << "\n--- continuationSwitches ---\n";
   writeRuntimeSwitch("useStagnationTriggeredBeta", useStagnationTriggeredBeta);
 
+  debugLogFile << "\n--- adjointControl ---\n";
+  writeRuntimeOption("adjointMomentumSweeps", adjointMomentumSweeps);
+  writeRuntimeSwitch("resetAdjointsEachIteration", resetAdjointsEachIteration);
+  writeRuntimeSwitch("stopOnAdjointRunaway", stopOnAdjointRunaway);
+
   debugLogFile << "\n--- convergenceControl ---\n";
   writeRuntimeOption("optMinIterations", optMinIterations);
   writeRuntimeOption("optStallWindow", optStallWindow);

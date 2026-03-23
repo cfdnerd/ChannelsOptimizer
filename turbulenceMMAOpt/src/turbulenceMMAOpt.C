@@ -30,6 +30,7 @@ int main(int argc, char *argv[])
         #include "Primal_U.H"
         #include "Primal_kEpsilon.H"
         #include "Primal_T.H"
+        #include "resetAdjoints.H"
         #include "AdjointHeat_Tb.H"
         #include "AdjointHeat_Ub.H"
         #include "AdjointFlow_Ua.H"

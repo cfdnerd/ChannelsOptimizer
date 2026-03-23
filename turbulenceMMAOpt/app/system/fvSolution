@@ -17,7 +17,7 @@ FoamFile
 
 solvers
 {
-    "(p|pa|pb|pc)"
+    "(p|pc)"
     {
         solver          GAMG;
         tolerance       1e-10;
@@ -31,13 +31,36 @@ solvers
         nFinestSweeps   2;
         maxIter         5000;
     }
+    "(pa|pb)"
+    {
+        solver          GAMG;
+        tolerance       1e-10;
+        relTol          0;
+        smoother        GaussSeidel;
+        cacheAgglomeration true;
+        agglomerator    faceAreaPair;
+        mergeLevels     1;
+        nPreSweeps      0;
+        nPostSweeps     4;
+        nFinestSweeps   4;
+        maxIter         5000;
+    }
 
-    "(U|Ua|Ub|Uc|k|epsilon)"
+    "(U|Uc|k|epsilon)"
     {
         solver          smoothSolver;
         smoother        symGaussSeidel;
         nSweeps         2;
         tolerance       1e-9;
+        relTol          0;
+        maxIter         5000;
+    }
+    "(Ua|Ub)"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        nSweeps         1;
+        tolerance       1e-10;
         relTol          0;
         maxIter         5000;
     }
@@ -90,12 +113,14 @@ relaxationFactors
 {
     fields
     {
-        "(p|pa|pb|pc)"     0.3;
+        "(p|pc)"        0.3;
+        "(pa|pb)"       0.2;
         alpha           0.1;
     }
     equations
     {
-        "(U|Ua|Ub|Uc)"     0.7;
+        "(U|Uc)"        0.7;
+        "(Ua|Ub)"       0.3;
         "(k|epsilon)"   0.7;
     }
 }

@@ -1,5 +1,5 @@
 Info<< "adjoint flow momentum solve" << endl;
-for(i=0;i<40;i++)
+for(i=0;i<adjointMomentumSweeps;i++)
 { 
   volVectorField adjointTransposeConvectiona((fvc::grad(U) & Ua));
   volVectorField explicitAdjointStressCorrectionA

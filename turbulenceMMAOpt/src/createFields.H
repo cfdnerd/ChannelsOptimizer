@@ -84,6 +84,11 @@ if (tuneOptParameters.found("continuationSwitches"))
 {
   continuationSwitches = tuneOptParameters.subDict("continuationSwitches");
 }
+dictionary adjointControl;
+if (tuneOptParameters.found("adjointControl"))
+{
+  adjointControl = tuneOptParameters.subDict("adjointControl");
+}
 
 Switch useFrozenTurbulenceAdjoint
 (
@@ -153,11 +158,30 @@ Switch useStagnationTriggeredBeta
 (
   continuationSwitches.lookupOrDefault<Switch>("useStagnationTriggeredBeta", false)
 );
+label adjointMomentumSweeps
+(
+  adjointControl.lookupOrDefault<label>("adjointMomentumSweeps", 20)
+);
+Switch resetAdjointsEachIteration
+(
+  adjointControl.lookupOrDefault<Switch>("resetAdjointsEachIteration", true)
+);
+Switch stopOnAdjointRunaway
+(
+  adjointControl.lookupOrDefault<Switch>("stopOnAdjointRunaway", true)
+);
 
 if (useGCMMA)
 {
   FatalErrorInFunction
     << "useGCMMA=true is not implemented in turbulenceMMAOpt yet."
+    << exit(FatalError);
+}
+if (adjointMomentumSweeps <= 0)
+{
+  FatalErrorInFunction
+    << "adjointControl.adjointMomentumSweeps must be > 0. Found "
+    << adjointMomentumSweeps
     << exit(FatalError);
 }
 if (useWrayAgarwalFallback || !useKEpsilonModel)

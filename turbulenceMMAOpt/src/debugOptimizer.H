@@ -274,6 +274,12 @@ const bool convergenceCandidate =
 optimizerConvergedStreak = convergenceCandidate ? optimizerConvergedStreak + 1 : 0;
 stopOptimization = optimizerConvergedStreak >= optStallWindow;
 optimizerStopReason = stopOptimization ? word("converged") : word("running");
+if (adjointRunaway && stopOnAdjointRunaway)
+{
+  stopOptimization = true;
+  optimizerConvergedStreak = 0;
+  optimizerStopReason = word("adjointRunaway");
+}
 
 if (Pstream::master())
 {
@@ -382,7 +388,7 @@ if (Pstream::master())
   writeRow("volume", "min="+fmtScalar(gsensVolLocalMin), "max="+fmtScalar(gsensVolLocalMax), "l2="+fmtScalar(gsensVolL2), "nonFinite="+fmtCount(gsensVolNonFiniteCountLocal));
 
   writeSectionHeader("Solver Diagnostics");
-  writeRow("config", "primal=60", "adjPower=40", "adjHeat=40");
+  writeRow("config", "primal=60", "adjPower="+fmtCount(adjointMomentumSweeps), "adjHeat="+fmtCount(adjointMomentumSweeps));
   writeRow("primal flow", "|U|max="+fmtScalar(UMaxMagLocal), "|U|mean="+fmtScalar(UMeanMag), "pMin="+fmtScalar(pLocalMin), "pMax="+fmtScalar(pLocalMax));
   writeRow("thermal field", "TMin="+fmtScalar(TLocalMin), "TMax="+fmtScalar(TLocalMax));
   writeRow("adjoint power", "|Ua|max="+fmtScalar(UaMaxMagLocal), "|Ua|mean="+fmtScalar(UaMeanMag), "paMin="+fmtScalar(paLocalMin), "paMax="+fmtScalar(paLocalMax));
@@ -486,8 +492,8 @@ if (Pstream::master())
     << "}"
     << ",\"solver\":{"
       << "\"primalFlowSweeps\":" << 60
-      << ",\"adjointFlowPowerSweeps\":" << 40
-      << ",\"adjointFlowHeatSweeps\":" << 40
+      << ",\"adjointFlowPowerSweeps\":" << adjointMomentumSweeps
+      << ",\"adjointFlowHeatSweeps\":" << adjointMomentumSweeps
       << ",\"uMaxMag\":" << UMaxMagLocal
       << ",\"uMeanMag\":" << UMeanMag
       << ",\"pMin\":" << pLocalMin

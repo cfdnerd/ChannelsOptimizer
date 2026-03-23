@@ -1,5 +1,5 @@
 Info<< "adjoint heat momentum solve" << endl;
-for(i=0;i<40;i++)
+for(i=0;i<adjointMomentumSweeps;i++)
 {    
 volVectorField adjointTransposeConvectionb((fvc::grad(U) & Ub));
 volVectorField explicitAdjointStressCorrectionB

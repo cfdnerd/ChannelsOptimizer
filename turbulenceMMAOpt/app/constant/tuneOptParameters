@@ -44,6 +44,13 @@ continuationSwitches
     useStagnationTriggeredBeta      false;
 }
 
+adjointControl
+{
+    adjointMomentumSweeps           20;
+    resetAdjointsEachIteration      true;
+    stopOnAdjointRunaway            true;
+}
+
 // Optimizer stopping controls.
 // The optimizer exits early only after the design step, objective drift,
 // and constraint violation all remain small for several consecutive loops.

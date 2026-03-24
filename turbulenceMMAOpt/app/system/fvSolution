@@ -138,9 +138,6 @@ relaxationFactors
     {
         "(U|Uc)"        0.7;
         "(Ua|Ub)"       0.3;
-        T               0.7;
-        Ta              0.7;
-        Tb              0.3;
         "(k|epsilon)"   0.7;
     }
 }

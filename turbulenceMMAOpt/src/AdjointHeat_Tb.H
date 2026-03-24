@@ -90,20 +90,10 @@ const scalar varianceMean = varianceMeanLocal/area;
    }
 }
 
-// Keep a tiny implicit sink on Tb so the adjoint thermal matrix stays away
-// from singular/coarsest-level breakdown in the linear solver.
-const dimensionedScalar tbSolveRegularization
-(
-   "tbSolveRegularization",
-   unitThermalSource.dimensions()/Tb.dimensions(),
-   1e-6
-);
-
 fvScalarMatrix TEqnb
 (
    -fvm::div(-phi,Tb) 
    +fvm::laplacian(DT, Tb)
-   +fvm::Sp(tbSolveRegularization, Tb)
 );
 {
    scalar adjointThermalRhsMin = GREAT;
@@ -221,7 +211,6 @@ else
    activeObjectiveLabel = "MeanT";
    TEqnb -= unitThermalSource;
 }
-TEqnb.relax();
 // Anchor the scalar adjoint solve explicitly so parallel coarse levels do not
 // inherit a near-nullspace when the outlet behaves close to pure Neumann.
 TEqnb.setReference(0, 0.0);
@@ -251,7 +240,6 @@ TEqnb.setReference(0, 0.0);
    Info<< "adjoint thermal matrix stats: diag[min,max]=(" << adjointThermalDiagMin
        << ", " << adjointThermalDiagMax << ") absMin=" << adjointThermalDiagAbsMin
        << " nonFinite=" << adjointThermalDiagNonFinite
-       << " regularization=" << tbSolveRegularization.value()
        << " referenceCell=0 referenceValue=0"
        << endl;
 

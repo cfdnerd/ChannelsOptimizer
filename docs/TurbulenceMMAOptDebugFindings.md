@@ -578,6 +578,60 @@ Logging support:
   - `interpolation.continuationCeilingActive`
   - `interpolation.stopContinuationHardeningBelowGrayFraction`
 
+### Verified Ceiling-Controlled Run Through `Iter 200`
+
+The latest complete `optimizerlogs/` set now verifies that the ceiling-controlled
+`betaFloorGrayRamp` path can run cleanly through the current `200`-iteration
+budget without the old late `Ub/pb` runaway.
+
+Validated run facts:
+
+- `debugOptimizer.jsonl` reaches `Iter 200`
+- `solverConvergences.log` reaches `Optimization Iteration : 200`
+- `runLOG` ends with `Finalising parallel run`
+- the run does not stop with `adjointRunaway`
+- the intermediate dimension-mismatch abort seen during one patching attempt is
+  not the latest state and should not be used as the current reference run
+
+Observed behavior:
+
+- gray fraction still collapses strongly:
+  - `Iter 1`: gray about `0.923`
+  - `Iter 60`: gray about `0.537`
+  - `Iter 88`: gray about `0.388`
+  - `Iter 126`: gray about `0.209`
+  - `Iter 132`: gray about `0.0236`
+  - minimum gray about `0.0147` at `Iter 165`
+  - `Iter 200`: gray about `0.0163`
+- the hardening ceiling activates as intended at `Iter 132`
+- after `Iter 132`, `beta` stays frozen at `26.6`
+- after `Iter 132`, `hardeningEnabled=0` while the feasibility gate remains open
+- once the design is already nearly binary, thermal performance starts to
+  recover instead of blowing up:
+  - `MeanT` drops from about `53.9` at `Iter 132` to about `42.1` at `Iter 200`
+  - `MaxT` drops from about `116.3` at `Iter 132` to about `93.3` at `Iter 200`
+- power feasibility remains healthy and continues improving:
+  - `PDCon` drops to about `1.58` by `Iter 200`
+- the heat adjoint stays bounded:
+  - maximum observed `Ub/U` in the run is only about `1.79e-01`
+  - this is far below the runaway limit of `1e6`
+- `Tb adjoint thermal` remains solver-healthy in the late run and is still `OK`
+  at `Iter 200`
+
+Interpretation:
+
+- the gray-suppression goal is now achieved on the current best candidate path
+- the late-stage ceiling does not merely delay the old failure mode; it
+  successfully prevents the previous heat-adjoint runaway through the full
+  current run horizon
+- the main unresolved question is no longer whether gray fraction can collapse
+- the next refinement question is whether the post-ceiling nearly-binary regime
+  can improve objective quality faster, or reduce the residual gray plateau near
+  `~0.016`, without reintroducing late instability
+- according to the experiment plan, this result does not justify moving on to
+  `ungatedGrayRamp`; the correct course remains to refine the
+  `betaFloorGrayRamp` path
+
 ### Fast Triage Rules For Future `optimizerlogs`
 
 When reviewing future runs, use this order of interpretation:
@@ -610,8 +664,8 @@ For future debugging, the best evidence-backed hypothesis is:
   off too early
 - `betaFloorGrayRamp` successfully solves the "no gray collapse" problem, but
   in its unbounded late form it can over-harden into a heat-adjoint runaway
-- the new late-stage hardening ceiling is the current best corrective tuning
-  direction
+- the new late-stage hardening ceiling is now validated through `Iter 200` as
+  the current best corrective tuning direction
 - sensitivity weakness remains the next unresolved secondary hypothesis
 - completed archived evidence is still missing for both `laminarGrayRamp` and
   `adjointSensitivityProbe`

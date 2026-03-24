@@ -100,14 +100,14 @@ solvers
         solver          GAMG;
         tolerance       1e-10;
         relTol          0;
-        smoother        GaussSeidel;
-        cacheAgglomeration true;
+        smoother        symGaussSeidel;
+        cacheAgglomeration false;
         agglomerator    faceAreaPair;
         mergeLevels     1;
-        nPreSweeps      0;
-        nPostSweeps     2;
-        nFinestSweeps   2;
-        nCellsInCoarsestLevel 20;
+        nPreSweeps      1;
+        nPostSweeps     4;
+        nFinestSweeps   4;
+        nCellsInCoarsestLevel 200;
         maxIter         20000;
     }
      "(xp|dAlpha2|fsensMeanT|gsensVol|gsensPowerDiss)"

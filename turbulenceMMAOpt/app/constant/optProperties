@@ -21,12 +21,12 @@ mma_init            0.3;
 mma_dec             0.7;
 mma_inc             1.2;
 movlim              0.4;
-filterR             2.0;
+filterR             2.5;
 PowerDiss0          1.25e-3;
 PowerDissMax        2;
-PowerDissRelax      3;
-powerConstraintRelaxationRate 0.3;
-continuationFeasibilityTol 1.25;
+PowerDissRelax      4;
+powerConstraintRelaxationRate 0.04;
+continuationFeasibilityTol 1.05;
 GeoDim              2;
 fluid_area          yes;
 solid_area          no;
@@ -46,9 +46,9 @@ qContinuationInterval 10;
 qContinuationFactor 0.9;
 beta0               0.2;
 betaMax             100;
-betaIncrement       0.15;
+betaIncrement       0.08;
 alphaRampEarlySlope 0.08;
-alphaRampLateFactor 1.002;
+alphaRampLateFactor 1.0;
 dAlphaPorosityEps   1e-3;
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //  

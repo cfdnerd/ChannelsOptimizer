@@ -25,10 +25,10 @@ xD 1.25;
 yDMin -0.8;
 yDMax 5.45;
 
-fNx 40;
-fNy 80;
-Ny 465;
-Nx 125;
+fNx 80;
+fNy 160;
+Ny 930;
+Nx 250;
 
 vertices
 (

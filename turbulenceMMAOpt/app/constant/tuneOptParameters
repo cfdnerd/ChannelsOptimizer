@@ -26,7 +26,7 @@ frameworkSwitches
     useSplitRAMPControls            false;
     useSingleQFallback              true;
     useTurbulentThermalDiffusivity  true;
-    usePowerConstraintRelaxation    false;
+    usePowerConstraintRelaxation    true;
     useGCMMA                        false;
     useFullAdjointSymmetricStress   false;
 }
@@ -56,8 +56,8 @@ adjointControl
 // and constraint violation all remain small for several consecutive loops.
 convergenceControl
 {
-    optPowerConstraintWeight        6.0;
-    optPowerViolationScaleExponent  1.5;
+    optPowerConstraintWeight        4.0;
+    optPowerViolationScaleExponent  1.0;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

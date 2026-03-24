@@ -47,12 +47,13 @@ continuationSwitches
 // Gray-fraction debugging presets.
 // baseline: keep case values unchanged
 // laminarGrayRamp: use laminar-style beta/alpha continuation
+// relaxedGateGrayRamp: laminar-style continuation with a looser feasibility gate
 // ungatedGrayRamp: laminarGrayRamp + bypass the continuation feasibility gate
 // adjointSensitivityProbe: increase adjoint fidelity to test whether weak
 // objective/power sensitivities are suppressing topology changes
 experimentControl
 {
-    profile                         ungatedGrayRamp;
+    profile                         relaxedGateGrayRamp;
     forceContinuationHardening      false;
 }
 

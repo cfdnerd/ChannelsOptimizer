@@ -194,6 +194,13 @@ else if (experimentProfile == "laminarGrayRamp")
   alphaRampEarlySlope = 1.0/7.0;
   alphaRampLateFactor = 1.05;
 }
+else if (experimentProfile == "relaxedGateGrayRamp")
+{
+  betaIncrement = 0.2;
+  alphaRampEarlySlope = 1.0/7.0;
+  alphaRampLateFactor = 1.05;
+  continuationFeasibilityTol = Foam::max(continuationFeasibilityTol, scalar(2.5));
+}
 else if (experimentProfile == "ungatedGrayRamp")
 {
   betaIncrement = 0.2;
@@ -210,8 +217,9 @@ else
 {
   FatalErrorInFunction
     << "Unknown experimentControl.profile '" << experimentProfile << "'. "
-    << "Supported values are baseline, laminarGrayRamp, ungatedGrayRamp, "
-    << "and adjointSensitivityProbe."
+    << "Supported values are baseline, laminarGrayRamp, "
+    << "relaxedGateGrayRamp, ungatedGrayRamp, and "
+    << "adjointSensitivityProbe."
     << exit(FatalError);
 }
 

@@ -20,8 +20,9 @@ Run the experiments in this order:
 
 1. `baseline`
 2. `laminarGrayRamp`
-3. `ungatedGrayRamp`
-4. `adjointSensitivityProbe`
+3. `relaxedGateGrayRamp`
+4. `ungatedGrayRamp`
+5. `adjointSensitivityProbe`
 
 Only move to the next experiment if the previous one does not produce a clear
 gray-collapse trend.
@@ -93,7 +94,32 @@ Success signs:
 - `xhStepMax` rises well above the current `~0.02`
 - gray fraction begins a sustained decline instead of drifting slowly
 
-### 3. `ungatedGrayRamp`
+### 3. `relaxedGateGrayRamp`
+
+Purpose:
+
+- test whether a looser feasibility gate can preserve the gray-collapse
+  mechanism without fully bypassing the continuation logic
+
+Profile effect:
+
+- same ramp overrides as `laminarGrayRamp`
+- `continuationFeasibilityTol = 2.5`
+- `forceContinuationHardening = false`
+
+Interpretation:
+
+- if this profile tracks `ungatedGrayRamp` closely, the gate was simply too
+  tight
+- if it freezes again, unconditional hardening is still the stronger diagnostic
+
+Key signals to inspect:
+
+- `interpolation.continuationGateSatisfied`
+- `interpolation.hardeningEnabled`
+- gray fraction and `xhStepMax`
+
+### 4. `ungatedGrayRamp`
 
 Purpose:
 
@@ -116,7 +142,7 @@ Key signals to inspect:
 - `interpolation.hardeningEnabled`
 - gray fraction and `xhStepMax`
 
-### 4. `adjointSensitivityProbe`
+### 5. `adjointSensitivityProbe`
 
 Purpose:
 

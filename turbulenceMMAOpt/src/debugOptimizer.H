@@ -271,8 +271,27 @@ const bool debugContinuationFloorActive =
 const bool debugContinuationCeilingActive =
   stopContinuationHardeningBelowGrayFraction >= 0.0
   && grayVolumeFraction <= stopContinuationHardeningBelowGrayFraction;
+const scalar debugGrayVolumeFractionDrop =
+  previousGrayVolumeFractionForContinuation - grayVolumeFraction;
+const bool debugLaggingGrayCollapseDetected =
+  experimentProfile == "betaFloorGrayRamp"
+  && !debugContinuationFloorActive
+  && laggingGrayCollapseStartIter > 0
+  && opt >= laggingGrayCollapseStartIter
+  && laggingGrayCollapseAboveGrayFraction >= 0.0
+  && laggingGrayCollapseBelowXhStepMax >= 0.0
+  && laggingGrayCollapseMinGrayDrop >= 0.0
+  && grayVolumeFraction >= laggingGrayCollapseAboveGrayFraction
+  && previousXhStepMax <= laggingGrayCollapseBelowXhStepMax
+  && debugGrayVolumeFractionDrop <= laggingGrayCollapseMinGrayDrop;
+const bool debugLaggingGrayCollapsePulseIter =
+  laggingGrayCollapsePauseInterval > 0
+  && ((opt - laggingGrayCollapseStartIter) % laggingGrayCollapsePauseInterval == 0);
+const bool debugContinuationThrottleAllowsHardening =
+  !debugLaggingGrayCollapseDetected || debugLaggingGrayCollapsePulseIter;
 const bool debugContinuationHardeningEnabled =
   !debugContinuationCeilingActive
+  && debugContinuationThrottleAllowsHardening
   && (forceContinuationHardening || debugContinuationFloorActive || debugContinuationGateSatisfied);
 const scalar maxConstraintViolation = Foam::max(Foam::max(powerConstraintMargin, volumeConstraintMargin), scalar(0));
 const scalar objectiveToVolumeSensitivityRatio = fsensL2/Foam::max(gsensVolL2, SMALL);
@@ -423,6 +442,17 @@ if (Pstream::master())
   {
     writeRow("hardening stop", "gray<="+fmtScalar(stopContinuationHardeningBelowGrayFraction), "gray="+fmtScalar(grayVolumeFraction));
   }
+  if (experimentProfile == "betaFloorGrayRamp" && laggingGrayCollapseStartIter > 0)
+  {
+    writeRow
+    (
+      "lag throttle",
+      "active="+std::string(debugLaggingGrayCollapseDetected ? "yes" : "no"),
+      "grayDrop="+fmtScalar(debugGrayVolumeFractionDrop),
+      "prevXhStep="+fmtScalar(previousXhStepMax),
+      "pulse="+std::string(debugLaggingGrayCollapsePulseIter ? "yes" : "no")
+    );
+  }
   writeRow("modes", "objective="+std::string(activeObjectiveLabel.c_str()), "wallDist="+std::string(activeWallDistanceMode.c_str()), "turbulence="+std::string(activeTurbulenceModelMode.c_str()), "beta="+fmtScalar(del));
   writeRow("thermal props", "heatSource="+fmtScalar(heatSource.value()), "thermalSrc="+fmtScalar(thermalSource.value()), "rhoCp="+fmtScalar(rhoCp.value()));
 
@@ -555,6 +585,10 @@ if (Pstream::master())
       << ",\"continuationGateSatisfied\":" << (debugContinuationGateSatisfied ? 1 : 0)
       << ",\"continuationFloorActive\":" << (debugContinuationFloorActive ? 1 : 0)
       << ",\"continuationCeilingActive\":" << (debugContinuationCeilingActive ? 1 : 0)
+      << ",\"laggingGrayCollapseDetected\":" << (debugLaggingGrayCollapseDetected ? 1 : 0)
+      << ",\"laggingGrayCollapsePulseIter\":" << (debugLaggingGrayCollapsePulseIter ? 1 : 0)
+      << ",\"grayVolumeFractionDrop\":" << debugGrayVolumeFractionDrop
+      << ",\"previousXhStepMax\":" << previousXhStepMax
       << ",\"forceContinuationHardening\":" << (forceContinuationHardening ? 1 : 0)
       << ",\"forceContinuationHardeningUntilIter\":" << forceContinuationHardeningUntilIter
       << ",\"forceContinuationHardeningUntilBeta\":" << forceContinuationHardeningUntilBeta
@@ -568,3 +602,5 @@ if (Pstream::master())
     << "}"
     << "}\n";
 }
+
+previousXhStepMax = maxAbsXhChangeLocal;

@@ -632,6 +632,118 @@ Interpretation:
   `ungatedGrayRamp`; the correct course remains to refine the
   `betaFloorGrayRamp` path
 
+### Latest `betaFloorGrayRamp` Follow-Up Run With Robust `Tb` Solve
+
+The latest complete `optimizerlogs/` set continues to support the same
+plan-level conclusion: the gray-area suppression debugging should remain on the
+`betaFloorGrayRamp` path rather than advancing to `ungatedGrayRamp`.
+
+Validated run facts:
+
+- `debugOptimizer.jsonl` reaches `Iter 200`
+- `runLOG` again ends with `Finalising parallel run`
+- `optimization.hst` reports `SolverStat=OK` through `Iter 200`
+- the active profile remains `betaFloorGrayRamp`
+- the late-run `Tb` solve stays healthy with the current robust `GAMG`
+  settings:
+  - `Tb adjoint thermal` is `OK` at `Iter 200`
+  - `Tb` final residual is about `9.615e-11`
+  - `Tb` solve count is about `196` iterations, not the earlier
+    pathological `O(1e4-1e5)` behavior
+
+Observed behavior:
+
+- gray suppression still succeeds:
+  - `Iter 200` gray is about `1.96e-02`
+  - the design remains mostly binary by volume split:
+    - solid about `0.590`
+    - fluid about `0.390`
+- the continuation ceiling is active in the late run:
+  - `ceiling=yes`
+  - `gray<=5.0e-02`, actual gray about `1.96e-02`
+  - `beta` is frozen at `25.6`
+  - `hardeningEnabled=0` while the gate remains open
+- thermal performance in this run is much lower than the earlier archived
+  `Iter 200` reference:
+  - `MeanT` finishes near `10.47`
+  - `MaxT` finishes near `24.30`
+- solver health remains good at the end of the run:
+  - `T thermal` is `OK`
+  - `Tb adjoint thermal` is `OK`
+  - `Ub`, `pb`, `Ua`, and `pa` are also `OK`
+
+New caveat relative to the archived best reference:
+
+- the run finishes with a small power-constraint violation instead of a fully
+  clean feasible end state
+- at `Iter 200`, `PD/limit` is about `1.011`
+- the dashboard therefore marks constraints as `WARN` even though solver health
+  remains `OK`
+- sensitivity ratios also remain small in the late nearly-binary regime:
+  - `objectiveToVolumeL2Ratio` about `5.66e-03`
+  - `powerToVolumeL2Ratio` about `1.37e-02`
+
+Interpretation:
+
+- this follow-up run does not change the main experiment-plan verdict:
+  `betaFloorGrayRamp` still clearly produces the required gray-collapse trend,
+  so the plan does not justify moving on to `ungatedGrayRamp`
+- the current debugging focus should remain refinement of the post-ceiling
+  regime on `betaFloorGrayRamp`
+- the two main follow-up questions are now:
+  - how to recover full late-run power feasibility without losing the achieved
+    gray suppression
+  - whether weak late objective/power sensitivity ratios justify the planned
+    `adjointSensitivityProbe` as a secondary diagnostic after the current
+    `betaFloorGrayRamp` tuning is stabilized
+
+### Current `betaFloorGrayRamp` Refinement Patch
+
+To support the next round of post-ceiling tuning, the solver now includes an
+optional lagging-gray-collapse throttle for the `betaFloorGrayRamp` profile.
+
+New controls:
+
+- `experimentControl.laggingGrayCollapseStartIter`
+- `experimentControl.laggingGrayCollapseAboveGrayFraction`
+- `experimentControl.laggingGrayCollapseBelowXhStepMax`
+- `experimentControl.laggingGrayCollapseMinGrayDrop`
+- `experimentControl.laggingGrayCollapsePauseInterval`
+
+Default tuning now applied for `betaFloorGrayRamp` unless overridden:
+
+- start checking at `Iter 120`
+- only activate while gray fraction is still at least `0.20`
+- require the previous `xhStepMax` to be at most `0.05`
+- require gray-fraction drop from the previous iteration to be at most `0.01`
+- allow one continuation-hardening pulse every `5` iterations while the lag
+  condition remains active
+
+Effect:
+
+- this throttle is only relevant after the forced hardening floor has ended
+- if gray is still high but topology motion has become weak and gray is no
+  longer dropping much, continuation hardening is temporarily paused
+- the periodic pulse prevents the continuation schedule from freezing
+  permanently under a long stagnant plateau
+- the existing late-stage ceiling remains independent: once gray is already low
+  enough, hardening still shuts off completely
+
+Logging support:
+
+- the runtime option dump now records all five
+  `laggingGrayCollapse*` parameters
+- `debugOptimizer.log` now reports a `lag throttle` row with:
+  - whether the lag condition is active
+  - the latest gray-fraction drop
+  - the previous `xhStepMax`
+  - whether the current iteration is a pulse iteration
+- `debugOptimizer.jsonl` now records:
+  - `interpolation.laggingGrayCollapseDetected`
+  - `interpolation.laggingGrayCollapsePulseIter`
+  - `interpolation.grayVolumeFractionDrop`
+  - `interpolation.previousXhStepMax`
+
 ### Fast Triage Rules For Future `optimizerlogs`
 
 When reviewing future runs, use this order of interpretation:

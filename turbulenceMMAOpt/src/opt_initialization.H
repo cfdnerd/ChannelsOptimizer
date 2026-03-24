@@ -120,6 +120,11 @@ if (Pstream::master())
   writeRuntimeOption("forceContinuationHardeningUntilIter", forceContinuationHardeningUntilIter);
   writeRuntimeOption("forceContinuationHardeningUntilBeta", forceContinuationHardeningUntilBeta);
   writeRuntimeOption("stopContinuationHardeningBelowGrayFraction", stopContinuationHardeningBelowGrayFraction);
+  writeRuntimeOption("laggingGrayCollapseStartIter", laggingGrayCollapseStartIter);
+  writeRuntimeOption("laggingGrayCollapseAboveGrayFraction", laggingGrayCollapseAboveGrayFraction);
+  writeRuntimeOption("laggingGrayCollapseBelowXhStepMax", laggingGrayCollapseBelowXhStepMax);
+  writeRuntimeOption("laggingGrayCollapseMinGrayDrop", laggingGrayCollapseMinGrayDrop);
+  writeRuntimeOption("laggingGrayCollapsePauseInterval", laggingGrayCollapsePauseInterval);
 
   debugLogFile << "\n--- adjointControl ---\n";
   writeRuntimeOption("adjointMomentumSweeps", adjointMomentumSweeps);
@@ -321,6 +326,8 @@ bool stopOptimization(false);
 label optimizerConvergedStreak(0);
 word optimizerStopReason("running");
 bool continuationHealthOk(true);
+scalar previousGrayVolumeFractionForContinuation(1.0);
+scalar previousXhStepMax(0.0);
 const scalar adjointRunawayRatioLimit(1e6);
 word activeObjectiveLabel("MeanT");
 word activeWallDistanceMode("meshWave");

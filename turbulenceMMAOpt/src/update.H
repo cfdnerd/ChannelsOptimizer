@@ -42,8 +42,27 @@ const bool continuationFloorActive =
 const bool continuationCeilingActive =
   stopContinuationHardeningBelowGrayFraction >= 0.0
   && grayVolumeFractionForContinuation <= stopContinuationHardeningBelowGrayFraction;
+const scalar grayVolumeFractionDrop =
+  previousGrayVolumeFractionForContinuation - grayVolumeFractionForContinuation;
+const bool laggingGrayCollapseDetected =
+  experimentProfile == "betaFloorGrayRamp"
+  && !continuationFloorActive
+  && laggingGrayCollapseStartIter > 0
+  && opt >= laggingGrayCollapseStartIter
+  && laggingGrayCollapseAboveGrayFraction >= 0.0
+  && laggingGrayCollapseBelowXhStepMax >= 0.0
+  && laggingGrayCollapseMinGrayDrop >= 0.0
+  && grayVolumeFractionForContinuation >= laggingGrayCollapseAboveGrayFraction
+  && previousXhStepMax <= laggingGrayCollapseBelowXhStepMax
+  && grayVolumeFractionDrop <= laggingGrayCollapseMinGrayDrop;
+const bool laggingGrayCollapsePulseIter =
+  laggingGrayCollapsePauseInterval > 0
+  && ((opt - laggingGrayCollapseStartIter) % laggingGrayCollapsePauseInterval == 0);
+const bool continuationThrottleAllowsHardening =
+  !laggingGrayCollapseDetected || laggingGrayCollapsePulseIter;
 const bool allowContinuationHardening =
   !continuationCeilingActive
+  && continuationThrottleAllowsHardening
   && (forceContinuationHardening || continuationFloorActive || continuationGateSatisfied);
 
 if(opt<=63 && allowContinuationHardening)
@@ -81,5 +100,7 @@ else if (optimizerConvergedStreak > 0 && allowContinuationHardening)
 {
   del = Foam::min(del + betaIncrement, betaMax);
 }
+
+previousGrayVolumeFractionForContinuation = grayVolumeFractionForContinuation;
 
 #include "updateInterpolationFields.H"

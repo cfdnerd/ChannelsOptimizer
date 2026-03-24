@@ -195,6 +195,26 @@ scalar stopContinuationHardeningBelowGrayFraction
 (
   experimentControl.lookupOrDefault<scalar>("stopContinuationHardeningBelowGrayFraction", -1.0)
 );
+label laggingGrayCollapseStartIter
+(
+  experimentControl.lookupOrDefault<label>("laggingGrayCollapseStartIter", 0)
+);
+scalar laggingGrayCollapseAboveGrayFraction
+(
+  experimentControl.lookupOrDefault<scalar>("laggingGrayCollapseAboveGrayFraction", -1.0)
+);
+scalar laggingGrayCollapseBelowXhStepMax
+(
+  experimentControl.lookupOrDefault<scalar>("laggingGrayCollapseBelowXhStepMax", -1.0)
+);
+scalar laggingGrayCollapseMinGrayDrop
+(
+  experimentControl.lookupOrDefault<scalar>("laggingGrayCollapseMinGrayDrop", -1.0)
+);
+label laggingGrayCollapsePauseInterval
+(
+  experimentControl.lookupOrDefault<label>("laggingGrayCollapsePauseInterval", 1)
+);
 
 if (experimentProfile == "baseline")
 {
@@ -227,6 +247,22 @@ else if (experimentProfile == "betaFloorGrayRamp")
   {
     stopContinuationHardeningBelowGrayFraction = 0.05;
   }
+  laggingGrayCollapseStartIter =
+    Foam::max(laggingGrayCollapseStartIter, label(120));
+  if (laggingGrayCollapseAboveGrayFraction < 0.0)
+  {
+    laggingGrayCollapseAboveGrayFraction = 0.20;
+  }
+  if (laggingGrayCollapseBelowXhStepMax < 0.0)
+  {
+    laggingGrayCollapseBelowXhStepMax = 0.05;
+  }
+  if (laggingGrayCollapseMinGrayDrop < 0.0)
+  {
+    laggingGrayCollapseMinGrayDrop = 0.01;
+  }
+  laggingGrayCollapsePauseInterval =
+    Foam::max(laggingGrayCollapsePauseInterval, label(5));
 }
 else if (experimentProfile == "ungatedGrayRamp")
 {
@@ -311,6 +347,96 @@ if (useRobustMultiCaseObjective)
 {
   FatalErrorInFunction
     << "useRobustMultiCaseObjective=true is not implemented yet for turbulenceMMAOpt."
+    << exit(FatalError);
+}
+if (forceContinuationHardeningUntilIter < 0)
+{
+  FatalErrorInFunction
+    << "experimentControl.forceContinuationHardeningUntilIter must be >= 0. Found "
+    << forceContinuationHardeningUntilIter
+    << exit(FatalError);
+}
+if
+(
+  forceContinuationHardeningUntilBeta < 0.0
+  && forceContinuationHardeningUntilBeta != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.forceContinuationHardeningUntilBeta must be -1 or >= 0. Found "
+    << forceContinuationHardeningUntilBeta
+    << exit(FatalError);
+}
+if
+(
+  stopContinuationHardeningBelowGrayFraction < 0.0
+  && stopContinuationHardeningBelowGrayFraction != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.stopContinuationHardeningBelowGrayFraction must be -1 or lie in [0,1]. Found "
+    << stopContinuationHardeningBelowGrayFraction
+    << exit(FatalError);
+}
+if (stopContinuationHardeningBelowGrayFraction > 1.0)
+{
+  FatalErrorInFunction
+    << "experimentControl.stopContinuationHardeningBelowGrayFraction must be <= 1. Found "
+    << stopContinuationHardeningBelowGrayFraction
+    << exit(FatalError);
+}
+if (laggingGrayCollapseStartIter < 0)
+{
+  FatalErrorInFunction
+    << "experimentControl.laggingGrayCollapseStartIter must be >= 0. Found "
+    << laggingGrayCollapseStartIter
+    << exit(FatalError);
+}
+if
+(
+  laggingGrayCollapseAboveGrayFraction < 0.0
+  && laggingGrayCollapseAboveGrayFraction != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.laggingGrayCollapseAboveGrayFraction must be -1 or lie in [0,1]. Found "
+    << laggingGrayCollapseAboveGrayFraction
+    << exit(FatalError);
+}
+if (laggingGrayCollapseAboveGrayFraction > 1.0)
+{
+  FatalErrorInFunction
+    << "experimentControl.laggingGrayCollapseAboveGrayFraction must be <= 1. Found "
+    << laggingGrayCollapseAboveGrayFraction
+    << exit(FatalError);
+}
+if
+(
+  laggingGrayCollapseBelowXhStepMax < 0.0
+  && laggingGrayCollapseBelowXhStepMax != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.laggingGrayCollapseBelowXhStepMax must be -1 or >= 0. Found "
+    << laggingGrayCollapseBelowXhStepMax
+    << exit(FatalError);
+}
+if
+(
+  laggingGrayCollapseMinGrayDrop < 0.0
+  && laggingGrayCollapseMinGrayDrop != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.laggingGrayCollapseMinGrayDrop must be -1 or >= 0. Found "
+    << laggingGrayCollapseMinGrayDrop
+    << exit(FatalError);
+}
+if (laggingGrayCollapsePauseInterval <= 0)
+{
+  FatalErrorInFunction
+    << "experimentControl.laggingGrayCollapsePauseInterval must be > 0. Found "
+    << laggingGrayCollapsePauseInterval
     << exit(FatalError);
 }
 

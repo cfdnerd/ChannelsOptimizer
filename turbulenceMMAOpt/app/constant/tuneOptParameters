@@ -52,7 +52,7 @@ continuationSwitches
 // objective/power sensitivities are suppressing topology changes
 experimentControl
 {
-    profile                         baseline;
+    profile                         ungatedGrayRamp;
     forceContinuationHardening      false;
 }
 

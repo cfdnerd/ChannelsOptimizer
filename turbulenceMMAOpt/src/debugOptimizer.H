@@ -258,7 +258,18 @@ const scalar powerConstraintWeightSafe = Foam::max(optPowerConstraintWeight, SMA
 const scalar powerConstraintMargin = gx[0]/powerConstraintWeightSafe;
 const scalar volumeConstraintWeightSafe = Foam::max(optVolumeConstraintWeight, SMALL);
 const scalar volumeConstraintMargin = gx[1]/volumeConstraintWeightSafe;
+const scalar continuationPowerLimit =
+  usePowerConstraintRelaxation ? activePowerLimit : PowerDissMax;
+const scalar powerFeasibilityRatio =
+  continuationPowerLimit > SMALL ? PowerDiss/continuationPowerLimit : 0.0;
+const bool continuationGateSatisfied =
+  powerFeasibilityRatio <= continuationFeasibilityTol
+  && continuationHealthOk;
+const bool continuationHardeningEnabled =
+  forceContinuationHardening || continuationGateSatisfied;
 const scalar maxConstraintViolation = Foam::max(Foam::max(powerConstraintMargin, volumeConstraintMargin), scalar(0));
+const scalar objectiveToVolumeSensitivityRatio = fsensL2/Foam::max(gsensVolL2, SMALL);
+const scalar powerToVolumeSensitivityRatio = gsensPowerL2/Foam::max(gsensVolL2, SMALL);
 const bool convergenceCandidate =
   opt >= optMinIterations
   &&
@@ -386,6 +397,7 @@ if (Pstream::master())
   writeRow("objective", "min="+fmtScalar(fsensLocalMin), "max="+fmtScalar(fsensLocalMax), "l2="+fmtScalar(fsensL2), "nonFinite="+fmtCount(fsensNonFiniteCountLocal));
   writeRow("power", "min="+fmtScalar(gsensPowerLocalMin), "max="+fmtScalar(gsensPowerLocalMax), "l2="+fmtScalar(gsensPowerL2), "nonFinite="+fmtCount(gsensPowerNonFiniteCountLocal));
   writeRow("volume", "min="+fmtScalar(gsensVolLocalMin), "max="+fmtScalar(gsensVolLocalMax), "l2="+fmtScalar(gsensVolL2), "nonFinite="+fmtCount(gsensVolNonFiniteCountLocal));
+  writeRow("ratios", "obj/vol="+fmtScalar(objectiveToVolumeSensitivityRatio), "power/vol="+fmtScalar(powerToVolumeSensitivityRatio));
 
   writeSectionHeader("Solver Diagnostics");
   writeRow("config", "primal=60", "adjPower="+fmtCount(adjointMomentumSweeps), "adjHeat="+fmtCount(adjointMomentumSweeps));
@@ -398,6 +410,7 @@ if (Pstream::master())
   writeSectionHeader("Interpolation Diagnostics");
   writeRow("interp bounds", "alphaMin="+fmtScalar(alphaLocalMin), "alphaMax="+fmtScalar(alphaLocalMax), "DTMin="+fmtScalar(DTLocalMin), "DTMax="+fmtScalar(DTLocalMax));
   writeRow("continuation", "alphaMax="+fmtScalar(alphaMax.value()), "qAlpha="+fmtScalar(qAlpha), "qKappa="+fmtScalar(qKappa), "qHeat="+fmtScalar(qHeat));
+  writeRow("hardening", "profile="+std::string(experimentProfile.c_str()), "gate="+std::string(continuationGateSatisfied ? "open" : "closed"), "force="+std::string(forceContinuationHardening ? "yes" : "no"), "PD/limit="+fmtScalar(powerFeasibilityRatio));
   writeRow("modes", "objective="+std::string(activeObjectiveLabel.c_str()), "wallDist="+std::string(activeWallDistanceMode.c_str()), "turbulence="+std::string(activeTurbulenceModelMode.c_str()), "beta="+fmtScalar(del));
   writeRow("thermal props", "heatSource="+fmtScalar(heatSource.value()), "thermalSrc="+fmtScalar(thermalSource.value()), "rhoCp="+fmtScalar(rhoCp.value()));
 
@@ -465,6 +478,7 @@ if (Pstream::master())
       << ",\"powerDissipationConstraintMargin\":" << powerConstraintMargin
       << ",\"volumeConstraintValue\":" << V
       << ",\"volumeConstraintMargin\":" << volumeConstraintMargin
+      << ",\"powerDissipationLimit\":" << continuationPowerLimit
       << ",\"meanT\":" << MeanT
       << ",\"maxT\":" << maxT
     << "}"
@@ -489,6 +503,8 @@ if (Pstream::master())
       << ",\"volumeConstraintMax\":" << gsensVolLocalMax
       << ",\"volumeConstraintL2\":" << gsensVolL2
       << ",\"volumeConstraintNonFiniteCount\":" << gsensVolNonFiniteCountLocal
+      << ",\"objectiveToVolumeL2Ratio\":" << objectiveToVolumeSensitivityRatio
+      << ",\"powerToVolumeL2Ratio\":" << powerToVolumeSensitivityRatio
     << "}"
     << ",\"solver\":{"
       << "\"primalFlowSweeps\":" << 60
@@ -522,6 +538,11 @@ if (Pstream::master())
       << ",\"qKappa\":" << qKappa
       << ",\"qHeat\":" << qHeat
       << ",\"beta\":" << del
+      << ",\"experimentProfile\":\"" << experimentProfile << "\""
+      << ",\"powerFeasibilityRatio\":" << powerFeasibilityRatio
+      << ",\"continuationGateSatisfied\":" << (continuationGateSatisfied ? 1 : 0)
+      << ",\"forceContinuationHardening\":" << (forceContinuationHardening ? 1 : 0)
+      << ",\"hardeningEnabled\":" << (continuationHardeningEnabled ? 1 : 0)
       << ",\"wallDistanceMode\":\"" << activeWallDistanceMode << "\""
       << ",\"turbulenceModelMode\":\"" << activeTurbulenceModelMode << "\""
       << ",\"heatSource\":" << heatSource.value()

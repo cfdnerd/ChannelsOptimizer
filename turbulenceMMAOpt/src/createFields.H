@@ -89,6 +89,11 @@ if (tuneOptParameters.found("adjointControl"))
 {
   adjointControl = tuneOptParameters.subDict("adjointControl");
 }
+dictionary experimentControl;
+if (tuneOptParameters.found("experimentControl"))
+{
+  experimentControl = tuneOptParameters.subDict("experimentControl");
+}
 
 Switch useFrozenTurbulenceAdjoint
 (
@@ -170,6 +175,45 @@ Switch stopOnAdjointRunaway
 (
   adjointControl.lookupOrDefault<Switch>("stopOnAdjointRunaway", true)
 );
+word experimentProfile
+(
+  experimentControl.lookupOrDefault<word>("profile", "baseline")
+);
+Switch forceContinuationHardening
+(
+  experimentControl.lookupOrDefault<Switch>("forceContinuationHardening", false)
+);
+
+if (experimentProfile == "baseline")
+{
+  // Keep the runtime dictionaries as-is.
+}
+else if (experimentProfile == "laminarGrayRamp")
+{
+  betaIncrement = 0.2;
+  alphaRampEarlySlope = 1.0/7.0;
+  alphaRampLateFactor = 1.05;
+}
+else if (experimentProfile == "ungatedGrayRamp")
+{
+  betaIncrement = 0.2;
+  alphaRampEarlySlope = 1.0/7.0;
+  alphaRampLateFactor = 1.05;
+  forceContinuationHardening = true;
+}
+else if (experimentProfile == "adjointSensitivityProbe")
+{
+  adjointMomentumSweeps = Foam::max(adjointMomentumSweeps, label(40));
+  useFullAdjointSymmetricStress = true;
+}
+else
+{
+  FatalErrorInFunction
+    << "Unknown experimentControl.profile '" << experimentProfile << "'. "
+    << "Supported values are baseline, laminarGrayRamp, ungatedGrayRamp, "
+    << "and adjointSensitivityProbe."
+    << exit(FatalError);
+}
 
 if (useGCMMA)
 {

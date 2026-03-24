@@ -20,9 +20,11 @@ const scalar continuationPowerLimit =
   usePowerConstraintRelaxation ? activePowerLimit : PowerDissMax;
 const scalar powerFeasibilityRatio =
   continuationPowerLimit > SMALL ? PowerDiss/continuationPowerLimit : 0.0;
-const bool allowContinuationHardening =
+const bool continuationGateSatisfied =
   powerFeasibilityRatio <= continuationFeasibilityTol
   && continuationHealthOk;
+const bool allowContinuationHardening =
+  forceContinuationHardening || continuationGateSatisfied;
 
 if(opt<=63 && allowContinuationHardening)
 {

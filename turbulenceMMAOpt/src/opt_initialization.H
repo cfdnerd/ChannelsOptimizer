@@ -38,6 +38,12 @@ if (Pstream::master())
     debugLogFile << "  " << std::left << std::setw(36) << key
                  << (value ? "true" : "false") << "\n";
   };
+  auto writeRuntimeWord =
+  [&](const char* key, const word& value)
+  {
+    debugLogFile << "  " << std::left << std::setw(36) << key
+                 << value << "\n";
+  };
 
   debugLogFile
     << "# turbulenceMMAOpt optimizer debug log\n"
@@ -106,6 +112,10 @@ if (Pstream::master())
 
   debugLogFile << "\n--- continuationSwitches ---\n";
   writeRuntimeSwitch("useStagnationTriggeredBeta", useStagnationTriggeredBeta);
+
+  debugLogFile << "\n--- experimentControl ---\n";
+  writeRuntimeWord("experimentProfile", experimentProfile);
+  writeRuntimeSwitch("forceContinuationHardening", forceContinuationHardening);
 
   debugLogFile << "\n--- adjointControl ---\n";
   writeRuntimeOption("adjointMomentumSweeps", adjointMomentumSweeps);

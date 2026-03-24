@@ -80,7 +80,7 @@ solvers
         relTol          0;
         maxIter         10000;
     }  
-     "(Ta|Tb)"
+     "Ta"
     {
         solver          GAMG;
         tolerance       1e-10;
@@ -94,6 +94,15 @@ solvers
         nFinestSweeps   2;
         nCellsInCoarsestLevel 20;
         maxIter         20000;
+    }
+     "Tb"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        nSweeps         2;
+        tolerance       1e-10;
+        relTol          0;
+        maxIter         50000;
     }
      "(xp|dAlpha2|fsensMeanT|gsensVol|gsensPowerDiss)"
     {
@@ -129,6 +138,9 @@ relaxationFactors
     {
         "(U|Uc)"        0.7;
         "(Ua|Ub)"       0.3;
+        T               0.7;
+        Ta              0.7;
+        Tb              0.3;
         "(k|epsilon)"   0.7;
     }
 }

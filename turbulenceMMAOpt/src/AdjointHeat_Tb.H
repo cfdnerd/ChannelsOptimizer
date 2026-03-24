@@ -90,10 +90,20 @@ const scalar varianceMean = varianceMeanLocal/area;
    }
 }
 
+// Keep a tiny implicit sink on Tb so the adjoint thermal matrix stays away
+// from singular/coarsest-level breakdown in the linear solver.
+const dimensionedScalar tbSolveRegularization
+(
+   "tbSolveRegularization",
+   unitThermalSource.dimensions(),
+   1e-6
+);
+
 fvScalarMatrix TEqnb
 (
    -fvm::div(-phi,Tb) 
    +fvm::laplacian(DT, Tb)
+   +fvm::Sp(tbSolveRegularization, Tb)
 );
 {
    scalar adjointThermalRhsMin = GREAT;
@@ -210,6 +220,47 @@ else
 {
    activeObjectiveLabel = "MeanT";
    TEqnb -= unitThermalSource;
+}
+TEqnb.relax();
+// Anchor the scalar adjoint solve explicitly so parallel coarse levels do not
+// inherit a near-nullspace when the outlet behaves close to pure Neumann.
+TEqnb.setReference(0, 0.0);
+{
+   const scalarField& adjointThermalDiag = TEqnb.diag();
+   scalar adjointThermalDiagMin = GREAT;
+   scalar adjointThermalDiagMax = -GREAT;
+   scalar adjointThermalDiagAbsMin = GREAT;
+   label adjointThermalDiagNonFinite = 0;
+   forAll(adjointThermalDiag, cellI)
+   {
+      const scalar value = adjointThermalDiag[cellI];
+      if (!std::isfinite(static_cast<double>(value)))
+      {
+         adjointThermalDiagNonFinite++;
+         continue;
+      }
+      adjointThermalDiagMin = Foam::min(adjointThermalDiagMin, value);
+      adjointThermalDiagMax = Foam::max(adjointThermalDiagMax, value);
+      adjointThermalDiagAbsMin = Foam::min(adjointThermalDiagAbsMin, Foam::mag(value));
+   }
+   reduce(adjointThermalDiagMin, minOp<scalar>());
+   reduce(adjointThermalDiagMax, maxOp<scalar>());
+   reduce(adjointThermalDiagAbsMin, minOp<scalar>());
+   reduce(adjointThermalDiagNonFinite, sumOp<label>());
+
+   Info<< "adjoint thermal matrix stats: diag[min,max]=(" << adjointThermalDiagMin
+       << ", " << adjointThermalDiagMax << ") absMin=" << adjointThermalDiagAbsMin
+       << " nonFinite=" << adjointThermalDiagNonFinite
+       << " regularization=" << tbSolveRegularization.value()
+       << " referenceCell=0 referenceValue=0"
+       << endl;
+
+   if (adjointThermalDiagNonFinite > 0)
+   {
+      FatalErrorInFunction
+         << "Adjoint thermal matrix diagonal contains non-finite values."
+         << exit(FatalError);
+   }
 }
 Info<< "adjoint thermal matrix assembled; entering Tb linear solve" << endl;
 const auto TbLinearSolvePerformance = TEqnb.solve();

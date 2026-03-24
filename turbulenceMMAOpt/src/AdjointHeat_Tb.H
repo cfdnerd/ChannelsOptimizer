@@ -95,7 +95,7 @@ const scalar varianceMean = varianceMeanLocal/area;
 const dimensionedScalar tbSolveRegularization
 (
    "tbSolveRegularization",
-   unitThermalSource.dimensions(),
+   unitThermalSource.dimensions()/Tb.dimensions(),
    1e-6
 );
 

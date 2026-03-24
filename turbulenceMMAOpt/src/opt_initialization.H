@@ -221,6 +221,7 @@ auto recordLinearSolve =
 
 const scalar linearSolveObsResidual = 1e-6;
 const scalar linearSolveWarnResidual = 1e-4;
+const label linearSolveWarnIterations = 5000;
 
 auto classifyLinearSolveStatus =
 [&](const LinearSolveStats& stats) -> const char*
@@ -228,6 +229,10 @@ auto classifyLinearSolveStatus =
   if (stats.callCount == 0)
   {
     return "SKIP";
+  }
+  if (stats.iterationMax >= linearSolveWarnIterations)
+  {
+    return "WARN";
   }
   if (stats.finalResidualMax > linearSolveWarnResidual)
   {

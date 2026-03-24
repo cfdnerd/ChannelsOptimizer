@@ -31,7 +31,7 @@ solvers
         nFinestSweeps   2;
         maxIter         5000;
     }
-    "(pa|pb)"
+    "pb"
     {
         solver          GAMG;
         tolerance       1e-10;
@@ -43,6 +43,20 @@ solvers
         nPreSweeps      0;
         nPostSweeps     4;
         nFinestSweeps   4;
+        maxIter         5000;
+    }
+    "pa"
+    {
+        solver          GAMG;
+        tolerance       1e-10;
+        relTol          0;
+        smoother        GaussSeidel;
+        cacheAgglomeration true;
+        agglomerator    faceAreaPair;
+        mergeLevels     1;
+        nPreSweeps      1;
+        nPostSweeps     6;
+        nFinestSweeps   6;
         maxIter         5000;
     }
 
@@ -114,7 +128,8 @@ relaxationFactors
     fields
     {
         "(p|pc)"        0.3;
-        "(pa|pb)"       0.2;
+        pb              0.2;
+        pa              0.1;
         alpha           0.1;
     }
     equations

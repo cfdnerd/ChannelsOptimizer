@@ -47,17 +47,11 @@ solvers
     }
     "pa"
     {
-        solver          GAMG;
+        solver          PCG;
+        preconditioner  DIC;
         tolerance       1e-10;
         relTol          0;
-        smoother        GaussSeidel;
-        cacheAgglomeration true;
-        agglomerator    faceAreaPair;
-        mergeLevels     1;
-        nPreSweeps      1;
-        nPostSweeps     6;
-        nFinestSweeps   6;
-        maxIter         5000;
+        maxIter         10000;
     }
 
     "(U|Uc|k|epsilon)"

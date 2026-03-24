@@ -49,6 +49,8 @@ continuationSwitches
 // laminarGrayRamp: use laminar-style beta/alpha continuation
 // relaxedGateGrayRamp: laminar-style continuation with a looser feasibility gate
 // betaFloorGrayRamp: relaxed gate plus forced hardening until beta/iter floor
+// stopContinuationHardeningBelowGrayFraction: optional late-stage ceiling that
+// freezes further hardening once the remaining gray volume is already small
 // ungatedGrayRamp: laminarGrayRamp + bypass the continuation feasibility gate
 // adjointSensitivityProbe: increase adjoint fidelity to test whether weak
 // objective/power sensitivities are suppressing topology changes
@@ -58,6 +60,7 @@ experimentControl
     forceContinuationHardening      false;
     forceContinuationHardeningUntilIter 0;
     forceContinuationHardeningUntilBeta -1;
+    stopContinuationHardeningBelowGrayFraction -1;
 }
 
 adjointControl

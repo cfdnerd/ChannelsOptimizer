@@ -16,6 +16,19 @@ if(fluid_area)
 }
 xh.correctBoundaryConditions();
 
+scalar grayVolumeContinuationLocal = 0.0;
+forAll(xh, i)
+{
+  const scalar xhValue = xh[i];
+  if (xhValue > 0.05 && xhValue < 0.95)
+  {
+    grayVolumeContinuationLocal += mesh.V()[i];
+  }
+}
+reduce(grayVolumeContinuationLocal, sumOp<scalar>());
+const scalar grayVolumeFractionForContinuation =
+  area > SMALL ? grayVolumeContinuationLocal/area : 0.0;
+
 const scalar continuationPowerLimit =
   usePowerConstraintRelaxation ? activePowerLimit : PowerDissMax;
 const scalar powerFeasibilityRatio =
@@ -26,8 +39,12 @@ const bool continuationGateSatisfied =
 const bool continuationFloorActive =
   opt <= forceContinuationHardeningUntilIter
   || (forceContinuationHardeningUntilBeta >= 0.0 && del < forceContinuationHardeningUntilBeta);
+const bool continuationCeilingActive =
+  stopContinuationHardeningBelowGrayFraction >= 0.0
+  && grayVolumeFractionForContinuation <= stopContinuationHardeningBelowGrayFraction;
 const bool allowContinuationHardening =
-  forceContinuationHardening || continuationFloorActive || continuationGateSatisfied;
+  !continuationCeilingActive
+  && (forceContinuationHardening || continuationFloorActive || continuationGateSatisfied);
 
 if(opt<=63 && allowContinuationHardening)
 {

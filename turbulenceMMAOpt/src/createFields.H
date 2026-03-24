@@ -191,6 +191,10 @@ scalar forceContinuationHardeningUntilBeta
 (
   experimentControl.lookupOrDefault<scalar>("forceContinuationHardeningUntilBeta", -1.0)
 );
+scalar stopContinuationHardeningBelowGrayFraction
+(
+  experimentControl.lookupOrDefault<scalar>("stopContinuationHardeningBelowGrayFraction", -1.0)
+);
 
 if (experimentProfile == "baseline")
 {
@@ -219,6 +223,10 @@ else if (experimentProfile == "betaFloorGrayRamp")
     Foam::max(forceContinuationHardeningUntilIter, label(80));
   forceContinuationHardeningUntilBeta =
     Foam::max(forceContinuationHardeningUntilBeta, scalar(16.0));
+  if (stopContinuationHardeningBelowGrayFraction < 0.0)
+  {
+    stopContinuationHardeningBelowGrayFraction = 0.05;
+  }
 }
 else if (experimentProfile == "ungatedGrayRamp")
 {

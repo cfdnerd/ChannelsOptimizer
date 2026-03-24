@@ -118,6 +118,7 @@ if (Pstream::master())
   writeRuntimeSwitch("forceContinuationHardening", forceContinuationHardening);
   writeRuntimeOption("forceContinuationHardeningUntilIter", forceContinuationHardeningUntilIter);
   writeRuntimeOption("forceContinuationHardeningUntilBeta", forceContinuationHardeningUntilBeta);
+  writeRuntimeOption("stopContinuationHardeningBelowGrayFraction", stopContinuationHardeningBelowGrayFraction);
 
   debugLogFile << "\n--- adjointControl ---\n";
   writeRuntimeOption("adjointMomentumSweeps", adjointMomentumSweeps);

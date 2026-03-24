@@ -51,10 +51,15 @@ continuationSwitches
 // betaFloorGrayRamp: relaxed gate plus forced hardening until beta/iter floor
 // stopContinuationHardeningBelowGrayFraction: optional late-stage ceiling that
 // freezes further hardening once the remaining gray volume is already small
+// lateStageStrictGate*: optional tighter feasibility gate that takes over once
+// gray is already low, so late hardening cannot continue through power
+// violations just because the early relaxed gate is still permissive
 // laggingGrayCollapse*: optional betaFloorGrayRamp throttle that slows further
 // hardening if gray is still high but topology motion has already faded;
 // pauseInterval applies a periodic one-step pulse so hardening does not freeze
 // permanently while the lag condition remains active
+// overactiveTopology*: complementary throttle that pauses further hardening if
+// projected topology motion is already too large in the late low-gray regime
 // ungatedGrayRamp: laminarGrayRamp + bypass the continuation feasibility gate
 // adjointSensitivityProbe: increase adjoint fidelity to test whether weak
 // objective/power sensitivities are suppressing topology changes
@@ -65,11 +70,16 @@ experimentControl
     forceContinuationHardeningUntilIter 0;
     forceContinuationHardeningUntilBeta -1;
     stopContinuationHardeningBelowGrayFraction -1;
+    lateStageStrictGateBelowGrayFraction -1;
+    lateStageContinuationFeasibilityTol -1;
     laggingGrayCollapseStartIter    0;
     laggingGrayCollapseAboveGrayFraction -1;
     laggingGrayCollapseBelowXhStepMax -1;
     laggingGrayCollapseMinGrayDrop  -1;
     laggingGrayCollapsePauseInterval 1;
+    overactiveTopologyStartIter     0;
+    overactiveTopologyBelowGrayFraction -1;
+    overactiveTopologyAboveXhStepMax -1;
 }
 
 adjointControl

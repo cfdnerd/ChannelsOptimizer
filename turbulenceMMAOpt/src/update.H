@@ -28,13 +28,23 @@ forAll(xh, i)
 reduce(grayVolumeContinuationLocal, sumOp<scalar>());
 const scalar grayVolumeFractionForContinuation =
   area > SMALL ? grayVolumeContinuationLocal/area : 0.0;
+scalar continuationFeasibilityTolActive = continuationFeasibilityTol;
+const bool lateStageStrictGateActive =
+  lateStageStrictGateBelowGrayFraction >= 0.0
+  && lateStageContinuationFeasibilityTol >= 0.0
+  && grayVolumeFractionForContinuation <= lateStageStrictGateBelowGrayFraction;
+if (lateStageStrictGateActive)
+{
+  continuationFeasibilityTolActive =
+    Foam::min(continuationFeasibilityTolActive, lateStageContinuationFeasibilityTol);
+}
 
 const scalar continuationPowerLimit =
   usePowerConstraintRelaxation ? activePowerLimit : PowerDissMax;
 const scalar powerFeasibilityRatio =
   continuationPowerLimit > SMALL ? PowerDiss/continuationPowerLimit : 0.0;
 const bool continuationGateSatisfied =
-  powerFeasibilityRatio <= continuationFeasibilityTol
+  powerFeasibilityRatio <= continuationFeasibilityTolActive
   && continuationHealthOk;
 const bool continuationFloorActive =
   opt <= forceContinuationHardeningUntilIter
@@ -55,6 +65,15 @@ const bool laggingGrayCollapseDetected =
   && grayVolumeFractionForContinuation >= laggingGrayCollapseAboveGrayFraction
   && previousXhStepMax <= laggingGrayCollapseBelowXhStepMax
   && grayVolumeFractionDrop <= laggingGrayCollapseMinGrayDrop;
+const bool overactiveTopologyDetected =
+  experimentProfile == "betaFloorGrayRamp"
+  && !continuationFloorActive
+  && overactiveTopologyStartIter > 0
+  && opt >= overactiveTopologyStartIter
+  && overactiveTopologyBelowGrayFraction >= 0.0
+  && overactiveTopologyAboveXhStepMax >= 0.0
+  && grayVolumeFractionForContinuation <= overactiveTopologyBelowGrayFraction
+  && previousXhStepMax >= overactiveTopologyAboveXhStepMax;
 const bool laggingGrayCollapsePulseIter =
   laggingGrayCollapsePauseInterval > 0
   && ((opt - laggingGrayCollapseStartIter) % laggingGrayCollapsePauseInterval == 0);
@@ -62,6 +81,7 @@ const bool continuationThrottleAllowsHardening =
   !laggingGrayCollapseDetected || laggingGrayCollapsePulseIter;
 const bool allowContinuationHardening =
   !continuationCeilingActive
+  && !overactiveTopologyDetected
   && continuationThrottleAllowsHardening
   && (forceContinuationHardening || continuationFloorActive || continuationGateSatisfied);
 

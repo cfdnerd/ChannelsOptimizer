@@ -195,6 +195,14 @@ scalar stopContinuationHardeningBelowGrayFraction
 (
   experimentControl.lookupOrDefault<scalar>("stopContinuationHardeningBelowGrayFraction", -1.0)
 );
+scalar lateStageStrictGateBelowGrayFraction
+(
+  experimentControl.lookupOrDefault<scalar>("lateStageStrictGateBelowGrayFraction", -1.0)
+);
+scalar lateStageContinuationFeasibilityTol
+(
+  experimentControl.lookupOrDefault<scalar>("lateStageContinuationFeasibilityTol", -1.0)
+);
 label laggingGrayCollapseStartIter
 (
   experimentControl.lookupOrDefault<label>("laggingGrayCollapseStartIter", 0)
@@ -214,6 +222,18 @@ scalar laggingGrayCollapseMinGrayDrop
 label laggingGrayCollapsePauseInterval
 (
   experimentControl.lookupOrDefault<label>("laggingGrayCollapsePauseInterval", 1)
+);
+label overactiveTopologyStartIter
+(
+  experimentControl.lookupOrDefault<label>("overactiveTopologyStartIter", 0)
+);
+scalar overactiveTopologyBelowGrayFraction
+(
+  experimentControl.lookupOrDefault<scalar>("overactiveTopologyBelowGrayFraction", -1.0)
+);
+scalar overactiveTopologyAboveXhStepMax
+(
+  experimentControl.lookupOrDefault<scalar>("overactiveTopologyAboveXhStepMax", -1.0)
 );
 
 if (experimentProfile == "baseline")
@@ -245,7 +265,15 @@ else if (experimentProfile == "betaFloorGrayRamp")
     Foam::max(forceContinuationHardeningUntilBeta, scalar(16.0));
   if (stopContinuationHardeningBelowGrayFraction < 0.0)
   {
-    stopContinuationHardeningBelowGrayFraction = 0.05;
+    stopContinuationHardeningBelowGrayFraction = 0.07;
+  }
+  if (lateStageStrictGateBelowGrayFraction < 0.0)
+  {
+    lateStageStrictGateBelowGrayFraction = 0.08;
+  }
+  if (lateStageContinuationFeasibilityTol < 0.0)
+  {
+    lateStageContinuationFeasibilityTol = 1.0;
   }
   laggingGrayCollapseStartIter =
     Foam::max(laggingGrayCollapseStartIter, label(120));
@@ -263,6 +291,16 @@ else if (experimentProfile == "betaFloorGrayRamp")
   }
   laggingGrayCollapsePauseInterval =
     Foam::max(laggingGrayCollapsePauseInterval, label(5));
+  overactiveTopologyStartIter =
+    Foam::max(overactiveTopologyStartIter, label(220));
+  if (overactiveTopologyBelowGrayFraction < 0.0)
+  {
+    overactiveTopologyBelowGrayFraction = 0.07;
+  }
+  if (overactiveTopologyAboveXhStepMax < 0.0)
+  {
+    overactiveTopologyAboveXhStepMax = 0.35;
+  }
 }
 else if (experimentProfile == "ungatedGrayRamp")
 {
@@ -385,6 +423,35 @@ if (stopContinuationHardeningBelowGrayFraction > 1.0)
     << stopContinuationHardeningBelowGrayFraction
     << exit(FatalError);
 }
+if
+(
+  lateStageStrictGateBelowGrayFraction < 0.0
+  && lateStageStrictGateBelowGrayFraction != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.lateStageStrictGateBelowGrayFraction must be -1 or lie in [0,1]. Found "
+    << lateStageStrictGateBelowGrayFraction
+    << exit(FatalError);
+}
+if (lateStageStrictGateBelowGrayFraction > 1.0)
+{
+  FatalErrorInFunction
+    << "experimentControl.lateStageStrictGateBelowGrayFraction must be <= 1. Found "
+    << lateStageStrictGateBelowGrayFraction
+    << exit(FatalError);
+}
+if
+(
+  lateStageContinuationFeasibilityTol < 0.0
+  && lateStageContinuationFeasibilityTol != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.lateStageContinuationFeasibilityTol must be -1 or > 0. Found "
+    << lateStageContinuationFeasibilityTol
+    << exit(FatalError);
+}
 if (laggingGrayCollapseStartIter < 0)
 {
   FatalErrorInFunction
@@ -437,6 +504,42 @@ if (laggingGrayCollapsePauseInterval <= 0)
   FatalErrorInFunction
     << "experimentControl.laggingGrayCollapsePauseInterval must be > 0. Found "
     << laggingGrayCollapsePauseInterval
+    << exit(FatalError);
+}
+if (overactiveTopologyStartIter < 0)
+{
+  FatalErrorInFunction
+    << "experimentControl.overactiveTopologyStartIter must be >= 0. Found "
+    << overactiveTopologyStartIter
+    << exit(FatalError);
+}
+if
+(
+  overactiveTopologyBelowGrayFraction < 0.0
+  && overactiveTopologyBelowGrayFraction != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.overactiveTopologyBelowGrayFraction must be -1 or lie in [0,1]. Found "
+    << overactiveTopologyBelowGrayFraction
+    << exit(FatalError);
+}
+if (overactiveTopologyBelowGrayFraction > 1.0)
+{
+  FatalErrorInFunction
+    << "experimentControl.overactiveTopologyBelowGrayFraction must be <= 1. Found "
+    << overactiveTopologyBelowGrayFraction
+    << exit(FatalError);
+}
+if
+(
+  overactiveTopologyAboveXhStepMax < 0.0
+  && overactiveTopologyAboveXhStepMax != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.overactiveTopologyAboveXhStepMax must be -1 or >= 0. Found "
+    << overactiveTopologyAboveXhStepMax
     << exit(FatalError);
 }
 

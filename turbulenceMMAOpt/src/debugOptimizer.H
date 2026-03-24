@@ -262,8 +262,18 @@ const scalar debugContinuationPowerLimit =
   usePowerConstraintRelaxation ? activePowerLimit : PowerDissMax;
 const scalar debugPowerFeasibilityRatio =
   debugContinuationPowerLimit > SMALL ? PowerDiss/debugContinuationPowerLimit : 0.0;
+scalar debugContinuationFeasibilityTolActive = continuationFeasibilityTol;
+const bool debugLateStageStrictGateActive =
+  lateStageStrictGateBelowGrayFraction >= 0.0
+  && lateStageContinuationFeasibilityTol >= 0.0
+  && grayVolumeFraction <= lateStageStrictGateBelowGrayFraction;
+if (debugLateStageStrictGateActive)
+{
+  debugContinuationFeasibilityTolActive =
+    Foam::min(debugContinuationFeasibilityTolActive, lateStageContinuationFeasibilityTol);
+}
 const bool debugContinuationGateSatisfied =
-  debugPowerFeasibilityRatio <= continuationFeasibilityTol
+  debugPowerFeasibilityRatio <= debugContinuationFeasibilityTolActive
   && continuationHealthOk;
 const bool debugContinuationFloorActive =
   opt <= forceContinuationHardeningUntilIter
@@ -284,6 +294,15 @@ const bool debugLaggingGrayCollapseDetected =
   && grayVolumeFraction >= laggingGrayCollapseAboveGrayFraction
   && previousXhStepMax <= laggingGrayCollapseBelowXhStepMax
   && debugGrayVolumeFractionDrop <= laggingGrayCollapseMinGrayDrop;
+const bool debugOveractiveTopologyDetected =
+  experimentProfile == "betaFloorGrayRamp"
+  && !debugContinuationFloorActive
+  && overactiveTopologyStartIter > 0
+  && opt >= overactiveTopologyStartIter
+  && overactiveTopologyBelowGrayFraction >= 0.0
+  && overactiveTopologyAboveXhStepMax >= 0.0
+  && grayVolumeFraction <= overactiveTopologyBelowGrayFraction
+  && previousXhStepMax >= overactiveTopologyAboveXhStepMax;
 const bool debugLaggingGrayCollapsePulseIter =
   laggingGrayCollapsePauseInterval > 0
   && ((opt - laggingGrayCollapseStartIter) % laggingGrayCollapsePauseInterval == 0);
@@ -291,6 +310,7 @@ const bool debugContinuationThrottleAllowsHardening =
   !debugLaggingGrayCollapseDetected || debugLaggingGrayCollapsePulseIter;
 const bool debugContinuationHardeningEnabled =
   !debugContinuationCeilingActive
+  && !debugOveractiveTopologyDetected
   && debugContinuationThrottleAllowsHardening
   && (forceContinuationHardening || debugContinuationFloorActive || debugContinuationGateSatisfied);
 const scalar maxConstraintViolation = Foam::max(Foam::max(powerConstraintMargin, volumeConstraintMargin), scalar(0));
@@ -437,10 +457,10 @@ if (Pstream::master())
   writeRow("interp bounds", "alphaMin="+fmtScalar(alphaLocalMin), "alphaMax="+fmtScalar(alphaLocalMax), "DTMin="+fmtScalar(DTLocalMin), "DTMax="+fmtScalar(DTLocalMax));
   writeRow("continuation", "alphaMax="+fmtScalar(alphaMax.value()), "qAlpha="+fmtScalar(qAlpha), "qKappa="+fmtScalar(qKappa), "qHeat="+fmtScalar(qHeat));
   writeRow("hardening", "profile="+std::string(experimentProfile.c_str()), "gate="+std::string(debugContinuationGateSatisfied ? "open" : "closed"), "force="+std::string(forceContinuationHardening ? "yes" : "no"), "floor="+std::string(debugContinuationFloorActive ? "yes" : "no"));
-  writeRow("hardening ctl", "PD/limit="+fmtScalar(debugPowerFeasibilityRatio), "iter<="+fmtCount(forceContinuationHardeningUntilIter), "beta<="+fmtScalar(forceContinuationHardeningUntilBeta), "ceiling="+std::string(debugContinuationCeilingActive ? "yes" : "no"));
+  writeRow("hardening ctl", "PD/limit="+fmtScalar(debugPowerFeasibilityRatio), "tol<="+fmtScalar(debugContinuationFeasibilityTolActive), "iter<="+fmtCount(forceContinuationHardeningUntilIter), "beta<="+fmtScalar(forceContinuationHardeningUntilBeta));
   if (stopContinuationHardeningBelowGrayFraction >= 0.0)
   {
-    writeRow("hardening stop", "gray<="+fmtScalar(stopContinuationHardeningBelowGrayFraction), "gray="+fmtScalar(grayVolumeFraction));
+    writeRow("hardening stop", "gray<="+fmtScalar(stopContinuationHardeningBelowGrayFraction), "gray="+fmtScalar(grayVolumeFraction), "ceiling="+std::string(debugContinuationCeilingActive ? "yes" : "no"), "strict="+std::string(debugLateStageStrictGateActive ? "yes" : "no"));
   }
   if (experimentProfile == "betaFloorGrayRamp" && laggingGrayCollapseStartIter > 0)
   {
@@ -451,6 +471,17 @@ if (Pstream::master())
       "grayDrop="+fmtScalar(debugGrayVolumeFractionDrop),
       "prevXhStep="+fmtScalar(previousXhStepMax),
       "pulse="+std::string(debugLaggingGrayCollapsePulseIter ? "yes" : "no")
+    );
+  }
+  if (experimentProfile == "betaFloorGrayRamp" && overactiveTopologyStartIter > 0)
+  {
+    writeRow
+    (
+      "step throttle",
+      "active="+std::string(debugOveractiveTopologyDetected ? "yes" : "no"),
+      "prevXhStep="+fmtScalar(previousXhStepMax),
+      "gray<="+fmtScalar(overactiveTopologyBelowGrayFraction),
+      "xhStep>="+fmtScalar(overactiveTopologyAboveXhStepMax)
     );
   }
   writeRow("modes", "objective="+std::string(activeObjectiveLabel.c_str()), "wallDist="+std::string(activeWallDistanceMode.c_str()), "turbulence="+std::string(activeTurbulenceModelMode.c_str()), "beta="+fmtScalar(del));
@@ -582,17 +613,25 @@ if (Pstream::master())
       << ",\"beta\":" << del
       << ",\"experimentProfile\":\"" << experimentProfile << "\""
       << ",\"powerFeasibilityRatio\":" << debugPowerFeasibilityRatio
+      << ",\"continuationFeasibilityTolActive\":" << debugContinuationFeasibilityTolActive
       << ",\"continuationGateSatisfied\":" << (debugContinuationGateSatisfied ? 1 : 0)
       << ",\"continuationFloorActive\":" << (debugContinuationFloorActive ? 1 : 0)
       << ",\"continuationCeilingActive\":" << (debugContinuationCeilingActive ? 1 : 0)
+      << ",\"lateStageStrictGateActive\":" << (debugLateStageStrictGateActive ? 1 : 0)
       << ",\"laggingGrayCollapseDetected\":" << (debugLaggingGrayCollapseDetected ? 1 : 0)
       << ",\"laggingGrayCollapsePulseIter\":" << (debugLaggingGrayCollapsePulseIter ? 1 : 0)
+      << ",\"overactiveTopologyDetected\":" << (debugOveractiveTopologyDetected ? 1 : 0)
       << ",\"grayVolumeFractionDrop\":" << debugGrayVolumeFractionDrop
       << ",\"previousXhStepMax\":" << previousXhStepMax
       << ",\"forceContinuationHardening\":" << (forceContinuationHardening ? 1 : 0)
       << ",\"forceContinuationHardeningUntilIter\":" << forceContinuationHardeningUntilIter
       << ",\"forceContinuationHardeningUntilBeta\":" << forceContinuationHardeningUntilBeta
       << ",\"stopContinuationHardeningBelowGrayFraction\":" << stopContinuationHardeningBelowGrayFraction
+      << ",\"lateStageStrictGateBelowGrayFraction\":" << lateStageStrictGateBelowGrayFraction
+      << ",\"lateStageContinuationFeasibilityTol\":" << lateStageContinuationFeasibilityTol
+      << ",\"overactiveTopologyStartIter\":" << overactiveTopologyStartIter
+      << ",\"overactiveTopologyBelowGrayFraction\":" << overactiveTopologyBelowGrayFraction
+      << ",\"overactiveTopologyAboveXhStepMax\":" << overactiveTopologyAboveXhStepMax
       << ",\"hardeningEnabled\":" << (debugContinuationHardeningEnabled ? 1 : 0)
       << ",\"wallDistanceMode\":\"" << activeWallDistanceMode << "\""
       << ",\"turbulenceModelMode\":\"" << activeTurbulenceModelMode << "\""

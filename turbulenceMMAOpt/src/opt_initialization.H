@@ -120,11 +120,16 @@ if (Pstream::master())
   writeRuntimeOption("forceContinuationHardeningUntilIter", forceContinuationHardeningUntilIter);
   writeRuntimeOption("forceContinuationHardeningUntilBeta", forceContinuationHardeningUntilBeta);
   writeRuntimeOption("stopContinuationHardeningBelowGrayFraction", stopContinuationHardeningBelowGrayFraction);
+  writeRuntimeOption("lateStageStrictGateBelowGrayFraction", lateStageStrictGateBelowGrayFraction);
+  writeRuntimeOption("lateStageContinuationFeasibilityTol", lateStageContinuationFeasibilityTol);
   writeRuntimeOption("laggingGrayCollapseStartIter", laggingGrayCollapseStartIter);
   writeRuntimeOption("laggingGrayCollapseAboveGrayFraction", laggingGrayCollapseAboveGrayFraction);
   writeRuntimeOption("laggingGrayCollapseBelowXhStepMax", laggingGrayCollapseBelowXhStepMax);
   writeRuntimeOption("laggingGrayCollapseMinGrayDrop", laggingGrayCollapseMinGrayDrop);
   writeRuntimeOption("laggingGrayCollapsePauseInterval", laggingGrayCollapsePauseInterval);
+  writeRuntimeOption("overactiveTopologyStartIter", overactiveTopologyStartIter);
+  writeRuntimeOption("overactiveTopologyBelowGrayFraction", overactiveTopologyBelowGrayFraction);
+  writeRuntimeOption("overactiveTopologyAboveXhStepMax", overactiveTopologyAboveXhStepMax);
 
   debugLogFile << "\n--- adjointControl ---\n";
   writeRuntimeOption("adjointMomentumSweeps", adjointMomentumSweeps);

@@ -23,8 +23,11 @@ const scalar powerFeasibilityRatio =
 const bool continuationGateSatisfied =
   powerFeasibilityRatio <= continuationFeasibilityTol
   && continuationHealthOk;
+const bool continuationFloorActive =
+  opt <= forceContinuationHardeningUntilIter
+  || (forceContinuationHardeningUntilBeta >= 0.0 && del < forceContinuationHardeningUntilBeta);
 const bool allowContinuationHardening =
-  forceContinuationHardening || continuationGateSatisfied;
+  forceContinuationHardening || continuationFloorActive || continuationGateSatisfied;
 
 if(opt<=63 && allowContinuationHardening)
 {

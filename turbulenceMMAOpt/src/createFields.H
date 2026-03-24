@@ -183,6 +183,14 @@ Switch forceContinuationHardening
 (
   experimentControl.lookupOrDefault<Switch>("forceContinuationHardening", false)
 );
+label forceContinuationHardeningUntilIter
+(
+  experimentControl.lookupOrDefault<label>("forceContinuationHardeningUntilIter", 0)
+);
+scalar forceContinuationHardeningUntilBeta
+(
+  experimentControl.lookupOrDefault<scalar>("forceContinuationHardeningUntilBeta", -1.0)
+);
 
 if (experimentProfile == "baseline")
 {
@@ -201,6 +209,17 @@ else if (experimentProfile == "relaxedGateGrayRamp")
   alphaRampLateFactor = 1.05;
   continuationFeasibilityTol = Foam::max(continuationFeasibilityTol, scalar(2.5));
 }
+else if (experimentProfile == "betaFloorGrayRamp")
+{
+  betaIncrement = 0.2;
+  alphaRampEarlySlope = 1.0/7.0;
+  alphaRampLateFactor = 1.05;
+  continuationFeasibilityTol = Foam::max(continuationFeasibilityTol, scalar(2.5));
+  forceContinuationHardeningUntilIter =
+    Foam::max(forceContinuationHardeningUntilIter, label(80));
+  forceContinuationHardeningUntilBeta =
+    Foam::max(forceContinuationHardeningUntilBeta, scalar(16.0));
+}
 else if (experimentProfile == "ungatedGrayRamp")
 {
   betaIncrement = 0.2;
@@ -218,7 +237,8 @@ else
   FatalErrorInFunction
     << "Unknown experimentControl.profile '" << experimentProfile << "'. "
     << "Supported values are baseline, laminarGrayRamp, "
-    << "relaxedGateGrayRamp, ungatedGrayRamp, and "
+    << "relaxedGateGrayRamp, betaFloorGrayRamp, "
+    << "ungatedGrayRamp, and "
     << "adjointSensitivityProbe."
     << exit(FatalError);
 }

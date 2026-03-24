@@ -48,13 +48,16 @@ continuationSwitches
 // baseline: keep case values unchanged
 // laminarGrayRamp: use laminar-style beta/alpha continuation
 // relaxedGateGrayRamp: laminar-style continuation with a looser feasibility gate
+// betaFloorGrayRamp: relaxed gate plus forced hardening until beta/iter floor
 // ungatedGrayRamp: laminarGrayRamp + bypass the continuation feasibility gate
 // adjointSensitivityProbe: increase adjoint fidelity to test whether weak
 // objective/power sensitivities are suppressing topology changes
 experimentControl
 {
-    profile                         relaxedGateGrayRamp;
+    profile                         betaFloorGrayRamp;
     forceContinuationHardening      false;
+    forceContinuationHardeningUntilIter 0;
+    forceContinuationHardeningUntilBeta -1;
 }
 
 adjointControl

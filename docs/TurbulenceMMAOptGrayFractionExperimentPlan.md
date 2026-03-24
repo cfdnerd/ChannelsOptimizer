@@ -21,8 +21,9 @@ Run the experiments in this order:
 1. `baseline`
 2. `laminarGrayRamp`
 3. `relaxedGateGrayRamp`
-4. `ungatedGrayRamp`
-5. `adjointSensitivityProbe`
+4. `betaFloorGrayRamp`
+5. `ungatedGrayRamp`
+6. `adjointSensitivityProbe`
 
 Only move to the next experiment if the previous one does not produce a clear
 gray-collapse trend.
@@ -119,7 +120,35 @@ Key signals to inspect:
 - `interpolation.hardeningEnabled`
 - gray fraction and `xhStepMax`
 
-### 4. `ungatedGrayRamp`
+### 4. `betaFloorGrayRamp`
+
+Purpose:
+
+- keep the safer relaxed-gate behavior, but prevent hardening from shutting off
+  before the design reaches a minimum sharpening floor
+
+Profile effect:
+
+- same overrides as `relaxedGateGrayRamp`
+- force hardening until at least `Iter 80`
+- force hardening until at least `beta = 16`
+- after that, hand control back to the feasibility gate
+
+Interpretation:
+
+- if this profile reproduces most of the `ungatedGrayRamp` gray collapse with
+  fewer violent late swings, it is the best current tuning candidate
+- if it still behaves almost identically to `ungatedGrayRamp`, the gate is not
+  buying much and may not be worth keeping
+- if it stalls again before redesign takes off, the floor is still too low
+
+Key signals to inspect:
+
+- `interpolation.continuationFloorActive`
+- `interpolation.hardeningEnabled`
+- gray fraction, `beta`, and `xhStepMax`
+
+### 5. `ungatedGrayRamp`
 
 Purpose:
 
@@ -142,7 +171,7 @@ Key signals to inspect:
 - `interpolation.hardeningEnabled`
 - gray fraction and `xhStepMax`
 
-### 5. `adjointSensitivityProbe`
+### 6. `adjointSensitivityProbe`
 
 Purpose:
 

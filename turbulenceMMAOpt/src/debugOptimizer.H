@@ -265,8 +265,11 @@ const scalar debugPowerFeasibilityRatio =
 const bool debugContinuationGateSatisfied =
   debugPowerFeasibilityRatio <= continuationFeasibilityTol
   && continuationHealthOk;
+const bool debugContinuationFloorActive =
+  opt <= forceContinuationHardeningUntilIter
+  || (forceContinuationHardeningUntilBeta >= 0.0 && del < forceContinuationHardeningUntilBeta);
 const bool debugContinuationHardeningEnabled =
-  forceContinuationHardening || debugContinuationGateSatisfied;
+  forceContinuationHardening || debugContinuationFloorActive || debugContinuationGateSatisfied;
 const scalar maxConstraintViolation = Foam::max(Foam::max(powerConstraintMargin, volumeConstraintMargin), scalar(0));
 const scalar objectiveToVolumeSensitivityRatio = fsensL2/Foam::max(gsensVolL2, SMALL);
 const scalar powerToVolumeSensitivityRatio = gsensPowerL2/Foam::max(gsensVolL2, SMALL);
@@ -410,7 +413,8 @@ if (Pstream::master())
   writeSectionHeader("Interpolation Diagnostics");
   writeRow("interp bounds", "alphaMin="+fmtScalar(alphaLocalMin), "alphaMax="+fmtScalar(alphaLocalMax), "DTMin="+fmtScalar(DTLocalMin), "DTMax="+fmtScalar(DTLocalMax));
   writeRow("continuation", "alphaMax="+fmtScalar(alphaMax.value()), "qAlpha="+fmtScalar(qAlpha), "qKappa="+fmtScalar(qKappa), "qHeat="+fmtScalar(qHeat));
-  writeRow("hardening", "profile="+std::string(experimentProfile.c_str()), "gate="+std::string(debugContinuationGateSatisfied ? "open" : "closed"), "force="+std::string(forceContinuationHardening ? "yes" : "no"), "PD/limit="+fmtScalar(debugPowerFeasibilityRatio));
+  writeRow("hardening", "profile="+std::string(experimentProfile.c_str()), "gate="+std::string(debugContinuationGateSatisfied ? "open" : "closed"), "force="+std::string(forceContinuationHardening ? "yes" : "no"), "floor="+std::string(debugContinuationFloorActive ? "yes" : "no"));
+  writeRow("hardening ctl", "PD/limit="+fmtScalar(debugPowerFeasibilityRatio), "iter<="+fmtCount(forceContinuationHardeningUntilIter), "beta<="+fmtScalar(forceContinuationHardeningUntilBeta));
   writeRow("modes", "objective="+std::string(activeObjectiveLabel.c_str()), "wallDist="+std::string(activeWallDistanceMode.c_str()), "turbulence="+std::string(activeTurbulenceModelMode.c_str()), "beta="+fmtScalar(del));
   writeRow("thermal props", "heatSource="+fmtScalar(heatSource.value()), "thermalSrc="+fmtScalar(thermalSource.value()), "rhoCp="+fmtScalar(rhoCp.value()));
 
@@ -541,7 +545,10 @@ if (Pstream::master())
       << ",\"experimentProfile\":\"" << experimentProfile << "\""
       << ",\"powerFeasibilityRatio\":" << debugPowerFeasibilityRatio
       << ",\"continuationGateSatisfied\":" << (debugContinuationGateSatisfied ? 1 : 0)
+      << ",\"continuationFloorActive\":" << (debugContinuationFloorActive ? 1 : 0)
       << ",\"forceContinuationHardening\":" << (forceContinuationHardening ? 1 : 0)
+      << ",\"forceContinuationHardeningUntilIter\":" << forceContinuationHardeningUntilIter
+      << ",\"forceContinuationHardeningUntilBeta\":" << forceContinuationHardeningUntilBeta
       << ",\"hardeningEnabled\":" << (debugContinuationHardeningEnabled ? 1 : 0)
       << ",\"wallDistanceMode\":\"" << activeWallDistanceMode << "\""
       << ",\"turbulenceModelMode\":\"" << activeTurbulenceModelMode << "\""

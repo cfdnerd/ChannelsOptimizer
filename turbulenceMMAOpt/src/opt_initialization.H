@@ -14,7 +14,7 @@ if (Pstream::master())
   std::ofstream historyFile(optimizationHistoryFile, std::ios::out);
   historyFile
     << "# turbulenceMMAOpt optimization history\n"
-    << "# Cols: Iter PDActLog PDCon V MeanT MaxT\n"
+    << "# Cols: Iter PDActLog PDCon V MeanT MaxT SolverStat\n"
     << "# PDActLog=PDCon*PowerDiss0, PDCon=PowerDiss used by MMA\n"
     << std::left
     << std::setw(8) << "Iter"
@@ -23,6 +23,7 @@ if (Pstream::master())
     << std::setw(16) << "V"
     << std::setw(16) << "MeanT"
     << std::setw(16) << "MaxT"
+    << std::setw(12) << "SolverStat"
     << '\n';
 
   std::ofstream debugLogFile(debugOptimizerLogFile, std::ios::out);
@@ -222,7 +223,7 @@ auto recordLinearSolve =
 
 const scalar linearSolveObsResidual = 1e-6;
 const scalar linearSolveWarnResidual = 1e-4;
-const label linearSolveWarnIterations = 5000;
+const label linearSolveWarnIterations = 20000;
 
 auto classifyLinearSolveStatus =
 [&](const LinearSolveStats& stats) -> const char*
@@ -266,6 +267,12 @@ auto linearSolveSeverityFromStats =
   return linearSolveSeverity(classifyLinearSolveStatus(stats));
 };
 
+auto optimizationHistoryStatusIsAcceptable =
+[](const char* status) -> bool
+{
+  return std::strcmp(status, "OK") == 0 || std::strcmp(status, "SKIP") == 0;
+};
+
 LinearSolveStats ULinearSolveStats;
 LinearSolveStats pLinearSolveStats;
 LinearSolveStats TLinearSolveStats;
@@ -279,6 +286,22 @@ LinearSolveStats xpFilterLinearSolveStats;
 LinearSolveStats fsensFilterLinearSolveStats;
 LinearSolveStats gsensPowerFilterLinearSolveStats;
 LinearSolveStats gsensVolFilterLinearSolveStats;
+
+auto optimizationHistorySolverStatus =
+[&]() -> const char*
+{
+  return
+    optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(ULinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(pLinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(TLinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(TbLinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(UbLinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(pbLinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(UaLinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(paLinearSolveStats))
+    ? "OK"
+    : "WARN";
+};
 
 int i=0,opt=0;
 double del=0;

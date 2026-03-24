@@ -79,6 +79,7 @@ PDActLog = PDAct/meshFactor;
 
 if (Pstream::master())
 { 
+   const char* optimizationHistoryStatus = optimizationHistorySolverStatus();
    std::ofstream historyFile(optimizationHistoryFile, std::ios::app);
    if (opt > 1 && ((opt - 1) % 25 == 0))
    {
@@ -90,6 +91,7 @@ if (Pstream::master())
         << std::setw(16) << "V"
         << std::setw(16) << "MeanT"
         << std::setw(16) << "MaxT"
+        << std::setw(12) << "SolverStat"
         << '\n';
    }
     historyFile
@@ -101,5 +103,6 @@ if (Pstream::master())
       << std::setw(16) << V
       << std::setw(16) << objectiveValueCurrent
       << std::setw(16) << maxT
+      << std::setw(12) << optimizationHistoryStatus
       << '\n';
 }

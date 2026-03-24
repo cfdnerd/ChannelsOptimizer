@@ -38,12 +38,12 @@ int main(int argc, char *argv[])
             pb = dimensionedScalar("zero", pb.dimensions(), 0.0);
             phia = dimensionedScalar("zero", phia.dimensions(), 0.0);
             phib = dimensionedScalar("zero", phib.dimensions(), 0.0);
-            Tb = dimensionedScalar("zero", Tb.dimensions(), 0.0);
 
             Ua.correctBoundaryConditions();
             Ub.correctBoundaryConditions();
             pa.correctBoundaryConditions();
             pb.correctBoundaryConditions();
+            // Keep Tb as a warm start for the next adjoint thermal solve.
             Tb.correctBoundaryConditions();
         }
         #include "AdjointHeat_Tb.H"

@@ -53,13 +53,13 @@ experimentControl
     stopContinuationHardeningBelowGrayFraction 0.10; // Fully stop hardening once gray is already low enough.
     lateStageStrictGateBelowGrayFraction 0.14; // Switch to a stricter power-feasibility gate below this gray level.
     lateStageContinuationFeasibilityTol 0.98; // Stricter late-stage PowerDiss/limit tolerance.
-    lateStageRefinementStartIter   220; // Start late refinement taper from this iteration onward.
+    lateStageRefinementStartIter   170; // Start late refinement taper from this iteration onward.
     lateStageRefinementBelowGrayFraction 0.18; // Also start refinement taper once gray drops below this level.
     lateStageBetaRampFactor        0.25; // Scale betaIncrement during late refinement.
     lateStageAlphaRampFactor       1.0; // Replace late alpha growth factor during refinement.
-    lateStageMaxBeta               48; // Cap beta during late refinement to preserve carveable gray.
-    lateStageFilterRStartIter      240; // Keep the dictionary filterR through this iteration, then switch to the cap.
-    lateStageFilterRCap            3.0; // Late-stage filter-radius cap used after lateStageFilterRStartIter.
+    lateStageMaxBeta               40; // Cap beta during late refinement to preserve carveable gray.
+    lateStageFilterRStartIter      120; // Keep the dictionary filterR through this iteration, then switch to the cap.
+    lateStageFilterRCap            6.0; // Late-stage filter-radius cap used after lateStageFilterRStartIter.
     laggingGrayCollapseStartIter   140; // Start checking for stalled gray collapse from this iteration.
     laggingGrayCollapseAboveGrayFraction 0.30; // Only treat the run as stalled while gray is still this high.
     laggingGrayCollapseBelowXhStepMax 0.06; // Stagnation test: topology motion is too small below this xhStepMax.

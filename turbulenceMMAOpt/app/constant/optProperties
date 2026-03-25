@@ -44,7 +44,7 @@ qSingleMin          0.005;  // Minimum shared q; keep equal to freeze single-q c
 qContinuationStartIter 1000; // Iteration at which q continuation begins.
 qContinuationInterval 10;   // Apply q continuation every N iterations.
 qContinuationFactor 0.9;    // Multiply q by this factor at each continuation step.
-beta0               0.2;    // Initial projection sharpness for x -> xh.
+beta0               0.5;    // Initial projection sharpness for x -> xh.
 betaMax             100;    // Hard upper cap on projection sharpness.
 betaIncrement       0.12;   // Default beta increase per hardening step.
 alphaRampEarlySlope 0.08;   // Early alphaMax ramp slope before late continuation takes over.

@@ -87,6 +87,15 @@ const bool allowContinuationHardening =
   && !overactiveTopologyDetected
   && continuationThrottleAllowsHardening
   && (forceContinuationHardening || continuationFloorActive || continuationGateSatisfied);
+const bool lateStageFilterRCapActive =
+  lateStageFilterRStartIter > 0
+  && lateStageFilterRCap >= 0.0
+  && opt > lateStageFilterRStartIter;
+activeFilterR =
+  lateStageFilterRCapActive
+  ? Foam::min(filterR, lateStageFilterRCap)
+  : filterR;
+b.value()=1.0/(activeFilterR*len/3.464)/(activeFilterR*len/3.464);
 const bool lateStageRefinementActive =
   (lateStageRefinementStartIter > 0 && opt >= lateStageRefinementStartIter)
   || (

@@ -127,6 +127,8 @@ if (Pstream::master())
   writeRuntimeOption("lateStageBetaRampFactor", lateStageBetaRampFactor);
   writeRuntimeOption("lateStageAlphaRampFactor", lateStageAlphaRampFactor);
   writeRuntimeOption("lateStageMaxBeta", lateStageMaxBeta);
+  writeRuntimeOption("lateStageFilterRStartIter", lateStageFilterRStartIter);
+  writeRuntimeOption("lateStageFilterRCap", lateStageFilterRCap);
   writeRuntimeOption("laggingGrayCollapseStartIter", laggingGrayCollapseStartIter);
   writeRuntimeOption("laggingGrayCollapseAboveGrayFraction", laggingGrayCollapseAboveGrayFraction);
   writeRuntimeOption("laggingGrayCollapseBelowXhStepMax", laggingGrayCollapseBelowXhStepMax);
@@ -342,8 +344,9 @@ const scalar adjointRunawayRatioLimit(1e6);
 word activeObjectiveLabel("MeanT");
 word activeWallDistanceMode("meshWave");
 word activeTurbulenceModelMode("kEpsilon");
+scalar activeFilterR(filterR);
 double len=std::pow(area/N, 1.0/3);
-b.value()=1.0/(filterR*len/3.464)/(filterR*len/3.464);
+b.value()=1.0/(activeFilterR*len/3.464)/(activeFilterR*len/3.464);
 del=beta0;
 //***********************************//MMA
 int m=2;//number of constraint

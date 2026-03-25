@@ -223,6 +223,14 @@ scalar lateStageMaxBeta
 (
   experimentControl.lookupOrDefault<scalar>("lateStageMaxBeta", -1.0)
 );
+label lateStageFilterRStartIter
+(
+  experimentControl.lookupOrDefault<label>("lateStageFilterRStartIter", 0)
+);
+scalar lateStageFilterRCap
+(
+  experimentControl.lookupOrDefault<scalar>("lateStageFilterRCap", -1.0)
+);
 label laggingGrayCollapseStartIter
 (
   experimentControl.lookupOrDefault<label>("laggingGrayCollapseStartIter", 0)
@@ -328,7 +336,6 @@ else if (experimentProfile == "branchRefinement400")
   alphaRampEarlySlope = 1.0/7.0;
   alphaRampLateFactor = 1.05;
   continuationFeasibilityTol = Foam::max(continuationFeasibilityTol, scalar(2.0));
-  filterR = Foam::min(filterR, scalar(3.0));
   forceContinuationHardeningUntilIter =
     Foam::max(forceContinuationHardeningUntilIter, label(80));
   forceContinuationHardeningUntilBeta =
@@ -362,6 +369,12 @@ else if (experimentProfile == "branchRefinement400")
   if (lateStageMaxBeta < 0.0)
   {
     lateStageMaxBeta = 48.0;
+  }
+  lateStageFilterRStartIter =
+    Foam::max(lateStageFilterRStartIter, label(240));
+  if (lateStageFilterRCap < 0.0)
+  {
+    lateStageFilterRCap = Foam::min(filterR, scalar(3.0));
   }
   laggingGrayCollapseStartIter =
     Foam::max(laggingGrayCollapseStartIter, label(140));
@@ -597,6 +610,24 @@ if
   FatalErrorInFunction
     << "experimentControl.lateStageMaxBeta must be -1 or >= 0. Found "
     << lateStageMaxBeta
+    << exit(FatalError);
+}
+if (lateStageFilterRStartIter < 0)
+{
+  FatalErrorInFunction
+    << "experimentControl.lateStageFilterRStartIter must be >= 0. Found "
+    << lateStageFilterRStartIter
+    << exit(FatalError);
+}
+if
+(
+  lateStageFilterRCap < 0.0
+  && lateStageFilterRCap != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.lateStageFilterRCap must be -1 or > 0. Found "
+    << lateStageFilterRCap
     << exit(FatalError);
 }
 if (laggingGrayCollapseStartIter < 0)

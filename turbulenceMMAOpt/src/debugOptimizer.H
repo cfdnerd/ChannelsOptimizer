@@ -316,6 +316,10 @@ const bool debugContinuationHardeningEnabled =
   && !debugOveractiveTopologyDetected
   && debugContinuationThrottleAllowsHardening
   && (forceContinuationHardening || debugContinuationFloorActive || debugContinuationGateSatisfied);
+const bool debugLateStageFilterRCapActive =
+  lateStageFilterRStartIter > 0
+  && lateStageFilterRCap >= 0.0
+  && opt > lateStageFilterRStartIter;
 const bool debugLateStageRefinementActive =
   (lateStageRefinementStartIter > 0 && opt >= lateStageRefinementStartIter)
   || (
@@ -464,6 +468,7 @@ if (Pstream::master())
 
   writeSectionHeader("MMA Diagnostics");
   writeRow("controls", "moveLimit="+fmtScalar(movlim), "moveHits="+fmtCount(xMoveLimitHitCountLocal));
+  writeRow("filter", "baseR="+fmtScalar(filterR), "activeR="+fmtScalar(activeFilterR), "capIter="+fmtCount(lateStageFilterRStartIter), "cap="+fmtScalar(lateStageFilterRCap));
   writeRow("bound clamps", "lower="+fmtCount(xLowerBoundCountLocal), "upper="+fmtCount(xUpperBoundCountLocal), "nonFiniteX="+fmtCount(xNonFiniteCountLocal));
 
   writeSectionHeader("Sensitivity Diagnostics");
@@ -661,6 +666,8 @@ if (Pstream::master())
       << ",\"continuationFloorActive\":" << (debugContinuationFloorActive ? 1 : 0)
       << ",\"continuationCeilingActive\":" << (debugContinuationCeilingActive ? 1 : 0)
       << ",\"lateStageStrictGateActive\":" << (debugLateStageStrictGateActive ? 1 : 0)
+      << ",\"lateStageFilterRCapActive\":" << (debugLateStageFilterRCapActive ? 1 : 0)
+      << ",\"filterRActive\":" << activeFilterR
       << ",\"lateStageRefinementActive\":" << (debugLateStageRefinementActive ? 1 : 0)
       << ",\"betaIncrementActive\":" << debugBetaIncrementActive
       << ",\"alphaRampLateFactorActive\":" << debugAlphaRampLateFactorActive
@@ -681,6 +688,8 @@ if (Pstream::master())
       << ",\"lateStageBetaRampFactor\":" << lateStageBetaRampFactor
       << ",\"lateStageAlphaRampFactor\":" << lateStageAlphaRampFactor
       << ",\"lateStageMaxBeta\":" << lateStageMaxBeta
+      << ",\"lateStageFilterRStartIter\":" << lateStageFilterRStartIter
+      << ",\"lateStageFilterRCap\":" << lateStageFilterRCap
       << ",\"overactiveTopologyStartIter\":" << overactiveTopologyStartIter
       << ",\"overactiveTopologyBelowGrayFraction\":" << overactiveTopologyBelowGrayFraction
       << ",\"overactiveTopologyAboveXhStepMax\":" << overactiveTopologyAboveXhStepMax

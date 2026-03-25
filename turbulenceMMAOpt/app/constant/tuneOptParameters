@@ -58,6 +58,8 @@ experimentControl
     lateStageBetaRampFactor        0.25; // Scale betaIncrement during late refinement.
     lateStageAlphaRampFactor       1.0; // Replace late alpha growth factor during refinement.
     lateStageMaxBeta               48; // Cap beta during late refinement to preserve carveable gray.
+    lateStageFilterRStartIter      240; // Keep the dictionary filterR through this iteration, then switch to the cap.
+    lateStageFilterRCap            3.0; // Late-stage filter-radius cap used after lateStageFilterRStartIter.
     laggingGrayCollapseStartIter   140; // Start checking for stalled gray collapse from this iteration.
     laggingGrayCollapseAboveGrayFraction 0.30; // Only treat the run as stalled while gray is still this high.
     laggingGrayCollapseBelowXhStepMax 0.06; // Stagnation test: topology motion is too small below this xhStepMax.

@@ -49,11 +49,17 @@ continuationSwitches
 // laminarGrayRamp: use laminar-style beta/alpha continuation
 // relaxedGateGrayRamp: laminar-style continuation with a looser feasibility gate
 // betaFloorGrayRamp: relaxed gate plus forced hardening until beta/iter floor
+// branchRefinement400: keep the proven early gray-collapse behavior, but taper
+// late hardening so Iter 220-400 can keep carving sub-branches instead of
+// over-sharpening into speckled micro-islands
 // stopContinuationHardeningBelowGrayFraction: optional late-stage ceiling that
 // freezes further hardening once the remaining gray volume is already small
 // lateStageStrictGate*: optional tighter feasibility gate that takes over once
 // gray is already low, so late hardening cannot continue through power
 // violations just because the early relaxed gate is still permissive
+// lateStageRefinement*: optional taper that scales beta hardening, slows the
+// late alpha ramp, and caps beta once the optimizer transitions from primary
+// branch creation into fine sub-branch refinement
 // laggingGrayCollapse*: optional betaFloorGrayRamp throttle that slows further
 // hardening if gray is still high but topology motion has already faded;
 // pauseInterval applies a periodic one-step pulse so hardening does not freeze
@@ -65,21 +71,26 @@ continuationSwitches
 // objective/power sensitivities are suppressing topology changes
 experimentControl
 {
-    profile                         betaFloorGrayRamp;
+    profile                         branchRefinement400;
     forceContinuationHardening      false;
     forceContinuationHardeningUntilIter 0;
     forceContinuationHardeningUntilBeta -1;
-    stopContinuationHardeningBelowGrayFraction -1;
-    lateStageStrictGateBelowGrayFraction -1;
-    lateStageContinuationFeasibilityTol -1;
-    laggingGrayCollapseStartIter    0;
-    laggingGrayCollapseAboveGrayFraction -1;
-    laggingGrayCollapseBelowXhStepMax -1;
-    laggingGrayCollapseMinGrayDrop  -1;
-    laggingGrayCollapsePauseInterval 1;
-    overactiveTopologyStartIter     0;
-    overactiveTopologyBelowGrayFraction -1;
-    overactiveTopologyAboveXhStepMax -1;
+    stopContinuationHardeningBelowGrayFraction 0.10;
+    lateStageStrictGateBelowGrayFraction 0.14;
+    lateStageContinuationFeasibilityTol 0.98;
+    lateStageRefinementStartIter   220;
+    lateStageRefinementBelowGrayFraction 0.18;
+    lateStageBetaRampFactor        0.25;
+    lateStageAlphaRampFactor       1.0;
+    lateStageMaxBeta               48;
+    laggingGrayCollapseStartIter   140;
+    laggingGrayCollapseAboveGrayFraction 0.30;
+    laggingGrayCollapseBelowXhStepMax 0.06;
+    laggingGrayCollapseMinGrayDrop 5e-3;
+    laggingGrayCollapsePauseInterval 4;
+    overactiveTopologyStartIter    180;
+    overactiveTopologyBelowGrayFraction 0.16;
+    overactiveTopologyAboveXhStepMax 0.20;
 }
 
 adjointControl

@@ -283,8 +283,11 @@ const bool debugContinuationCeilingActive =
   && grayVolumeFraction <= stopContinuationHardeningBelowGrayFraction;
 const scalar debugGrayVolumeFractionDrop =
   previousGrayVolumeFractionForContinuation - grayVolumeFraction;
-const bool debugLaggingGrayCollapseDetected =
+const bool debugProfileUsesAdaptiveHardeningThrottles =
   experimentProfile == "betaFloorGrayRamp"
+  || experimentProfile == "branchRefinement400";
+const bool debugLaggingGrayCollapseDetected =
+  debugProfileUsesAdaptiveHardeningThrottles
   && !debugContinuationFloorActive
   && laggingGrayCollapseStartIter > 0
   && opt >= laggingGrayCollapseStartIter
@@ -295,7 +298,7 @@ const bool debugLaggingGrayCollapseDetected =
   && previousXhStepMax <= laggingGrayCollapseBelowXhStepMax
   && debugGrayVolumeFractionDrop <= laggingGrayCollapseMinGrayDrop;
 const bool debugOveractiveTopologyDetected =
-  experimentProfile == "betaFloorGrayRamp"
+  debugProfileUsesAdaptiveHardeningThrottles
   && !debugContinuationFloorActive
   && overactiveTopologyStartIter > 0
   && opt >= overactiveTopologyStartIter
@@ -313,6 +316,30 @@ const bool debugContinuationHardeningEnabled =
   && !debugOveractiveTopologyDetected
   && debugContinuationThrottleAllowsHardening
   && (forceContinuationHardening || debugContinuationFloorActive || debugContinuationGateSatisfied);
+const bool debugLateStageRefinementActive =
+  (lateStageRefinementStartIter > 0 && opt >= lateStageRefinementStartIter)
+  || (
+    lateStageRefinementBelowGrayFraction >= 0.0
+    && grayVolumeFraction <= lateStageRefinementBelowGrayFraction
+  );
+scalar debugBetaIncrementActive = betaIncrement;
+scalar debugAlphaRampLateFactorActive = alphaRampLateFactor;
+scalar debugBetaMaxActive = betaMax;
+if (debugLateStageRefinementActive)
+{
+  if (lateStageBetaRampFactor >= 0.0)
+  {
+    debugBetaIncrementActive *= lateStageBetaRampFactor;
+  }
+  if (lateStageAlphaRampFactor >= 0.0)
+  {
+    debugAlphaRampLateFactorActive = lateStageAlphaRampFactor;
+  }
+  if (lateStageMaxBeta >= 0.0)
+  {
+    debugBetaMaxActive = Foam::min(debugBetaMaxActive, lateStageMaxBeta);
+  }
+}
 const scalar maxConstraintViolation = Foam::max(Foam::max(powerConstraintMargin, volumeConstraintMargin), scalar(0));
 const scalar objectiveToVolumeSensitivityRatio = fsensL2/Foam::max(gsensVolL2, SMALL);
 const scalar powerToVolumeSensitivityRatio = gsensPowerL2/Foam::max(gsensVolL2, SMALL);
@@ -462,7 +489,23 @@ if (Pstream::master())
   {
     writeRow("hardening stop", "gray<="+fmtScalar(stopContinuationHardeningBelowGrayFraction), "gray="+fmtScalar(grayVolumeFraction), "ceiling="+std::string(debugContinuationCeilingActive ? "yes" : "no"), "strict="+std::string(debugLateStageStrictGateActive ? "yes" : "no"));
   }
-  if (experimentProfile == "betaFloorGrayRamp" && laggingGrayCollapseStartIter > 0)
+  if
+  (
+    lateStageRefinementStartIter > 0
+    || lateStageRefinementBelowGrayFraction >= 0.0
+    || lateStageMaxBeta >= 0.0
+  )
+  {
+    writeRow
+    (
+      "late refine",
+      "active="+std::string(debugLateStageRefinementActive ? "yes" : "no"),
+      "betaInc="+fmtScalar(debugBetaIncrementActive),
+      "alphaFac="+fmtScalar(debugAlphaRampLateFactorActive),
+      "betaMax="+fmtScalar(debugBetaMaxActive)
+    );
+  }
+  if (debugProfileUsesAdaptiveHardeningThrottles && laggingGrayCollapseStartIter > 0)
   {
     writeRow
     (
@@ -473,7 +516,7 @@ if (Pstream::master())
       "pulse="+std::string(debugLaggingGrayCollapsePulseIter ? "yes" : "no")
     );
   }
-  if (experimentProfile == "betaFloorGrayRamp" && overactiveTopologyStartIter > 0)
+  if (debugProfileUsesAdaptiveHardeningThrottles && overactiveTopologyStartIter > 0)
   {
     writeRow
     (
@@ -618,6 +661,10 @@ if (Pstream::master())
       << ",\"continuationFloorActive\":" << (debugContinuationFloorActive ? 1 : 0)
       << ",\"continuationCeilingActive\":" << (debugContinuationCeilingActive ? 1 : 0)
       << ",\"lateStageStrictGateActive\":" << (debugLateStageStrictGateActive ? 1 : 0)
+      << ",\"lateStageRefinementActive\":" << (debugLateStageRefinementActive ? 1 : 0)
+      << ",\"betaIncrementActive\":" << debugBetaIncrementActive
+      << ",\"alphaRampLateFactorActive\":" << debugAlphaRampLateFactorActive
+      << ",\"betaMaxActive\":" << debugBetaMaxActive
       << ",\"laggingGrayCollapseDetected\":" << (debugLaggingGrayCollapseDetected ? 1 : 0)
       << ",\"laggingGrayCollapsePulseIter\":" << (debugLaggingGrayCollapsePulseIter ? 1 : 0)
       << ",\"overactiveTopologyDetected\":" << (debugOveractiveTopologyDetected ? 1 : 0)
@@ -629,6 +676,11 @@ if (Pstream::master())
       << ",\"stopContinuationHardeningBelowGrayFraction\":" << stopContinuationHardeningBelowGrayFraction
       << ",\"lateStageStrictGateBelowGrayFraction\":" << lateStageStrictGateBelowGrayFraction
       << ",\"lateStageContinuationFeasibilityTol\":" << lateStageContinuationFeasibilityTol
+      << ",\"lateStageRefinementStartIter\":" << lateStageRefinementStartIter
+      << ",\"lateStageRefinementBelowGrayFraction\":" << lateStageRefinementBelowGrayFraction
+      << ",\"lateStageBetaRampFactor\":" << lateStageBetaRampFactor
+      << ",\"lateStageAlphaRampFactor\":" << lateStageAlphaRampFactor
+      << ",\"lateStageMaxBeta\":" << lateStageMaxBeta
       << ",\"overactiveTopologyStartIter\":" << overactiveTopologyStartIter
       << ",\"overactiveTopologyBelowGrayFraction\":" << overactiveTopologyBelowGrayFraction
       << ",\"overactiveTopologyAboveXhStepMax\":" << overactiveTopologyAboveXhStepMax

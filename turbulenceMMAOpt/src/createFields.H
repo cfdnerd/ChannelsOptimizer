@@ -203,6 +203,26 @@ scalar lateStageContinuationFeasibilityTol
 (
   experimentControl.lookupOrDefault<scalar>("lateStageContinuationFeasibilityTol", -1.0)
 );
+label lateStageRefinementStartIter
+(
+  experimentControl.lookupOrDefault<label>("lateStageRefinementStartIter", 0)
+);
+scalar lateStageRefinementBelowGrayFraction
+(
+  experimentControl.lookupOrDefault<scalar>("lateStageRefinementBelowGrayFraction", -1.0)
+);
+scalar lateStageBetaRampFactor
+(
+  experimentControl.lookupOrDefault<scalar>("lateStageBetaRampFactor", -1.0)
+);
+scalar lateStageAlphaRampFactor
+(
+  experimentControl.lookupOrDefault<scalar>("lateStageAlphaRampFactor", -1.0)
+);
+scalar lateStageMaxBeta
+(
+  experimentControl.lookupOrDefault<scalar>("lateStageMaxBeta", -1.0)
+);
 label laggingGrayCollapseStartIter
 (
   experimentControl.lookupOrDefault<label>("laggingGrayCollapseStartIter", 0)
@@ -302,6 +322,74 @@ else if (experimentProfile == "betaFloorGrayRamp")
     overactiveTopologyAboveXhStepMax = 0.35;
   }
 }
+else if (experimentProfile == "branchRefinement400")
+{
+  betaIncrement = 0.2;
+  alphaRampEarlySlope = 1.0/7.0;
+  alphaRampLateFactor = 1.05;
+  continuationFeasibilityTol = Foam::max(continuationFeasibilityTol, scalar(2.0));
+  filterR = Foam::min(filterR, scalar(3.0));
+  forceContinuationHardeningUntilIter =
+    Foam::max(forceContinuationHardeningUntilIter, label(80));
+  forceContinuationHardeningUntilBeta =
+    Foam::max(forceContinuationHardeningUntilBeta, scalar(16.0));
+  if (stopContinuationHardeningBelowGrayFraction < 0.0)
+  {
+    stopContinuationHardeningBelowGrayFraction = 0.10;
+  }
+  if (lateStageStrictGateBelowGrayFraction < 0.0)
+  {
+    lateStageStrictGateBelowGrayFraction = 0.14;
+  }
+  if (lateStageContinuationFeasibilityTol < 0.0)
+  {
+    lateStageContinuationFeasibilityTol = 0.98;
+  }
+  lateStageRefinementStartIter =
+    Foam::max(lateStageRefinementStartIter, label(220));
+  if (lateStageRefinementBelowGrayFraction < 0.0)
+  {
+    lateStageRefinementBelowGrayFraction = 0.18;
+  }
+  if (lateStageBetaRampFactor < 0.0)
+  {
+    lateStageBetaRampFactor = 0.25;
+  }
+  if (lateStageAlphaRampFactor < 0.0)
+  {
+    lateStageAlphaRampFactor = 1.0;
+  }
+  if (lateStageMaxBeta < 0.0)
+  {
+    lateStageMaxBeta = 48.0;
+  }
+  laggingGrayCollapseStartIter =
+    Foam::max(laggingGrayCollapseStartIter, label(140));
+  if (laggingGrayCollapseAboveGrayFraction < 0.0)
+  {
+    laggingGrayCollapseAboveGrayFraction = 0.30;
+  }
+  if (laggingGrayCollapseBelowXhStepMax < 0.0)
+  {
+    laggingGrayCollapseBelowXhStepMax = 0.06;
+  }
+  if (laggingGrayCollapseMinGrayDrop < 0.0)
+  {
+    laggingGrayCollapseMinGrayDrop = 0.005;
+  }
+  laggingGrayCollapsePauseInterval =
+    Foam::max(laggingGrayCollapsePauseInterval, label(4));
+  overactiveTopologyStartIter =
+    Foam::max(overactiveTopologyStartIter, label(180));
+  if (overactiveTopologyBelowGrayFraction < 0.0)
+  {
+    overactiveTopologyBelowGrayFraction = 0.16;
+  }
+  if (overactiveTopologyAboveXhStepMax < 0.0)
+  {
+    overactiveTopologyAboveXhStepMax = 0.20;
+  }
+}
 else if (experimentProfile == "ungatedGrayRamp")
 {
   betaIncrement = 0.2;
@@ -320,6 +408,7 @@ else
     << "Unknown experimentControl.profile '" << experimentProfile << "'. "
     << "Supported values are baseline, laminarGrayRamp, "
     << "relaxedGateGrayRamp, betaFloorGrayRamp, "
+    << "branchRefinement400, "
     << "ungatedGrayRamp, and "
     << "adjointSensitivityProbe."
     << exit(FatalError);
@@ -450,6 +539,64 @@ if
   FatalErrorInFunction
     << "experimentControl.lateStageContinuationFeasibilityTol must be -1 or > 0. Found "
     << lateStageContinuationFeasibilityTol
+    << exit(FatalError);
+}
+if (lateStageRefinementStartIter < 0)
+{
+  FatalErrorInFunction
+    << "experimentControl.lateStageRefinementStartIter must be >= 0. Found "
+    << lateStageRefinementStartIter
+    << exit(FatalError);
+}
+if
+(
+  lateStageRefinementBelowGrayFraction < 0.0
+  && lateStageRefinementBelowGrayFraction != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.lateStageRefinementBelowGrayFraction must be -1 or lie in [0,1]. Found "
+    << lateStageRefinementBelowGrayFraction
+    << exit(FatalError);
+}
+if (lateStageRefinementBelowGrayFraction > 1.0)
+{
+  FatalErrorInFunction
+    << "experimentControl.lateStageRefinementBelowGrayFraction must be <= 1. Found "
+    << lateStageRefinementBelowGrayFraction
+    << exit(FatalError);
+}
+if
+(
+  lateStageBetaRampFactor < 0.0
+  && lateStageBetaRampFactor != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.lateStageBetaRampFactor must be -1 or >= 0. Found "
+    << lateStageBetaRampFactor
+    << exit(FatalError);
+}
+if
+(
+  lateStageAlphaRampFactor < 0.0
+  && lateStageAlphaRampFactor != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.lateStageAlphaRampFactor must be -1 or >= 0. Found "
+    << lateStageAlphaRampFactor
+    << exit(FatalError);
+}
+if
+(
+  lateStageMaxBeta < 0.0
+  && lateStageMaxBeta != -1.0
+)
+{
+  FatalErrorInFunction
+    << "experimentControl.lateStageMaxBeta must be -1 or >= 0. Found "
+    << lateStageMaxBeta
     << exit(FatalError);
 }
 if (laggingGrayCollapseStartIter < 0)

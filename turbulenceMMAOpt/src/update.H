@@ -54,8 +54,11 @@ const bool continuationCeilingActive =
   && grayVolumeFractionForContinuation <= stopContinuationHardeningBelowGrayFraction;
 const scalar grayVolumeFractionDrop =
   previousGrayVolumeFractionForContinuation - grayVolumeFractionForContinuation;
-const bool laggingGrayCollapseDetected =
+const bool profileUsesAdaptiveHardeningThrottles =
   experimentProfile == "betaFloorGrayRamp"
+  || experimentProfile == "branchRefinement400";
+const bool laggingGrayCollapseDetected =
+  profileUsesAdaptiveHardeningThrottles
   && !continuationFloorActive
   && laggingGrayCollapseStartIter > 0
   && opt >= laggingGrayCollapseStartIter
@@ -66,7 +69,7 @@ const bool laggingGrayCollapseDetected =
   && previousXhStepMax <= laggingGrayCollapseBelowXhStepMax
   && grayVolumeFractionDrop <= laggingGrayCollapseMinGrayDrop;
 const bool overactiveTopologyDetected =
-  experimentProfile == "betaFloorGrayRamp"
+  profileUsesAdaptiveHardeningThrottles
   && !continuationFloorActive
   && overactiveTopologyStartIter > 0
   && opt >= overactiveTopologyStartIter
@@ -84,6 +87,30 @@ const bool allowContinuationHardening =
   && !overactiveTopologyDetected
   && continuationThrottleAllowsHardening
   && (forceContinuationHardening || continuationFloorActive || continuationGateSatisfied);
+const bool lateStageRefinementActive =
+  (lateStageRefinementStartIter > 0 && opt >= lateStageRefinementStartIter)
+  || (
+    lateStageRefinementBelowGrayFraction >= 0.0
+    && grayVolumeFractionForContinuation <= lateStageRefinementBelowGrayFraction
+  );
+scalar betaIncrementActive = betaIncrement;
+scalar alphaRampLateFactorActive = alphaRampLateFactor;
+scalar betaMaxActive = betaMax;
+if (lateStageRefinementActive)
+{
+  if (lateStageBetaRampFactor >= 0.0)
+  {
+    betaIncrementActive *= lateStageBetaRampFactor;
+  }
+  if (lateStageAlphaRampFactor >= 0.0)
+  {
+    alphaRampLateFactorActive = lateStageAlphaRampFactor;
+  }
+  if (lateStageMaxBeta >= 0.0)
+  {
+    betaMaxActive = Foam::min(betaMaxActive, lateStageMaxBeta);
+  }
+}
 
 if(opt<=63 && allowContinuationHardening)
 {
@@ -91,7 +118,7 @@ if(opt<=63 && allowContinuationHardening)
 }
 if(opt>100 && allowContinuationHardening)
 {
-  alphaMax=alphaMax*alphaRampLateFactor;
+  alphaMax=alphaMax*alphaRampLateFactorActive;
 }
 alphaMax.value()=Foam::min(alphaMax.value(),alphaMAX.value());
 
@@ -113,12 +140,12 @@ if (!useStagnationTriggeredBeta)
 {
   if (allowContinuationHardening)
   {
-    del = Foam::min(del + betaIncrement, betaMax);
+    del = Foam::min(del + betaIncrementActive, betaMaxActive);
   }
 }
 else if (optimizerConvergedStreak > 0 && allowContinuationHardening)
 {
-  del = Foam::min(del + betaIncrement, betaMax);
+  del = Foam::min(del + betaIncrementActive, betaMaxActive);
 }
 
 previousGrayVolumeFractionForContinuation = grayVolumeFractionForContinuation;

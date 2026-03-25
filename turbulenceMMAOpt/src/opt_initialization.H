@@ -122,6 +122,11 @@ if (Pstream::master())
   writeRuntimeOption("stopContinuationHardeningBelowGrayFraction", stopContinuationHardeningBelowGrayFraction);
   writeRuntimeOption("lateStageStrictGateBelowGrayFraction", lateStageStrictGateBelowGrayFraction);
   writeRuntimeOption("lateStageContinuationFeasibilityTol", lateStageContinuationFeasibilityTol);
+  writeRuntimeOption("lateStageRefinementStartIter", lateStageRefinementStartIter);
+  writeRuntimeOption("lateStageRefinementBelowGrayFraction", lateStageRefinementBelowGrayFraction);
+  writeRuntimeOption("lateStageBetaRampFactor", lateStageBetaRampFactor);
+  writeRuntimeOption("lateStageAlphaRampFactor", lateStageAlphaRampFactor);
+  writeRuntimeOption("lateStageMaxBeta", lateStageMaxBeta);
   writeRuntimeOption("laggingGrayCollapseStartIter", laggingGrayCollapseStartIter);
   writeRuntimeOption("laggingGrayCollapseAboveGrayFraction", laggingGrayCollapseAboveGrayFraction);
   writeRuntimeOption("laggingGrayCollapseBelowXhStepMax", laggingGrayCollapseBelowXhStepMax);

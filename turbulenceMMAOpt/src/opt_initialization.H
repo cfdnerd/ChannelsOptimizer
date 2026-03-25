@@ -140,6 +140,7 @@ if (Pstream::master())
 
   debugLogFile << "\n--- adjointControl ---\n";
   writeRuntimeOption("adjointMomentumSweeps", adjointMomentumSweeps);
+  writeRuntimeOption("adjointExplicitStressScale", adjointExplicitStressScale);
   writeRuntimeSwitch("resetAdjointsEachIteration", resetAdjointsEachIteration);
   writeRuntimeSwitch("stopOnAdjointRunaway", stopOnAdjointRunaway);
 

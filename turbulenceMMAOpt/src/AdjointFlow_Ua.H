@@ -18,7 +18,7 @@ for(i=0;i<adjointMomentumSweeps;i++)
   if (useFullAdjointSymmetricStress)
   {
       explicitAdjointStressCorrectionA =
-        -fvc::div(nuEffAdjoint*Foam::T(fvc::grad(Ua)));
+        -adjointExplicitStressScale*fvc::div(nuEffAdjoint*Foam::T(fvc::grad(Ua)));
   }
 
   tmp<fvVectorMatrix> tUaEqn

@@ -167,6 +167,10 @@ label adjointMomentumSweeps
 (
   adjointControl.lookupOrDefault<label>("adjointMomentumSweeps", 20)
 );
+scalar adjointExplicitStressScale
+(
+  adjointControl.lookupOrDefault<scalar>("adjointExplicitStressScale", -1.0)
+);
 Switch resetAdjointsEachIteration
 (
   adjointControl.lookupOrDefault<Switch>("resetAdjointsEachIteration", true)
@@ -414,6 +418,10 @@ else if (experimentProfile == "adjointSensitivityProbe")
 {
   adjointMomentumSweeps = Foam::max(adjointMomentumSweeps, label(40));
   useFullAdjointSymmetricStress = true;
+  if (adjointExplicitStressScale < 0.0)
+  {
+    adjointExplicitStressScale = 0.35;
+  }
 }
 else
 {
@@ -438,6 +446,17 @@ if (adjointMomentumSweeps <= 0)
   FatalErrorInFunction
     << "adjointControl.adjointMomentumSweeps must be > 0. Found "
     << adjointMomentumSweeps
+    << exit(FatalError);
+}
+if (adjointExplicitStressScale < 0.0)
+{
+  adjointExplicitStressScale = useFullAdjointSymmetricStress ? 1.0 : 0.0;
+}
+if (adjointExplicitStressScale > 1.0)
+{
+  FatalErrorInFunction
+    << "adjointControl.adjointExplicitStressScale must be <= 1. Found "
+    << adjointExplicitStressScale
     << exit(FatalError);
 }
 if (useWrayAgarwalFallback || !useKEpsilonModel)

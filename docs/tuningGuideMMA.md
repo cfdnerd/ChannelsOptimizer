@@ -138,6 +138,7 @@ Usage patterns:
 | Key | Scope / values | Intended goal |
 | --- | --- | --- |
 | `adjointMomentumSweeps` | integer `> 0` | More sweeps improve adjoint fidelity but cost more time. |
+| `adjointExplicitStressScale` | scalar in `[0,1]` | Scale the explicit full symmetric-stress correction; lower it if the adjoints spike or run away. |
 | `resetAdjointsEachIteration` | `true` / `false` | Reset adjoints each loop for robustness. |
 | `stopOnAdjointRunaway` | `true` / `false` | Abort if adjoint magnitudes become unstable. |
 
@@ -161,4 +162,5 @@ Usage patterns:
 - If late iterations become speckled or noisy: lower `lateStageMaxBeta`, reduce `lateStageBetaRampFactor`, or tighten `lateStageStrictGate*`.
 - If topology motion dies too early while gray is still high: loosen `laggingGrayCollapse*` or allow stronger early hardening.
 - If power feasibility dominates too early: increase `PowerDissRelax`, reduce `powerConstraintRelaxationRate`, or use `usePowerConstraintRelaxation=true`.
-- If late sensitivities look too weak: increase `adjointMomentumSweeps` or test `adjointSensitivityProbe`.
+- If late sensitivities look too weak: increase `adjointMomentumSweeps` gradually and only raise `adjointExplicitStressScale` if the adjoints stay bounded.
+- If `Ua/U` or `Ub/U` spikes appear: cut `adjointExplicitStressScale`, then reduce `adjointMomentumSweeps` if needed.

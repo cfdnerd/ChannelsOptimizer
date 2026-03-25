@@ -18,7 +18,7 @@ volVectorField explicitAdjointStressCorrectionB
 if (useFullAdjointSymmetricStress)
 {
     explicitAdjointStressCorrectionB =
-      -fvc::div(nuEffAdjoint*Foam::T(fvc::grad(Ub)));
+      -adjointExplicitStressScale*fvc::div(nuEffAdjoint*Foam::T(fvc::grad(Ub)));
 }
 
 tmp<fvVectorMatrix> tUbEqn

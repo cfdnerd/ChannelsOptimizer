@@ -72,7 +72,8 @@ experimentControl
 
 adjointControl
 {
-    adjointMomentumSweeps           40;   // Adjoint momentum iterations per optimization loop.
+    adjointMomentumSweeps           24;   // Adjoint momentum iterations per optimization loop.
+    adjointExplicitStressScale      0.25; // Dampen the explicit symmetric-stress correction to avoid adjoint runaway.
     resetAdjointsEachIteration      true; // Reinitialize adjoints each loop for robustness.
     stopOnAdjointRunaway            true; // Abort optimization if adjoint magnitudes blow up.
 }

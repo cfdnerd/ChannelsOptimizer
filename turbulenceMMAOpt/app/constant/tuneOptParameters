@@ -44,31 +44,6 @@ continuationSwitches
     useStagnationTriggeredBeta      false; // Only harden beta after stagnation instead of every allowed step.
 }
 
-// Gray-fraction debugging presets.
-// baseline: keep case values unchanged
-// laminarGrayRamp: use laminar-style beta/alpha continuation
-// relaxedGateGrayRamp: laminar-style continuation with a looser feasibility gate
-// betaFloorGrayRamp: relaxed gate plus forced hardening until beta/iter floor
-// branchRefinement400: keep the proven early gray-collapse behavior, but taper
-// late hardening so Iter 220-400 can keep carving sub-branches instead of
-// over-sharpening into speckled micro-islands
-// stopContinuationHardeningBelowGrayFraction: optional late-stage ceiling that
-// freezes further hardening once the remaining gray volume is already small
-// lateStageStrictGate*: optional tighter feasibility gate that takes over once
-// gray is already low, so late hardening cannot continue through power
-// violations just because the early relaxed gate is still permissive
-// lateStageRefinement*: optional taper that scales beta hardening, slows the
-// late alpha ramp, and caps beta once the optimizer transitions from primary
-// branch creation into fine sub-branch refinement
-// laggingGrayCollapse*: optional betaFloorGrayRamp throttle that slows further
-// hardening if gray is still high but topology motion has already faded;
-// pauseInterval applies a periodic one-step pulse so hardening does not freeze
-// permanently while the lag condition remains active
-// overactiveTopology*: complementary throttle that pauses further hardening if
-// projected topology motion is already too large in the late low-gray regime
-// ungatedGrayRamp: laminarGrayRamp + bypass the continuation feasibility gate
-// adjointSensitivityProbe: increase adjoint fidelity to test whether weak
-// objective/power sensitivities are suppressing topology changes
 experimentControl
 {
     profile                         branchRefinement400; // Active continuation preset to apply at runtime.
@@ -100,9 +75,6 @@ adjointControl
     stopOnAdjointRunaway            true; // Abort optimization if adjoint magnitudes blow up.
 }
 
-// Optimizer stopping controls.
-// The optimizer exits early only after the design step, objective drift,
-// and constraint violation all remain small for several consecutive loops.
 convergenceControl
 {
     optPowerConstraintWeight        2.0; // Relative penalty weight on power-constraint violation.

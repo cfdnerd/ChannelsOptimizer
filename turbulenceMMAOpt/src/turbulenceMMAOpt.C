@@ -26,8 +26,26 @@ int main(int argc, char *argv[])
     {
         #include "solverConvergenceReset.H"
         #include "update.H"
+        #include "wallDistanceAlpha.H"
         #include "Primal_U.H"
+        #include "Primal_kEpsilon.H"
         #include "Primal_T.H"
+        if (resetAdjointsEachIteration)
+        {
+            Ua = dimensionedVector("zero", Ua.dimensions(), vector::zero);
+            Ub = dimensionedVector("zero", Ub.dimensions(), vector::zero);
+            pa = dimensionedScalar("zero", pa.dimensions(), 0.0);
+            pb = dimensionedScalar("zero", pb.dimensions(), 0.0);
+            phia = dimensionedScalar("zero", phia.dimensions(), 0.0);
+            phib = dimensionedScalar("zero", phib.dimensions(), 0.0);
+            Tb = dimensionedScalar("zero", Tb.dimensions(), 0.0);
+
+            Ua.correctBoundaryConditions();
+            Ub.correctBoundaryConditions();
+            pa.correctBoundaryConditions();
+            pb.correctBoundaryConditions();
+            Tb.correctBoundaryConditions();
+        }
         #include "AdjointHeat_Tb.H"
         #include "AdjointHeat_Ub.H"
         #include "AdjointFlow_Ua.H"

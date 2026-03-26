@@ -2,17 +2,19 @@ Info<< "Initialization\n" << endl;
 const char* optimizationHistoryFile = "optimization.hst";
 const char* debugOptimizerJsonFile = "debugOptimizer.jsonl";
 const char* debugOptimizerLogFile = "debugOptimizer.log";
+const char* gradientOptFile = "gradientOpt.log";
 const char* solverConvergenceFile = "solverConvergences.log";
 if (Pstream::master())
 {
   std::remove(optimizationHistoryFile);
   std::remove(debugOptimizerJsonFile);
   std::remove(debugOptimizerLogFile);
+  std::remove(gradientOptFile);
   std::remove(solverConvergenceFile);
   std::ofstream historyFile(optimizationHistoryFile, std::ios::out);
   historyFile
     << "# turbulenceMMAOpt optimization history\n"
-    << "# Cols: Iter PDActLog PDCon V MeanT MaxT\n"
+    << "# Cols: Iter PDActLog PDCon V MeanT MaxT SolverStat\n"
     << "# PDActLog=PDCon*PowerDiss0, PDCon=PowerDiss used by MMA\n"
     << std::left
     << std::setw(8) << "Iter"
@@ -21,13 +23,157 @@ if (Pstream::master())
     << std::setw(16) << "V"
     << std::setw(16) << "MeanT"
     << std::setw(16) << "MaxT"
+    << std::setw(12) << "SolverStat"
     << '\n';
 
   std::ofstream debugLogFile(debugOptimizerLogFile, std::ios::out);
+  auto writeRuntimeOption =
+  [&](const char* key, const scalar value)
+  {
+    debugLogFile << "  " << std::left << std::setw(36) << key
+                 << std::scientific << std::setprecision(6) << value << "\n";
+  };
+  auto writeRuntimeSwitch =
+  [&](const char* key, const bool value)
+  {
+    debugLogFile << "  " << std::left << std::setw(36) << key
+                 << (value ? "true" : "false") << "\n";
+  };
+  auto writeRuntimeWord =
+  [&](const char* key, const word& value)
+  {
+    debugLogFile << "  " << std::left << std::setw(36) << key
+                 << value << "\n";
+  };
+
   debugLogFile
     << "# turbulenceMMAOpt optimizer debug log\n"
     << "# Structured per-iteration diagnostics for optimizer development\n"
-    << "# Format: sectioned human-readable report, one block per optimization iteration\n";
+    << "# Format: sectioned human-readable report, one block per optimization iteration\n"
+    << "\n[Runtime Option Dump]\n"
+    << "\n--- optProperties ---\n";
+  writeRuntimeOption("raa0", raa0);
+  writeRuntimeOption("mma_init", mma_init);
+  writeRuntimeOption("mma_dec", mma_dec);
+  writeRuntimeOption("mma_inc", mma_inc);
+  writeRuntimeOption("movlim", movlim);
+  writeRuntimeOption("voluse", voluse);
+  writeRuntimeOption("PowerDiss0", PowerDiss0);
+  writeRuntimeOption("PowerDissMax", PowerDissMax);
+  writeRuntimeOption("PowerDissRelax", PowerDissRelax);
+  writeRuntimeOption("powerConstraintRelaxationRate", powerConstraintRelaxationRate);
+  writeRuntimeOption("continuationFeasibilityTol", continuationFeasibilityTol);
+  writeRuntimeOption("filterR", filterR);
+  writeRuntimeOption("GeoDim", GeoDim);
+  writeRuntimeOption("Pnorm", Pnorm);
+  writeRuntimeOption("objFunction", objFunction);
+  writeRuntimeOption("qAlpha0", qAlpha0);
+  writeRuntimeOption("qAlphaMin", qAlphaMin);
+  writeRuntimeOption("qKappa0", qKappa0);
+  writeRuntimeOption("qKappaMin", qKappaMin);
+  writeRuntimeOption("qHeat0", qHeat0);
+  writeRuntimeOption("qHeatMin", qHeatMin);
+  writeRuntimeOption("qSingle0", qSingle0);
+  writeRuntimeOption("qSingleMin", qSingleMin);
+  writeRuntimeOption("qContinuationStartIter", qContinuationStartIter);
+  writeRuntimeOption("qContinuationInterval", qContinuationInterval);
+  writeRuntimeOption("qContinuationFactor", qContinuationFactor);
+  writeRuntimeOption("beta0", beta0);
+  writeRuntimeOption("betaMax", betaMax);
+  writeRuntimeOption("betaIncrement", betaIncrement);
+  writeRuntimeOption("alphaRampEarlySlope", alphaRampEarlySlope);
+  writeRuntimeOption("alphaRampLateFactor", alphaRampLateFactor);
+  writeRuntimeOption("dAlphaPorosityEps", dAlphaPorosityEps);
+  writeRuntimeSwitch("solid_area", solid_area);
+  writeRuntimeSwitch("fluid_area", fluid_area);
+  writeRuntimeSwitch("test_area", test_area);
+
+  debugLogFile << "\n--- frameworkSwitches ---\n";
+  writeRuntimeSwitch("useFrozenTurbulenceAdjoint", useFrozenTurbulenceAdjoint);
+  writeRuntimeSwitch("useKEpsilonModel", useKEpsilonModel);
+  writeRuntimeSwitch("useWrayAgarwalFallback", useWrayAgarwalFallback);
+  writeRuntimeSwitch("usePorosityWallDistance", usePorosityWallDistance);
+  writeRuntimeSwitch("useMeshWaveWallDistanceFallback", useMeshWaveWallDistanceFallback);
+  writeRuntimeSwitch("useBrinkmanSinkInKEpsilon", useBrinkmanSinkInKEpsilon);
+  writeRuntimeSwitch("useSplitRAMPControls", useSplitRAMPControls);
+  writeRuntimeSwitch("useSingleQFallback", useSingleQFallback);
+  writeRuntimeSwitch("useTurbulentThermalDiffusivity", useTurbulentThermalDiffusivity);
+  writeRuntimeSwitch("usePowerConstraintRelaxation", usePowerConstraintRelaxation);
+  writeRuntimeSwitch("useGCMMA", useGCMMA);
+  writeRuntimeSwitch("useFullAdjointSymmetricStress", useFullAdjointSymmetricStress);
+  writeRuntimeOption("optPowerConstraintWeight", optPowerConstraintWeight);
+  writeRuntimeOption("optPowerViolationScaleExponent", optPowerViolationScaleExponent);
+  writeRuntimeOption("optVolumeConstraintWeight", optVolumeConstraintWeight);
+
+  debugLogFile << "\n--- objectiveSwitches ---\n";
+  writeRuntimeSwitch("useLogMeanTObjective", useLogMeanTObjective);
+  writeRuntimeSwitch("useKSHotspotObjective", useKSHotspotObjective);
+  writeRuntimeSwitch("useVarianceObjective", useVarianceObjective);
+  writeRuntimeSwitch("useRobustMultiCaseObjective", useRobustMultiCaseObjective);
+
+  debugLogFile << "\n--- continuationSwitches ---\n";
+  writeRuntimeSwitch("useStagnationTriggeredBeta", useStagnationTriggeredBeta);
+
+  debugLogFile << "\n--- experimentControl ---\n";
+  writeRuntimeWord("experimentProfile", experimentProfile);
+  writeRuntimeSwitch("forceContinuationHardening", forceContinuationHardening);
+  writeRuntimeOption("forceContinuationHardeningUntilIter", forceContinuationHardeningUntilIter);
+  writeRuntimeOption("forceContinuationHardeningUntilBeta", forceContinuationHardeningUntilBeta);
+  writeRuntimeOption("stopContinuationHardeningBelowGrayFraction", stopContinuationHardeningBelowGrayFraction);
+  writeRuntimeOption("lateStageStrictGateBelowGrayFraction", lateStageStrictGateBelowGrayFraction);
+  writeRuntimeOption("lateStageContinuationFeasibilityTol", lateStageContinuationFeasibilityTol);
+  writeRuntimeOption("lateStageRefinementStartIter", lateStageRefinementStartIter);
+  writeRuntimeOption("lateStageRefinementBelowGrayFraction", lateStageRefinementBelowGrayFraction);
+  writeRuntimeOption("lateStageBetaRampFactor", lateStageBetaRampFactor);
+  writeRuntimeOption("lateStageAlphaRampFactor", lateStageAlphaRampFactor);
+  writeRuntimeOption("lateStageMaxBeta", lateStageMaxBeta);
+  writeRuntimeOption("lateStageFilterRStartIter", lateStageFilterRStartIter);
+  writeRuntimeOption("lateStageFilterRCap", lateStageFilterRCap);
+  writeRuntimeOption("laggingGrayCollapseStartIter", laggingGrayCollapseStartIter);
+  writeRuntimeOption("laggingGrayCollapseAboveGrayFraction", laggingGrayCollapseAboveGrayFraction);
+  writeRuntimeOption("laggingGrayCollapseBelowXhStepMax", laggingGrayCollapseBelowXhStepMax);
+  writeRuntimeOption("laggingGrayCollapseMinGrayDrop", laggingGrayCollapseMinGrayDrop);
+  writeRuntimeOption("laggingGrayCollapsePauseInterval", laggingGrayCollapsePauseInterval);
+  writeRuntimeOption("overactiveTopologyStartIter", overactiveTopologyStartIter);
+  writeRuntimeOption("overactiveTopologyBelowGrayFraction", overactiveTopologyBelowGrayFraction);
+  writeRuntimeOption("overactiveTopologyAboveXhStepMax", overactiveTopologyAboveXhStepMax);
+
+  debugLogFile << "\n--- adjointControl ---\n";
+  writeRuntimeOption("adjointMomentumSweeps", adjointMomentumSweeps);
+  writeRuntimeOption("adjointExplicitStressScale", adjointExplicitStressScale);
+  writeRuntimeSwitch("resetAdjointsEachIteration", resetAdjointsEachIteration);
+  writeRuntimeSwitch("stopOnAdjointRunaway", stopOnAdjointRunaway);
+
+  debugLogFile << "\n--- convergenceControl ---\n";
+  writeRuntimeOption("optMinIterations", optMinIterations);
+  writeRuntimeOption("optStallWindow", optStallWindow);
+  writeRuntimeOption("optObjectiveTol", optObjectiveTol);
+  writeRuntimeOption("optConstraintTol", optConstraintTol);
+  writeRuntimeOption("optStepTol", optStepTol);
+  writeRuntimeOption("optPowerConstraintWeight", optPowerConstraintWeight);
+  writeRuntimeOption("optVolumeConstraintWeight", optVolumeConstraintWeight);
+
+  debugLogFile << "\n--- transportProperties ---\n";
+  writeRuntimeOption("nu", nu.value());
+  writeRuntimeOption("alphaMax", alphaMax.value());
+  writeRuntimeOption("alphaMAX", alphaMAX.value());
+
+  debugLogFile << "\n--- thermalProperties ---\n";
+  writeRuntimeOption("rhoCp", rhoCp.value());
+  writeRuntimeOption("kf", kf.value());
+  writeRuntimeOption("ks", ks.value());
+  writeRuntimeOption("heatSource", heatSource.value());
+  writeRuntimeOption("thermalSource", thermalSource.value());
+  writeRuntimeOption("Prt", Prt);
+  writeRuntimeOption("Tref", Tref);
+  writeRuntimeOption("ksRho", ksRho);
+  writeRuntimeSwitch("DDHS", DDHS);
+  debugLogFile << "\n";
+
+  std::ofstream gradientLogFile(gradientOptFile, std::ios::out);
+  gradientLogFile
+    << "# turbulenceMMAOpt gradient and sensitivity diagnostics\n"
+    << "# Structured one-block-per-iteration report\n";
 
   std::ofstream solverConvergenceLogFile(solverConvergenceFile, std::ios::out);
   solverConvergenceLogFile
@@ -95,6 +241,7 @@ auto recordLinearSolve =
 
 const scalar linearSolveObsResidual = 1e-6;
 const scalar linearSolveWarnResidual = 1e-4;
+const label linearSolveWarnIterations = 20000;
 
 auto classifyLinearSolveStatus =
 [&](const LinearSolveStats& stats) -> const char*
@@ -102,6 +249,10 @@ auto classifyLinearSolveStatus =
   if (stats.callCount == 0)
   {
     return "SKIP";
+  }
+  if (stats.iterationMax >= linearSolveWarnIterations)
+  {
+    return "WARN";
   }
   if (stats.finalResidualMax > linearSolveWarnResidual)
   {
@@ -134,6 +285,12 @@ auto linearSolveSeverityFromStats =
   return linearSolveSeverity(classifyLinearSolveStatus(stats));
 };
 
+auto optimizationHistoryStatusIsAcceptable =
+[](const char* status) -> bool
+{
+  return std::strcmp(status, "OK") == 0 || std::strcmp(status, "SKIP") == 0;
+};
+
 LinearSolveStats ULinearSolveStats;
 LinearSolveStats pLinearSolveStats;
 LinearSolveStats TLinearSolveStats;
@@ -142,26 +299,56 @@ LinearSolveStats UbLinearSolveStats;
 LinearSolveStats pbLinearSolveStats;
 LinearSolveStats UaLinearSolveStats;
 LinearSolveStats paLinearSolveStats;
+LinearSolveStats dAlphaLinearSolveStats;
 LinearSolveStats xpFilterLinearSolveStats;
 LinearSolveStats fsensFilterLinearSolveStats;
 LinearSolveStats gsensPowerFilterLinearSolveStats;
 LinearSolveStats gsensVolFilterLinearSolveStats;
 
+auto optimizationHistorySolverStatus =
+[&]() -> const char*
+{
+  return
+    optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(ULinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(pLinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(TLinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(TbLinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(UbLinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(pbLinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(UaLinearSolveStats))
+    && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(paLinearSolveStats))
+    ? "OK"
+    : "WARN";
+};
+
 int i=0,opt=0;
 double del=0;
 scalar n(0),N(0),eta0(0),eta5(0.5),eta1(1),y0(0),y5(0);
+scalar qAlphaActive(0), qKappaActive(0), qHeatActive(0);
 n=x.size();//n:length of x in the i-th core
 N=x.size();//N:design freedom
 reduce(N, sumOp<scalar>()); 
 
 scalar V(0),area=gSum(mesh.V()),MeanT(0),PowerDiss(0),PowerDissActual(0),PDActLog(0),PowerDissActualOverBase(0),maxT(0),sumT(0);
+scalar objectiveValueCurrent(0);
+scalar ksObjectiveValue(0);
+scalar varianceObjectiveValue(0);
 scalar previousObjectiveValue(0);
 bool hasPreviousObjectiveValue(false);
 bool stopOptimization(false);
 label optimizerConvergedStreak(0);
 word optimizerStopReason("running");
+bool continuationHealthOk(true);
+scalar previousGrayVolumeFractionForContinuation(1.0);
+scalar previousXhStepMax(0.0);
+const scalar adjointRunawayRatioLimit(1e6);
+word activeObjectiveLabel("MeanT");
+word activeWallDistanceMode("meshWave");
+word activeTurbulenceModelMode("kEpsilon");
+scalar activeFilterR(filterR);
 double len=std::pow(area/N, 1.0/3);
-b.value()=1.0/(filterR*len/3.464)/(filterR*len/3.464);
+b.value()=1.0/(activeFilterR*len/3.464)/(activeFilterR*len/3.464);
+del=beta0;
 //***********************************//MMA
 int m=2;//number of constraint
 MMA mma(n,m);

@@ -1,7 +1,22 @@
 #include "MMA/MMA.h"
-#define OMPI_SKIP_MPICXX 1
-#define MPICH_SKIP_MPICXX 1
-#include "mpi.h"
+#include "PstreamReduceOps.H"
+
+namespace
+{
+template<class T>
+void sumReduceValue(T& value)
+{
+    Foam::reduce(value, Foam::sumOp<T>());
+}
+
+void sumReduceVector(std::vector<double>& values)
+{
+    for (double& value : values)
+    {
+        sumReduceValue(value);
+    }
+}
+}
 
 void MMA::MMAsolver(std::vector<double> &xval,
               std::vector<double> &dfdx,
@@ -27,7 +42,8 @@ MMA::MMA(int NvarLocal, int Mcons)
       xold2(n)
 {
     int NvarGlab = 0;
-    MPI_Allreduce(&n, &NvarGlab, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    NvarGlab = n;
+    sumReduceValue(NvarGlab);
     epsimin = sqrt(NvarGlab + m) * 1e-9;
     for (int i = 0; i < Mcons; i++)
     {
@@ -115,24 +131,17 @@ void MMA::SolveDIP(std::vector<double> &x)
 double MMA::DualResidual(std::vector<double> &x, double epsi)
 {
 
-    double *res = new double[2 * m];
-    double *resGlb = new double[2 * m];
+    std::vector<double> res(2 * m, 0.0);
 
     for (int j = 0; j < m; j++)
     {
-        res[j] = 0;
-        res[j + m] = 0;
         for (int i = 0; i < n; i++)
         {
             res[j] += pij[i * m + j] / (upp[i] - x[i]) + qij[i * m + j] / (x[i] - low[i]);
         }
     }
 
-    MPI_Allreduce(res, resGlb, 2 * m, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    for (int i = 0; i < 2 * m; i++)
-    {
-        res[i] = resGlb[i];
-    }
+    sumReduceVector(res);
 	for (int j = 0; j < m; j++)
     {
         res[j] += -b[j] - a[j] * z - y[j] + mu[j];
@@ -146,9 +155,6 @@ double MMA::DualResidual(std::vector<double> &x, double epsi)
             nrI = std::abs(res[i]);
         }
     }
-
-    delete[] res;
-    delete[] resGlb;
 
     return nrI;
 }
@@ -227,12 +233,7 @@ void MMA::DualHess(std::vector<double> &x)
     }
 
     double lamai = 0.0;
-    std::vector<double> hessGlb(hess);
-    MPI_Allreduce(&hess.front(), &hessGlb.front(), m * m, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    for (int i = 0; i < m * m; i++)
-    {
-        hess[i] = hessGlb[i];
-    }
+    sumReduceVector(hess);
     for (int j = 0; j < m; j++)
     {
         if (lam[j] < 0.0)
@@ -333,12 +334,10 @@ void MMA::DualGrad(std::vector<double> &x)
             grad[j] += pij[i * m + j] / (upp[i] - x[i]) + qij[i * m + j] / (x[i] - low[i]);
         }
     }
-    std::vector<double> gradGlb(grad);
-    MPI_Allreduce(&grad.front(), &gradGlb.front(), m, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
+    sumReduceVector(grad);
     for (int j = 0; j < m; j++)
     {
-        grad[j] = gradGlb[j] - b[j] - a[j] * z - y[j];
+        grad[j] = grad[j] - b[j] - a[j] * z - y[j];
     }
 }
 
@@ -492,10 +491,9 @@ void MMA::GenSub(std::vector<double> &xval, std::vector<double> &dfdx,
         }
     }
 
-    std::vector<double> sumb(b);
-    MPI_Allreduce(&b.front(), &sumb.front(), m, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    sumReduceVector(b);
     for (int j = 0; j < m; j++)
     {
-        b[j] = sumb[j] - g[j];
+        b[j] = b[j] - g[j];
     }
 }

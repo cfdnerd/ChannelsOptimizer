@@ -219,21 +219,15 @@ const scalar UbMeanMag = UbMeanMagLocal/area;
 const scalar fsensL2 = std::sqrt(fsensL2Local);
 const scalar gsensPowerL2 = std::sqrt(gsensPowerL2Local);
 const scalar gsensVolL2 = std::sqrt(gsensVolL2Local);
+const scalar primalVelocityScale = Foam::max(UMaxMagLocal, SMALL);
+const scalar adjointPowerToPrimalRatio = UaMaxMagLocal/primalVelocityScale;
+const scalar adjointHeatToPrimalRatio = UbMaxMagLocal/primalVelocityScale;
+const bool adjointRunaway =
+  adjointPowerToPrimalRatio > adjointRunawayRatioLimit
+  || adjointHeatToPrimalRatio > adjointRunawayRatioLimit;
 
-scalar objectiveValue = MeanT;
-word objectiveLabel("MeanT");
-if (objFunction == 2)
-{
-  objectiveLabel = "PnormT";
-  if (maxT > SMALL)
-  {
-    objectiveValue = maxT*std::pow(objectivePnormSumLocal, 1.0/Pnorm);
-  }
-  else
-  {
-    objectiveValue = 0;
-  }
-}
+scalar objectiveValue = objectiveValueCurrent;
+word objectiveLabel(activeObjectiveLabel);
 const scalar objectiveDelta = hasPreviousObjectiveValue ? objectiveValue - previousObjectiveValue : 0;
 previousObjectiveValue = objectiveValue;
 hasPreviousObjectiveValue = true;
@@ -247,18 +241,112 @@ solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(UbLinear
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(pbLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(UaLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(paLinearSolveStats));
+solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(dAlphaLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(xpFilterLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(fsensFilterLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(gsensPowerFilterLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(gsensVolFilterLinearSolveStats));
+if (adjointRunaway)
+{
+  solverSeverity = Foam::max(solverSeverity, label(2));
+}
 reduce(solverSeverity, maxOp<label>());
+continuationHealthOk = !adjointRunaway;
 
 const scalar objectiveRelativeDelta = Foam::mag(objectiveDelta)/Foam::max(Foam::mag(objectiveValue), SMALL);
 const scalar powerConstraintWeightSafe = Foam::max(optPowerConstraintWeight, SMALL);
 const scalar powerConstraintMargin = gx[0]/powerConstraintWeightSafe;
 const scalar volumeConstraintWeightSafe = Foam::max(optVolumeConstraintWeight, SMALL);
 const scalar volumeConstraintMargin = gx[1]/volumeConstraintWeightSafe;
+const scalar debugContinuationPowerLimit =
+  usePowerConstraintRelaxation ? activePowerLimit : PowerDissMax;
+const scalar debugPowerFeasibilityRatio =
+  debugContinuationPowerLimit > SMALL ? PowerDiss/debugContinuationPowerLimit : 0.0;
+scalar debugContinuationFeasibilityTolActive = continuationFeasibilityTol;
+const bool debugLateStageStrictGateActive =
+  lateStageStrictGateBelowGrayFraction >= 0.0
+  && lateStageContinuationFeasibilityTol >= 0.0
+  && grayVolumeFraction <= lateStageStrictGateBelowGrayFraction;
+if (debugLateStageStrictGateActive)
+{
+  debugContinuationFeasibilityTolActive =
+    Foam::min(debugContinuationFeasibilityTolActive, lateStageContinuationFeasibilityTol);
+}
+const bool debugContinuationGateSatisfied =
+  debugPowerFeasibilityRatio <= debugContinuationFeasibilityTolActive
+  && continuationHealthOk;
+const bool debugContinuationFloorActive =
+  opt <= forceContinuationHardeningUntilIter
+  || (forceContinuationHardeningUntilBeta >= 0.0 && del < forceContinuationHardeningUntilBeta);
+const bool debugContinuationCeilingActive =
+  stopContinuationHardeningBelowGrayFraction >= 0.0
+  && grayVolumeFraction <= stopContinuationHardeningBelowGrayFraction;
+const scalar debugGrayVolumeFractionDrop =
+  previousGrayVolumeFractionForContinuation - grayVolumeFraction;
+const bool debugProfileUsesAdaptiveHardeningThrottles =
+  experimentProfile == "betaFloorGrayRamp"
+  || experimentProfile == "branchRefinement400";
+const bool debugLaggingGrayCollapseDetected =
+  debugProfileUsesAdaptiveHardeningThrottles
+  && !debugContinuationFloorActive
+  && laggingGrayCollapseStartIter > 0
+  && opt >= laggingGrayCollapseStartIter
+  && laggingGrayCollapseAboveGrayFraction >= 0.0
+  && laggingGrayCollapseBelowXhStepMax >= 0.0
+  && laggingGrayCollapseMinGrayDrop >= 0.0
+  && grayVolumeFraction >= laggingGrayCollapseAboveGrayFraction
+  && previousXhStepMax <= laggingGrayCollapseBelowXhStepMax
+  && debugGrayVolumeFractionDrop <= laggingGrayCollapseMinGrayDrop;
+const bool debugOveractiveTopologyDetected =
+  debugProfileUsesAdaptiveHardeningThrottles
+  && !debugContinuationFloorActive
+  && overactiveTopologyStartIter > 0
+  && opt >= overactiveTopologyStartIter
+  && overactiveTopologyBelowGrayFraction >= 0.0
+  && overactiveTopologyAboveXhStepMax >= 0.0
+  && grayVolumeFraction <= overactiveTopologyBelowGrayFraction
+  && previousXhStepMax >= overactiveTopologyAboveXhStepMax;
+const bool debugLaggingGrayCollapsePulseIter =
+  laggingGrayCollapsePauseInterval > 0
+  && ((opt - laggingGrayCollapseStartIter) % laggingGrayCollapsePauseInterval == 0);
+const bool debugContinuationThrottleAllowsHardening =
+  !debugLaggingGrayCollapseDetected || debugLaggingGrayCollapsePulseIter;
+const bool debugContinuationHardeningEnabled =
+  !debugContinuationCeilingActive
+  && !debugOveractiveTopologyDetected
+  && debugContinuationThrottleAllowsHardening
+  && (forceContinuationHardening || debugContinuationFloorActive || debugContinuationGateSatisfied);
+const bool debugLateStageFilterRCapActive =
+  lateStageFilterRStartIter > 0
+  && lateStageFilterRCap >= 0.0
+  && opt > lateStageFilterRStartIter;
+const bool debugLateStageRefinementActive =
+  (lateStageRefinementStartIter > 0 && opt >= lateStageRefinementStartIter)
+  || (
+    lateStageRefinementBelowGrayFraction >= 0.0
+    && grayVolumeFraction <= lateStageRefinementBelowGrayFraction
+  );
+scalar debugBetaIncrementActive = betaIncrement;
+scalar debugAlphaRampLateFactorActive = alphaRampLateFactor;
+scalar debugBetaMaxActive = betaMax;
+if (debugLateStageRefinementActive)
+{
+  if (lateStageBetaRampFactor >= 0.0)
+  {
+    debugBetaIncrementActive *= lateStageBetaRampFactor;
+  }
+  if (lateStageAlphaRampFactor >= 0.0)
+  {
+    debugAlphaRampLateFactorActive = lateStageAlphaRampFactor;
+  }
+  if (lateStageMaxBeta >= 0.0)
+  {
+    debugBetaMaxActive = Foam::min(debugBetaMaxActive, lateStageMaxBeta);
+  }
+}
 const scalar maxConstraintViolation = Foam::max(Foam::max(powerConstraintMargin, volumeConstraintMargin), scalar(0));
+const scalar objectiveToVolumeSensitivityRatio = fsensL2/Foam::max(gsensVolL2, SMALL);
+const scalar powerToVolumeSensitivityRatio = gsensPowerL2/Foam::max(gsensVolL2, SMALL);
 const bool convergenceCandidate =
   opt >= optMinIterations
   &&
@@ -274,6 +362,12 @@ const bool convergenceCandidate =
 optimizerConvergedStreak = convergenceCandidate ? optimizerConvergedStreak + 1 : 0;
 stopOptimization = optimizerConvergedStreak >= optStallWindow;
 optimizerStopReason = stopOptimization ? word("converged") : word("running");
+if (adjointRunaway && stopOnAdjointRunaway)
+{
+  stopOptimization = true;
+  optimizerConvergedStreak = 0;
+  optimizerStopReason = word("adjointRunaway");
+}
 
 if (Pstream::master())
 {
@@ -360,7 +454,7 @@ if (Pstream::master())
   writeRow("xh step", "max="+fmtScalar(maxAbsXhChangeLocal), "l2="+fmtScalar(l2XhChange), "l2/sqrtN="+fmtScalar(normalizedL2XhChange));
 
   writeSectionHeader("Filter Diagnostics");
-  writeRow("projection", "del="+fmtScalar(del), "eta5="+fmtScalar(eta5));
+  writeRow("projection", "beta="+fmtScalar(del), "eta5="+fmtScalar(eta5));
   writeRow("drho bounds", "min="+fmtScalar(drhoLocalMin), "max="+fmtScalar(drhoLocalMax));
   writeRow("obj sens", "min="+fmtScalar(fsensLocalMin), "max="+fmtScalar(fsensLocalMax));
   writeRow("power sens", "min="+fmtScalar(gsensPowerLocalMin), "max="+fmtScalar(gsensPowerLocalMax));
@@ -368,29 +462,77 @@ if (Pstream::master())
 
   writeSectionHeader("Objective And Constraints");
   writeRow("objective", "value="+fmtScalar(objectiveValue), "delta="+fmtScalar(objectiveDelta));
-  writeRow("power diss", "actual="+fmtScalar(PowerDissActual), "act/base="+fmtScalar(PowerDissActualOverBase), "constraint="+fmtScalar(PowerDiss), "margin="+fmtScalar(powerConstraintMargin));
+  writeRow("power diss", "actual="+fmtScalar(PowerDissActual), "act/base="+fmtScalar(PowerDissActualOverBase), "constraint="+fmtScalar(PowerDiss), "limit="+fmtScalar(activePowerLimit));
   writeRow("volume", "value="+fmtScalar(V), "margin="+fmtScalar(volumeConstraintMargin));
   writeRow("thermal", "meanT="+fmtScalar(MeanT), "maxT="+fmtScalar(maxT));
 
   writeSectionHeader("MMA Diagnostics");
   writeRow("controls", "moveLimit="+fmtScalar(movlim), "moveHits="+fmtCount(xMoveLimitHitCountLocal));
+  writeRow("filter", "baseR="+fmtScalar(filterR), "activeR="+fmtScalar(activeFilterR), "capIter="+fmtCount(lateStageFilterRStartIter), "cap="+fmtScalar(lateStageFilterRCap));
   writeRow("bound clamps", "lower="+fmtCount(xLowerBoundCountLocal), "upper="+fmtCount(xUpperBoundCountLocal), "nonFiniteX="+fmtCount(xNonFiniteCountLocal));
 
   writeSectionHeader("Sensitivity Diagnostics");
   writeRow("objective", "min="+fmtScalar(fsensLocalMin), "max="+fmtScalar(fsensLocalMax), "l2="+fmtScalar(fsensL2), "nonFinite="+fmtCount(fsensNonFiniteCountLocal));
   writeRow("power", "min="+fmtScalar(gsensPowerLocalMin), "max="+fmtScalar(gsensPowerLocalMax), "l2="+fmtScalar(gsensPowerL2), "nonFinite="+fmtCount(gsensPowerNonFiniteCountLocal));
   writeRow("volume", "min="+fmtScalar(gsensVolLocalMin), "max="+fmtScalar(gsensVolLocalMax), "l2="+fmtScalar(gsensVolL2), "nonFinite="+fmtCount(gsensVolNonFiniteCountLocal));
+  writeRow("ratios", "obj/vol="+fmtScalar(objectiveToVolumeSensitivityRatio), "power/vol="+fmtScalar(powerToVolumeSensitivityRatio));
 
   writeSectionHeader("Solver Diagnostics");
-  writeRow("config", "primal=60", "adjPower=40", "adjHeat=40");
+  writeRow("config", "primal=60", "adjPower="+fmtCount(adjointMomentumSweeps), "adjHeat="+fmtCount(adjointMomentumSweeps));
   writeRow("primal flow", "|U|max="+fmtScalar(UMaxMagLocal), "|U|mean="+fmtScalar(UMeanMag), "pMin="+fmtScalar(pLocalMin), "pMax="+fmtScalar(pLocalMax));
   writeRow("thermal field", "TMin="+fmtScalar(TLocalMin), "TMax="+fmtScalar(TLocalMax));
   writeRow("adjoint power", "|Ua|max="+fmtScalar(UaMaxMagLocal), "|Ua|mean="+fmtScalar(UaMeanMag), "paMin="+fmtScalar(paLocalMin), "paMax="+fmtScalar(paLocalMax));
   writeRow("adjoint heat", "|Ub|max="+fmtScalar(UbMaxMagLocal), "|Ub|mean="+fmtScalar(UbMeanMag), "pbMin="+fmtScalar(pbLocalMin), "pbMax="+fmtScalar(pbLocalMax));
+  writeRow("adjoint ratios", "Ua/U="+fmtScalar(adjointPowerToPrimalRatio), "Ub/U="+fmtScalar(adjointHeatToPrimalRatio), "limit="+fmtScalar(adjointRunawayRatioLimit), "hardening="+std::string(continuationHealthOk ? "on" : "frozen"));
 
   writeSectionHeader("Interpolation Diagnostics");
   writeRow("interp bounds", "alphaMin="+fmtScalar(alphaLocalMin), "alphaMax="+fmtScalar(alphaLocalMax), "DTMin="+fmtScalar(DTLocalMin), "DTMax="+fmtScalar(DTLocalMax));
-  writeRow("continuation", "alphaMax="+fmtScalar(alphaMax.value()), "qu="+fmtScalar(qu));
+  writeRow("continuation", "alphaMax="+fmtScalar(alphaMax.value()), "qAlpha="+fmtScalar(qAlpha), "qKappa="+fmtScalar(qKappa), "qHeat="+fmtScalar(qHeat));
+  writeRow("hardening", "profile="+std::string(experimentProfile.c_str()), "gate="+std::string(debugContinuationGateSatisfied ? "open" : "closed"), "force="+std::string(forceContinuationHardening ? "yes" : "no"), "floor="+std::string(debugContinuationFloorActive ? "yes" : "no"));
+  writeRow("hardening ctl", "PD/limit="+fmtScalar(debugPowerFeasibilityRatio), "tol<="+fmtScalar(debugContinuationFeasibilityTolActive), "iter<="+fmtCount(forceContinuationHardeningUntilIter), "beta<="+fmtScalar(forceContinuationHardeningUntilBeta));
+  if (stopContinuationHardeningBelowGrayFraction >= 0.0)
+  {
+    writeRow("hardening stop", "gray<="+fmtScalar(stopContinuationHardeningBelowGrayFraction), "gray="+fmtScalar(grayVolumeFraction), "ceiling="+std::string(debugContinuationCeilingActive ? "yes" : "no"), "strict="+std::string(debugLateStageStrictGateActive ? "yes" : "no"));
+  }
+  if
+  (
+    lateStageRefinementStartIter > 0
+    || lateStageRefinementBelowGrayFraction >= 0.0
+    || lateStageMaxBeta >= 0.0
+  )
+  {
+    writeRow
+    (
+      "late refine",
+      "active="+std::string(debugLateStageRefinementActive ? "yes" : "no"),
+      "betaInc="+fmtScalar(debugBetaIncrementActive),
+      "alphaFac="+fmtScalar(debugAlphaRampLateFactorActive),
+      "betaMax="+fmtScalar(debugBetaMaxActive)
+    );
+  }
+  if (debugProfileUsesAdaptiveHardeningThrottles && laggingGrayCollapseStartIter > 0)
+  {
+    writeRow
+    (
+      "lag throttle",
+      "active="+std::string(debugLaggingGrayCollapseDetected ? "yes" : "no"),
+      "grayDrop="+fmtScalar(debugGrayVolumeFractionDrop),
+      "prevXhStep="+fmtScalar(previousXhStepMax),
+      "pulse="+std::string(debugLaggingGrayCollapsePulseIter ? "yes" : "no")
+    );
+  }
+  if (debugProfileUsesAdaptiveHardeningThrottles && overactiveTopologyStartIter > 0)
+  {
+    writeRow
+    (
+      "step throttle",
+      "active="+std::string(debugOveractiveTopologyDetected ? "yes" : "no"),
+      "prevXhStep="+fmtScalar(previousXhStepMax),
+      "gray<="+fmtScalar(overactiveTopologyBelowGrayFraction),
+      "xhStep>="+fmtScalar(overactiveTopologyAboveXhStepMax)
+    );
+  }
+  writeRow("modes", "objective="+std::string(activeObjectiveLabel.c_str()), "wallDist="+std::string(activeWallDistanceMode.c_str()), "turbulence="+std::string(activeTurbulenceModelMode.c_str()), "beta="+fmtScalar(del));
   writeRow("thermal props", "heatSource="+fmtScalar(heatSource.value()), "thermalSrc="+fmtScalar(thermalSource.value()), "rhoCp="+fmtScalar(rhoCp.value()));
 
   std::ofstream debugJsonFile(debugOptimizerJsonFile, std::ios::app);
@@ -435,8 +577,8 @@ if (Pstream::master())
       << ",\"xhStepMax\":" << maxAbsXhChangeLocal
       << ",\"xhStepL2\":" << l2XhChange
     << "}"
-    << ",\"filter\":{"
-      << "\"del\":" << del
+      << ",\"filter\":{"
+      << "\"beta\":" << del
       << ",\"eta5\":" << eta5
       << ",\"drhoMin\":" << drhoLocalMin
       << ",\"drhoMax\":" << drhoLocalMax
@@ -447,7 +589,7 @@ if (Pstream::master())
       << ",\"volumeConstraintSensitivityFilteredMin\":" << gsensVolLocalMin
       << ",\"volumeConstraintSensitivityFilteredMax\":" << gsensVolLocalMax
     << "}"
-    << ",\"objective\":{"
+      << ",\"objective\":{"
       << "\"name\":\"" << objectiveLabel << "\""
       << ",\"value\":" << objectiveValue
       << ",\"delta\":" << objectiveDelta
@@ -457,6 +599,7 @@ if (Pstream::master())
       << ",\"powerDissipationConstraintMargin\":" << powerConstraintMargin
       << ",\"volumeConstraintValue\":" << V
       << ",\"volumeConstraintMargin\":" << volumeConstraintMargin
+      << ",\"powerDissipationLimit\":" << debugContinuationPowerLimit
       << ",\"meanT\":" << MeanT
       << ",\"maxT\":" << maxT
     << "}"
@@ -481,11 +624,13 @@ if (Pstream::master())
       << ",\"volumeConstraintMax\":" << gsensVolLocalMax
       << ",\"volumeConstraintL2\":" << gsensVolL2
       << ",\"volumeConstraintNonFiniteCount\":" << gsensVolNonFiniteCountLocal
+      << ",\"objectiveToVolumeL2Ratio\":" << objectiveToVolumeSensitivityRatio
+      << ",\"powerToVolumeL2Ratio\":" << powerToVolumeSensitivityRatio
     << "}"
     << ",\"solver\":{"
       << "\"primalFlowSweeps\":" << 60
-      << ",\"adjointFlowPowerSweeps\":" << 40
-      << ",\"adjointFlowHeatSweeps\":" << 40
+      << ",\"adjointFlowPowerSweeps\":" << adjointMomentumSweeps
+      << ",\"adjointFlowHeatSweeps\":" << adjointMomentumSweeps
       << ",\"uMaxMag\":" << UMaxMagLocal
       << ",\"uMeanMag\":" << UMeanMag
       << ",\"pMin\":" << pLocalMin
@@ -500,17 +645,62 @@ if (Pstream::master())
       << ",\"ubMeanMag\":" << UbMeanMag
       << ",\"pbMin\":" << pbLocalMin
       << ",\"pbMax\":" << pbLocalMax
+      << ",\"uaToUMaxRatio\":" << adjointPowerToPrimalRatio
+      << ",\"ubToUMaxRatio\":" << adjointHeatToPrimalRatio
+      << ",\"adjointRunaway\":" << (adjointRunaway ? 1 : 0)
     << "}"
-    << ",\"interpolation\":{"
+      << ",\"interpolation\":{"
       << "\"alphaMin\":" << alphaLocalMin
       << ",\"alphaMax\":" << alphaLocalMax
       << ",\"dtMin\":" << DTLocalMin
       << ",\"dtMax\":" << DTLocalMax
       << ",\"alphaMaxSchedule\":" << alphaMax.value()
-      << ",\"qu\":" << qu
+      << ",\"qAlpha\":" << qAlpha
+      << ",\"qKappa\":" << qKappa
+      << ",\"qHeat\":" << qHeat
+      << ",\"beta\":" << del
+      << ",\"experimentProfile\":\"" << experimentProfile << "\""
+      << ",\"powerFeasibilityRatio\":" << debugPowerFeasibilityRatio
+      << ",\"continuationFeasibilityTolActive\":" << debugContinuationFeasibilityTolActive
+      << ",\"continuationGateSatisfied\":" << (debugContinuationGateSatisfied ? 1 : 0)
+      << ",\"continuationFloorActive\":" << (debugContinuationFloorActive ? 1 : 0)
+      << ",\"continuationCeilingActive\":" << (debugContinuationCeilingActive ? 1 : 0)
+      << ",\"lateStageStrictGateActive\":" << (debugLateStageStrictGateActive ? 1 : 0)
+      << ",\"lateStageFilterRCapActive\":" << (debugLateStageFilterRCapActive ? 1 : 0)
+      << ",\"filterRActive\":" << activeFilterR
+      << ",\"lateStageRefinementActive\":" << (debugLateStageRefinementActive ? 1 : 0)
+      << ",\"betaIncrementActive\":" << debugBetaIncrementActive
+      << ",\"alphaRampLateFactorActive\":" << debugAlphaRampLateFactorActive
+      << ",\"betaMaxActive\":" << debugBetaMaxActive
+      << ",\"laggingGrayCollapseDetected\":" << (debugLaggingGrayCollapseDetected ? 1 : 0)
+      << ",\"laggingGrayCollapsePulseIter\":" << (debugLaggingGrayCollapsePulseIter ? 1 : 0)
+      << ",\"overactiveTopologyDetected\":" << (debugOveractiveTopologyDetected ? 1 : 0)
+      << ",\"grayVolumeFractionDrop\":" << debugGrayVolumeFractionDrop
+      << ",\"previousXhStepMax\":" << previousXhStepMax
+      << ",\"forceContinuationHardening\":" << (forceContinuationHardening ? 1 : 0)
+      << ",\"forceContinuationHardeningUntilIter\":" << forceContinuationHardeningUntilIter
+      << ",\"forceContinuationHardeningUntilBeta\":" << forceContinuationHardeningUntilBeta
+      << ",\"stopContinuationHardeningBelowGrayFraction\":" << stopContinuationHardeningBelowGrayFraction
+      << ",\"lateStageStrictGateBelowGrayFraction\":" << lateStageStrictGateBelowGrayFraction
+      << ",\"lateStageContinuationFeasibilityTol\":" << lateStageContinuationFeasibilityTol
+      << ",\"lateStageRefinementStartIter\":" << lateStageRefinementStartIter
+      << ",\"lateStageRefinementBelowGrayFraction\":" << lateStageRefinementBelowGrayFraction
+      << ",\"lateStageBetaRampFactor\":" << lateStageBetaRampFactor
+      << ",\"lateStageAlphaRampFactor\":" << lateStageAlphaRampFactor
+      << ",\"lateStageMaxBeta\":" << lateStageMaxBeta
+      << ",\"lateStageFilterRStartIter\":" << lateStageFilterRStartIter
+      << ",\"lateStageFilterRCap\":" << lateStageFilterRCap
+      << ",\"overactiveTopologyStartIter\":" << overactiveTopologyStartIter
+      << ",\"overactiveTopologyBelowGrayFraction\":" << overactiveTopologyBelowGrayFraction
+      << ",\"overactiveTopologyAboveXhStepMax\":" << overactiveTopologyAboveXhStepMax
+      << ",\"hardeningEnabled\":" << (debugContinuationHardeningEnabled ? 1 : 0)
+      << ",\"wallDistanceMode\":\"" << activeWallDistanceMode << "\""
+      << ",\"turbulenceModelMode\":\"" << activeTurbulenceModelMode << "\""
       << ",\"heatSource\":" << heatSource.value()
       << ",\"thermalSource\":" << thermalSource.value()
       << ",\"rhoCp\":" << rhoCp.value()
     << "}"
     << "}\n";
 }
+
+previousXhStepMax = maxAbsXhChangeLocal;

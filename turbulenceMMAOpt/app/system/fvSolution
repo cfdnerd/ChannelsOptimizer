@@ -17,7 +17,7 @@ FoamFile
 
 solvers
 {
-    "(p|pa|pb|pc)"
+    "(p|pc)"
     {
         solver          GAMG;
         tolerance       1e-10;
@@ -31,8 +31,30 @@ solvers
         nFinestSweeps   2;
         maxIter         5000;
     }
+    "pb"
+    {
+        solver          GAMG;
+        tolerance       1e-10;
+        relTol          0;
+        smoother        GaussSeidel;
+        cacheAgglomeration true;
+        agglomerator    faceAreaPair;
+        mergeLevels     1;
+        nPreSweeps      0;
+        nPostSweeps     4;
+        nFinestSweeps   4;
+        maxIter         5000;
+    }
+    "pa"
+    {
+        solver          PCG;
+        preconditioner  DIC;
+        tolerance       1e-10;
+        relTol          0;
+        maxIter         10000;
+    }
 
-    "(U|Ua|Ub|Uc|k|epsilon)"
+    "(U|Uc|k|epsilon)"
     {
         solver          smoothSolver;
         smoother        symGaussSeidel;
@@ -41,22 +63,24 @@ solvers
         relTol          0;
         maxIter         5000;
     }
-     "(T)"
+    "(Ua|Ub)"
     {
-        solver          GAMG;
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        nSweeps         1;
         tolerance       1e-10;
         relTol          0;
-        smoother        GaussSeidel;
-        cacheAgglomeration true;
-        agglomerator    faceAreaPair;
-        mergeLevels     1;
-        nPreSweeps      0;
-        nPostSweeps     2;
-        nFinestSweeps   2;
-        nCellsInCoarsestLevel 20;
-        maxIter         20000;
+        maxIter         5000;
+    }
+     "T"
+    {
+        solver          PBiCGStab;
+        preconditioner  DILU;
+        tolerance       1e-10;
+        relTol          0;
+        maxIter         10000;
     }  
-     "(Ta|Tb)"
+     "Ta"
     {
         solver          GAMG;
         tolerance       1e-10;
@@ -71,7 +95,22 @@ solvers
         nCellsInCoarsestLevel 20;
         maxIter         20000;
     }
-     "(xp|fsensMeanT|gsensVol|gsensPowerDiss)"
+     "Tb"
+    {
+        solver          GAMG;
+        tolerance       1e-10;
+        relTol          0;
+        smoother        symGaussSeidel;
+        cacheAgglomeration false;
+        agglomerator    faceAreaPair;
+        mergeLevels     1;
+        nPreSweeps      1;
+        nPostSweeps     4;
+        nFinestSweeps   4;
+        nCellsInCoarsestLevel 200;
+        maxIter         20000;
+    }
+     "(xp|dAlpha2|fsensMeanT|gsensVol|gsensPowerDiss)"
     {
         solver          PCG;
         preconditioner  DIC;
@@ -96,12 +135,15 @@ relaxationFactors
 {
     fields
     {
-        "(p|pa|pb|pc)"     0.3;
+        "(p|pc)"        0.3;
+        pb              0.2;
+        pa              0.1;
         alpha           0.1;
     }
     equations
     {
-        "(U|Ua|Ub|Uc)"     0.7;
+        "(U|Uc)"        0.7;
+        "(Ua|Ub)"       0.3;
         "(k|epsilon)"   0.7;
     }
 }

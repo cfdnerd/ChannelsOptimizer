@@ -23,8 +23,8 @@ mma_inc             1.2;    // MMA asymptote growth factor when updates stay con
 movlim              0.4;    // Per-iteration design move cap in x-space.
 filterR             10;     // PDE filter radius; larger values suppress fine branches.
 PowerDiss0          8e-4;   // Power normalization reference for logging/constraint scaling.
-PowerDissMax        10;     // Final power-dissipation limit after relaxation ends.
-PowerDissRelax      15;     // Relaxed starting power limit used in early iterations.
+PowerDissMax        50;     // Final power-dissipation limit after relaxation ends.
+PowerDissRelax      52;     // Relaxed starting power limit used in early iterations.
 powerConstraintRelaxationRate 0.02; // Per-iteration decay from relaxed to final power limit.
 continuationFeasibilityTol 1.15; // Hardening gate tolerance on PowerDiss/activeLimit.
 GeoDim              2;      // Geometric dimension of the optimization domain.

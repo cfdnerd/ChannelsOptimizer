@@ -6,7 +6,7 @@ forAll(normalVelocity, cellI)
 reduce(maxVelocityMagnitudeLocal, maxOp<scalar>());
 lsmPseudoTimeStep =
   lsmCFL*epsilonLSMActive/Foam::max(maxVelocityMagnitudeLocal, scalar(1.0));
-const scalar phiMagnitudeCap = 4.0*Foam::max(epsilonLSMActive, scalar(SMALL));
+const scalar advectionPhiMagnitudeCap = 4.0*Foam::max(epsilonLSMActive, scalar(SMALL));
 
 volVectorField gradPhiField
 (
@@ -29,6 +29,7 @@ forAll(phiLS, cellI)
   {
     phiValue = 0.0;
   }
-  phiLS[cellI] = Foam::max(Foam::min(phiValue, phiMagnitudeCap), -phiMagnitudeCap);
+  phiLS[cellI] =
+    Foam::max(Foam::min(phiValue, advectionPhiMagnitudeCap), -advectionPhiMagnitudeCap);
 }
 phiLS.correctBoundaryConditions();

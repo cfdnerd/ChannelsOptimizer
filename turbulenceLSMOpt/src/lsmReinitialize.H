@@ -1,4 +1,4 @@
-const scalar phiMagnitudeCap = 4.0*Foam::max(epsilonLSMActive, scalar(SMALL));
+const scalar reinitPhiMagnitudeCap = 4.0*Foam::max(epsilonLSMActive, scalar(SMALL));
 forAll(phiLS, cellI)
 {
   scalar phiValue = phiLS[cellI];
@@ -6,7 +6,7 @@ forAll(phiLS, cellI)
   {
     phiValue = 0.0;
   }
-  phiLS[cellI] = Foam::max(Foam::min(phiValue, phiMagnitudeCap), -phiMagnitudeCap);
+  phiLS[cellI] = Foam::max(Foam::min(phiValue, reinitPhiMagnitudeCap), -reinitPhiMagnitudeCap);
 }
 phiLS.correctBoundaryConditions();
 
@@ -75,9 +75,10 @@ if (triggerReinitialization)
       scalar phiValue = phiLS[cellI] - reinitStepSize*signValue*(gradMag - 1.0);
       if (!std::isfinite(static_cast<double>(phiValue)))
       {
-        phiValue = signValue*phiMagnitudeCap;
+        phiValue = signValue*reinitPhiMagnitudeCap;
       }
-      phiLS[cellI] = Foam::max(Foam::min(phiValue, phiMagnitudeCap), -phiMagnitudeCap);
+      phiLS[cellI] =
+        Foam::max(Foam::min(phiValue, reinitPhiMagnitudeCap), -reinitPhiMagnitudeCap);
     }
     phiLS.correctBoundaryConditions();
   }

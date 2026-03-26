@@ -356,8 +356,10 @@ else if (experimentProfile == "branchRefinement400")
   {
     lateStageContinuationFeasibilityTol = 0.98;
   }
-  lateStageRefinementStartIter =
-    Foam::max(lateStageRefinementStartIter, label(220));
+  if (lateStageRefinementStartIter <= 0)
+  {
+    lateStageRefinementStartIter = 220;
+  }
   if (lateStageRefinementBelowGrayFraction < 0.0)
   {
     lateStageRefinementBelowGrayFraction = 0.18;
@@ -374,8 +376,10 @@ else if (experimentProfile == "branchRefinement400")
   {
     lateStageMaxBeta = 48.0;
   }
-  lateStageFilterRStartIter =
-    Foam::max(lateStageFilterRStartIter, label(240));
+  if (lateStageFilterRStartIter <= 0)
+  {
+    lateStageFilterRStartIter = 240;
+  }
   if (lateStageFilterRCap < 0.0)
   {
     lateStageFilterRCap = Foam::min(filterR, scalar(3.0));

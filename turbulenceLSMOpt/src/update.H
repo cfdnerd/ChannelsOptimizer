@@ -1,6 +1,22 @@
 //***********************************//update continuation and LSM controls
 opt++;
 
+// Keep the signed-distance field in a narrow, finite band before any physics or
+// interface reconstruction uses it again on the next optimizer iteration.
+{
+  const scalar phiMagnitudeCap = 4.0*Foam::max(epsilonLSMActive, scalar(SMALL));
+  forAll(phiLS, cellI)
+  {
+    scalar phiValue = phiLS[cellI];
+    if (!std::isfinite(static_cast<double>(phiValue)))
+    {
+      phiValue = 0.0;
+    }
+    phiLS[cellI] = Foam::max(Foam::min(phiValue, phiMagnitudeCap), -phiMagnitudeCap);
+  }
+  phiLS.correctBoundaryConditions();
+}
+
 scalar grayVolumeContinuationLocal = 0.0;
 forAll(xh, i)
 {

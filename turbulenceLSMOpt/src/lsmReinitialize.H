@@ -1,3 +1,15 @@
+const scalar phiMagnitudeCap = 4.0*Foam::max(epsilonLSMActive, scalar(SMALL));
+forAll(phiLS, cellI)
+{
+  scalar phiValue = phiLS[cellI];
+  if (!std::isfinite(static_cast<double>(phiValue)))
+  {
+    phiValue = 0.0;
+  }
+  phiLS[cellI] = Foam::max(Foam::min(phiValue, phiMagnitudeCap), -phiMagnitudeCap);
+}
+phiLS.correctBoundaryConditions();
+
 phiGradDeviationMax = 0.0;
 {
   volVectorField gradPhiField
@@ -44,11 +56,28 @@ if (triggerReinitialization)
     );
     forAll(phiLS, cellI)
     {
-      const scalar signValue =
-        phiReference[cellI]
-       /Foam::sqrt(phiReference[cellI]*phiReference[cellI] + epsilonLSMActive*epsilonLSMActive);
+      const scalar phiRef = phiReference[cellI];
+      const scalar epsAbs = Foam::max(Foam::mag(epsilonLSMActive), scalar(SMALL));
+      const scalar absPhiRef = Foam::mag(phiRef);
+      scalar safeDenom(0.0);
+      if (absPhiRef > epsAbs)
+      {
+        const scalar ratio = epsAbs/absPhiRef;
+        safeDenom = absPhiRef*Foam::sqrt(1.0 + ratio*ratio);
+      }
+      else
+      {
+        const scalar ratio = absPhiRef/epsAbs;
+        safeDenom = epsAbs*Foam::sqrt(1.0 + ratio*ratio);
+      }
+      const scalar signValue = phiRef/Foam::max(safeDenom, scalar(SMALL));
       const scalar gradMag = Foam::mag(gradPhiField[cellI]);
-      phiLS[cellI] -= reinitStepSize*signValue*(gradMag - 1.0);
+      scalar phiValue = phiLS[cellI] - reinitStepSize*signValue*(gradMag - 1.0);
+      if (!std::isfinite(static_cast<double>(phiValue)))
+      {
+        phiValue = signValue*phiMagnitudeCap;
+      }
+      phiLS[cellI] = Foam::max(Foam::min(phiValue, phiMagnitudeCap), -phiMagnitudeCap);
     }
     phiLS.correctBoundaryConditions();
   }

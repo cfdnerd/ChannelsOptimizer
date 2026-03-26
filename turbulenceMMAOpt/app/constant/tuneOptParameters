@@ -51,11 +51,11 @@ experimentControl
     forceContinuationHardeningUntilIter 0; // Keep hardening forced until this iteration.
     forceContinuationHardeningUntilBeta -1; // Keep hardening forced until beta reaches this value.
     stopContinuationHardeningBelowGrayFraction 0.10; // Fully stop hardening once gray is already low enough.
-    lateStageStrictGateBelowGrayFraction 0.14; // Switch to a stricter power-feasibility gate below this gray level.
+    lateStageStrictGateBelowGrayFraction 0.75; // Enter the stricter power-feasibility gate as soon as coarse branching begins.
     lateStageContinuationFeasibilityTol 0.98; // Stricter late-stage PowerDiss/limit tolerance.
-    lateStageRefinementStartIter   170; // Start late refinement taper from this iteration onward.
-    lateStageRefinementBelowGrayFraction 0.18; // Also start refinement taper once gray drops below this level.
-    lateStageBetaRampFactor        0.25; // Scale betaIncrement during late refinement.
+    lateStageRefinementStartIter   120; // Start tapering hardening during the unstable branch-onset window.
+    lateStageRefinementBelowGrayFraction 0.75; // Also start refinement taper as soon as the first branches appear.
+    lateStageBetaRampFactor        0.10; // Slow beta growth sharply once branching starts to avoid topology flipping.
     lateStageAlphaRampFactor       1.0; // Replace late alpha growth factor during refinement.
     lateStageMaxBeta               40; // Cap beta during late refinement to preserve carveable gray.
     lateStageFilterRStartIter      120; // Keep the dictionary filterR through this iteration, then switch to the cap.
@@ -65,9 +65,9 @@ experimentControl
     laggingGrayCollapseBelowXhStepMax 0.06; // Stagnation test: topology motion is too small below this xhStepMax.
     laggingGrayCollapseMinGrayDrop 5e-3; // Stagnation test: gray is barely decreasing below this per-step drop.
     laggingGrayCollapsePauseInterval 4; // Even when throttled, allow one hardening pulse every N steps.
-    overactiveTopologyStartIter    180; // Start checking for overactive late topology from this iteration.
-    overactiveTopologyBelowGrayFraction 0.16; // Only apply the overactive throttle once gray is already low.
-    overactiveTopologyAboveXhStepMax 0.20; // Pause hardening when recent xh motion is already too violent.
+    overactiveTopologyStartIter    110; // Start checking for overactive topology during branch onset, not only after it is already frozen.
+    overactiveTopologyBelowGrayFraction 0.80; // Allow the overactive throttle while the design is still mostly gray.
+    overactiveTopologyAboveXhStepMax 0.35; // Pause hardening when branch growth becomes violently oscillatory.
 }
 
 adjointControl

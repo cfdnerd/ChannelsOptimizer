@@ -400,8 +400,10 @@ else if (experimentProfile == "branchRefinement400")
   }
   laggingGrayCollapsePauseInterval =
     Foam::max(laggingGrayCollapsePauseInterval, label(4));
-  overactiveTopologyStartIter =
-    Foam::max(overactiveTopologyStartIter, label(180));
+  if (overactiveTopologyStartIter <= 0)
+  {
+    overactiveTopologyStartIter = 180;
+  }
   if (overactiveTopologyBelowGrayFraction < 0.0)
   {
     overactiveTopologyBelowGrayFraction = 0.16;

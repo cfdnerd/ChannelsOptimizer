@@ -16,6 +16,8 @@ FoamFile
 
 dimensions      [0 2 -2 0 0 0 0];
 
+// U = 1 m/s, turbulence intensity I = 5%:
+// k = 3/2 * (U*I)^2 = 3.75e-3 m2/s2.
 internalField   uniform 3.75e-3;
 
 boundaryField

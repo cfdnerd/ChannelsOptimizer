@@ -359,7 +359,6 @@ bool continuationHealthOk(true);
 scalar previousGrayVolumeFractionForContinuation(1.0);
 scalar previousXhStepMax(0.0);
 scalar previousPhiStepMax(0.0);
-scalar epsilonLSMActive(epsilonLSM);
 scalar lsmPseudoTimeStep(0.0);
 scalar phiGradDeviationMax(0.0);
 scalar phiReinitResidual(0.0);

@@ -104,6 +104,7 @@ scalar reinitTolerance
 (
   optProperties.lookupOrDefault<scalar>("reinitTolerance", 0.10)
 );
+scalar epsilonLSMActive(epsilonLSM);
 
 dictionary frameworkSwitches;
 if (tuneOptParameters.found("frameworkSwitches"))

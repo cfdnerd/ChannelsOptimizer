@@ -23,7 +23,7 @@ phiGradDeviationMax = 0.0;
 phiReinitResidual = phiGradDeviationMax;
 const bool triggerReinitialization =
   useSussmanReinitialization
-  && (reinitInterval > 0 && (opt % reinitInterval == 0) || phiGradDeviationMax > reinitTolerance);
+  && ((reinitInterval > 0 && (opt % reinitInterval == 0)) || phiGradDeviationMax > reinitTolerance);
 if (triggerReinitialization)
 {
   volScalarField phiReference(phiLS);

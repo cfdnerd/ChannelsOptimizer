@@ -179,11 +179,11 @@ const scalar rawPowVolCos = rawPowDotVolLocal/(Foam::max(rawPowL2*rawVolL2, SMAL
 const scalar filtObjPowCos = filtObjDotPowLocal/(Foam::max(filtObjL2*filtPowL2, SMALL));
 const scalar filtObjVolCos = filtObjDotVolLocal/(Foam::max(filtObjL2*filtVolL2, SMALL));
 const scalar filtPowVolCos = filtPowDotVolLocal/(Foam::max(filtPowL2*filtVolL2, SMALL));
-const scalar interfaceObjL2 = std::sqrt(interfaceObjL2GradLocal);
-const scalar interfacePowL2 = std::sqrt(interfacePowL2GradLocal);
-const scalar interfaceVolL2 = std::sqrt(interfaceVolL2GradLocal);
-const scalar rawVelL2 = std::sqrt(rawVelL2GradLocal);
-const scalar regVelL2 = std::sqrt(regVelL2GradLocal);
+const scalar interfaceObjL2Grad = std::sqrt(interfaceObjL2GradLocal);
+const scalar interfacePowL2Grad = std::sqrt(interfacePowL2GradLocal);
+const scalar interfaceVolL2Grad = std::sqrt(interfaceVolL2GradLocal);
+const scalar rawVelL2Grad = std::sqrt(rawVelL2GradLocal);
+const scalar regVelL2Grad = std::sqrt(regVelL2GradLocal);
 
 if (Pstream::master())
 {
@@ -214,15 +214,15 @@ if (Pstream::master())
     << " filtered volume: min=" << filtVolMinLocal << " max=" << filtVolMaxLocal
     << " l2=" << filtVolL2 << " nonFinite=" << filtVolNonFiniteLocal << "\n"
     << " interface objective: min=" << interfaceObjMinGradLocal << " max=" << interfaceObjMaxGradLocal
-    << " l2=" << interfaceObjL2 << "\n"
+    << " l2=" << interfaceObjL2Grad << "\n"
     << " interface power: min=" << interfacePowMinGradLocal << " max=" << interfacePowMaxGradLocal
-    << " l2=" << interfacePowL2 << "\n"
+    << " l2=" << interfacePowL2Grad << "\n"
     << " interface volume: min=" << interfaceVolMinGradLocal << " max=" << interfaceVolMaxGradLocal
-    << " l2=" << interfaceVolL2 << "\n"
+    << " l2=" << interfaceVolL2Grad << "\n"
     << " velocity raw: min=" << rawVelMinGradLocal << " max=" << rawVelMaxGradLocal
-    << " l2=" << rawVelL2 << "\n"
+    << " l2=" << rawVelL2Grad << "\n"
     << " velocity reg: min=" << regVelMinGradLocal << " max=" << regVelMaxGradLocal
-    << " l2=" << regVelL2 << "\n"
+    << " l2=" << regVelL2Grad << "\n"
     << " drho: min=" << drhoMinGradLocal << " max=" << drhoMaxGradLocal << "\n"
     << " phiLS: min=" << phiMinGradLocal << " max=" << phiMaxGradLocal
     << " phiStepL2/sqrtN=" << normL2PhiChange

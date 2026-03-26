@@ -1,46 +1,99 @@
 
-Info<<"sensitivity analysis"<<endl;
+Info<< "sensitivity analysis" << endl;
 
 std::vector<scalar> xOld(n);
 std::vector<scalar> xhOld(n);
+std::vector<scalar> phiOld(n);
 for(i=0;i<n;i++)
 {
- xOld[i]=x[i];
- xhOld[i]=xh[i];
+  xOld[i] = x[i];
+  xhOld[i] = xh[i];
+  phiOld[i] = phiLS[i];
 }
 
-fsenshMeanT=-alphaMax*(1+qu)*qu/((qu+xh)*(qu+xh))*(U&Ub)+b1*(kf-ks)*(1+qu)*qu/((qu+xh)*(qu+xh))*(fvc::grad(T)&fvc::grad(Tb))/rhoCp;
-if(DDHS)//design dependent heat source
+Info<< "sensitivity analysis: assemble raw objective sensitivity" << endl;
+volVectorField gradTField
+(
+    IOobject
+    (
+        "gradTField",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    fvc::grad(T)
+);
+volVectorField gradTbField
+(
+    IOobject
+    (
+        "gradTbField",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    fvc::grad(Tb)
+);
+
+forAll(fsenshMeanT, cellI)
 {
- fsenshMeanT += b1*Tb*thermalSource;
+  const scalar brinkmanTerm = alphaSensCoeff[cellI]*(U[cellI] & Ub[cellI]);
+  const scalar thermalGradTerm =
+    b1.value()*kappaSensCoeff[cellI]*(gradTField[cellI] & gradTbField[cellI]);
+  scalar objectiveSensitivity = brinkmanTerm + thermalGradTerm;
+
+  if (DDHS)
+  {
+    objectiveSensitivity -=
+      b1.value()*Tb[cellI]*thermalSource.value()*heatSourceSensCoeff[cellI];
+  }
+
+  fsenshMeanT[cellI] =
+    std::isfinite(static_cast<double>(objectiveSensitivity)) ? objectiveSensitivity : 0.0;
 }
-gsenshPowerDiss=-alphaMax*(1+qu)*qu/((qu+xh)*(qu+xh))*(U&Ua);
 
+forAll(gsenshPowerDiss, cellI)
+{
+  const scalar powerSensitivity = alphaSensCoeff[cellI]*(U[cellI] & Ua[cellI]);
+  gsenshPowerDiss[cellI] =
+    std::isfinite(static_cast<double>(powerSensitivity)) ? powerSensitivity : 0.0;
+  gsensVolRaw[cellI] = 1.0;
+}
 
-#include "filter_chainrule.H"
+fsensMeanTRaw = fsenshMeanT;
+gsensPowerDissRaw = gsenshPowerDiss;
+gsensVol = gsensVolRaw;
+gsenshVol = gsensVolRaw;
+fsensMeanT = fsenshMeanT;
+gsensPowerDiss = gsenshPowerDiss;
 
+const scalar powerLimit =
+  usePowerConstraintRelaxation
+  ? Foam::max(PowerDissRelax - opt*powerConstraintRelaxationRate, PowerDissMax)
+  : PowerDissMax;
+activePowerLimit = powerLimit;
+const scalar powerViolationScale =
+  Foam::pow
+  (
+    Foam::max(PowerDiss/Foam::max(powerLimit, SMALL), scalar(1.0)),
+    optPowerViolationScaleExponent
+  );
+const scalar effectivePowerConstraintWeight =
+  optPowerConstraintWeight*powerViolationScale;
 const scalar weightedPowerConstraint =
-  optPowerConstraintWeight*(PowerDiss/Foam::max(PowerDissRelax-opt*0.2,PowerDissMax)-1.0);
+  effectivePowerConstraintWeight*(PowerDiss/powerLimit - 1.0);
 const scalar weightedVolumeConstraint = optVolumeConstraintWeight*V;
-gx[0]=weightedPowerConstraint;
-gx[1]=weightedVolumeConstraint;
+gx[0] = weightedPowerConstraint;
+gx[1] = weightedVolumeConstraint;
 
-for(i=0;i<n;i++)
-{
- xmma[i] = x[i];
- dfdx[i]=fsensMeanT[i]/N;//sensitivities of objective function
- dgdx[0][i]=optPowerConstraintWeight*(gsensPowerDiss[i]/N);//sensitivities of constraint function
- dgdx[1][i]=optVolumeConstraintWeight*(gsensVol[i]/N);//sensitivities of constraint function
-}
-
-
-Info<< "\n run MMA \n" << endl;
-mma.MMAsolver(xmma, dfdx, gx, dgdx);
-for(i=0;i<n;i++)
-{
-   x[i]=xmma[i];
-}
-
-#include "filter_x.H"
+#include "lsmSensitivity.H"
+#include "lsmVelocityRegularization.H"
+#include "lsmAdvection.H"
+#include "lsmReinitialize.H"
+#include "lsmInterfaceReconstruct.H"
+#include "updateInterpolationFields.H"
+#include "gradientOptWrite.H"
 #include "debugOptimizer.H"
 #include "solverConvergenceWrite.H"

@@ -15,8 +15,81 @@ dimensionedScalar nu(transportProperties.lookup("nu"));//Viscosity of fluid
 dimensionedScalar alphaMax(transportProperties.lookup("alphaMax"));
 dimensionedScalar alphaMAX(transportProperties.lookup("alphaMAX"));
 dimensionedScalar alphamax(transportProperties.lookup("alphaMax"));
-scalar qu(0.005);
-volScalarField alpha(alphaMax*qu*(1-xh)/(qu+xh)); 
+scalar qAlpha(useSplitRAMPControls ? qAlpha0 : qSingle0);
+scalar qKappa(useSplitRAMPControls ? qKappa0 : qSingle0);
+scalar qHeat(useSplitRAMPControls ? qHeat0 : qSingle0);
+scalar qSingle(qSingle0);
+scalar activePowerLimit(PowerDissMax);
+volScalarField alpha
+(
+    IOobject
+    (
+        "alphaBrinkman",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", alphaMax.dimensions(), 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField alphaSensCoeff
+(
+    IOobject
+    (
+        "alphaSensCoeff",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", alphaMax.dimensions(), 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField turbulenceSinkCoeff
+(
+    IOobject
+    (
+        "turbulenceSinkCoeff",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", alphaMax.dimensions(), 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField dAlpha
+(
+    IOobject
+    (
+        "dAlpha",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", dimLength, 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField porosityWallDiffusivity
+(
+    IOobject
+    (
+        "porosityWallDiffusivity",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("one", dimless, 1.0),
+    zeroGradientFvPatchScalarField::typeName
+);
 #include "createMRF.H"
 Info<< "Reading field p\n" << endl;
 volScalarField p
@@ -31,6 +104,35 @@ volScalarField p
     ),
     mesh
 );
+wordList dAlpha2PatchTypes(p.boundaryField().types());
+forAll(mesh.boundary(), patchI)
+{
+    if (mesh.boundary()[patchI].type() == "wall")
+    {
+        dAlpha2PatchTypes[patchI] = "fixedValue";
+    }
+}
+volScalarField dAlpha2
+(
+    IOobject
+    (
+        "dAlpha2",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", sqr(dimLength), 0.0),
+    dAlpha2PatchTypes
+);
+forAll(mesh.boundary(), patchI)
+{
+    if (mesh.boundary()[patchI].type() == "wall")
+    {
+        dAlpha2.boundaryFieldRef()[patchI] == Zero;
+    }
+}
 Info<< "Reading field U\n" << endl;
 volVectorField U
 (
@@ -53,6 +155,20 @@ singlePhaseTransportModel laminarTransport(U, phi);
 autoPtr<incompressible::turbulenceModel> turbulence
 (
     incompressible::turbulenceModel::New(U, phi, laminarTransport)
+);
+volScalarField nuEffAdjoint
+(
+    IOobject
+    (
+        "nuEffAdjoint",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", nu.dimensions(), 0.0),
+    zeroGradientFvPatchScalarField::typeName
 );
 //****************************************************************//adj-fluid-a
 Info<< "Reading field pa\n" << endl;
@@ -166,7 +282,22 @@ volScalarField gsensPowerDiss
         IOobject::NO_READ,
         IOobject::NO_WRITE
     ),
-    -alphaMax*(1+qu)*qu/((qu+xh)*(qu+xh))*(U&Ua),
+    mesh,
+    dimensionedScalar("zero", alphaMax.dimensions(), 0.0),
     zeroGradientFvPatchScalarField::typeName
 );
 volScalarField gsenshPowerDiss(gsensPowerDiss);
+volScalarField gsensPowerDissRaw
+(
+    IOobject
+    (
+        "gsensPowerDissRaw",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", alphaMax.dimensions(), 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);

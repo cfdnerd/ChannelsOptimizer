@@ -2,8 +2,8 @@
 
 This note records the current debugging position for `turbulenceLSMOpt` and
 summarizes the failure mechanisms visible in the latest `optimizerlogs/`
-snapshot, which is now the broadened-power-support `power-reopen probe` rerun
-with the tightened low-fluid trap guard.
+snapshot, which is now the extended-support projection-floor
+`power-reopen probe` rerun with the tightened low-fluid trap guard.
 
 Reference sources:
 
@@ -22,18 +22,22 @@ Current diagnosis:
   failure mechanism.
 - The dominant failure is an early level-set collapse followed by an inability
   to reopen blocked channels under severe power violation.
-- The broadened-power-support rerun confirms that support broadening alone is
-  not enough: `lsm.powerSupportFloorVolumeFraction` spikes to `0.922` at
-  `Iter 8`, but `lsm.powerProjectionMultiplier` is already `0`, so the trapped
-  branch still loses reopening motion immediately afterward.
+- The latest projection-floor rerun confirms that keeping both broadened power
+  support and a small nonzero reopening multiplier alive through
+  `Iter 8 -> 11` is still not enough to recover channels:
+  `lsm.powerSupportFloorVolumeFraction` stays about `0.921 -> 0.922`,
+  `lsm.powerProjectionMultiplier` stays at `0.2`,
+  and `sensitivity.normalVelocityL2` stays about `7.3e-02 -> 2.1e-01`,
+  but `fluidFractionRecoveredByShift` stays only `O(1e-4)` and `PowerDiss`
+  stays near `335 -> 404`.
 - The tightened low-fluid trap guard still behaves as intended and stops the
   branch shortly after the trapped regime becomes unmistakable.
 - The turbulence physics backbone is probably not the primary blocker, because
   `turbulenceMMAOpt` already works with the same low-`q` turbulent baseline.
 - The main suspects are LSM-specific:
   - loss of meaningful `diracPhiLS` support once the design starts collapsing
-  - a power-projection path that drops back to zero even when broadened
-    reopening support is still present on the trapped negative side
+  - reopening motion that remains too weak after collapse even when support and
+    a small nonzero power multiplier are kept alive
   - global post-update `phiLS` shifts that stay permanently capped while
     recovering only a small amount of fluid volume
   - continuation and stall logic that becomes too lenient once the branch falls
@@ -44,8 +48,8 @@ Current diagnosis:
 Completed in the current cycle:
 
 - examined the latest `optimizerlogs/` snapshot and confirmed that it is the
-  broadened-power-support `power-reopen probe` rerun with the tightened
-  low-fluid trap guard
+  extended-support projection-floor `power-reopen probe` rerun with the
+  tightened low-fluid trap guard
 - confirmed from `solverConvergences.log` that the LSM branch is not failing by
   linear-solver blow-up
 - identified a code-level control issue where `branchRefinement400` was
@@ -80,14 +84,20 @@ Completed in the current cycle:
   it is `0.341` at `Iter 6`,
   `0.187` at `Iter 7`,
   and already back to `0` from `Iter 8` onward
-- confirmed from the broadened-support rerun that the first fallback does reach
-  the trapped negative side, but only briefly:
-  `powerSupportFloorVolumeFraction` reaches `0.922` at `Iter 8`, while
-  `powerProjectionMultiplier` is already `0`,
-  `sensitivity.interfacePowerL2` is only `4.14e-01`, and
-  `sensitivity.normalVelocityL2` is only `1.94e-01`;
-  by `Iter 9`,
-  `powerSupportFloorVolumeFraction` is back to `0`
+- confirmed from the latest rerun that the broadened support plus fixed
+  projection floor does materially keep the trapped power channel alive:
+  `powerSupportFloorVolumeFraction` stays about `0.922` through
+  `Iter 8 -> 10` and `0.921` at `Iter 11`,
+  `powerProjectionMultiplier` stays at `0.2` through `Iter 8 -> 11`,
+  `sensitivity.interfacePowerL2` stays about
+  `4.14e-01 -> 3.64e-01 -> 4.15e-01`, and
+  `sensitivity.normalVelocityL2` stays about
+  `2.12e-01 -> 7.29e-02 -> 8.30e-02`
+- confirmed that this stronger trapped-state reopening signal is still not
+  sufficient to recover flow:
+  `fluidFractionRecoveredByShift` stays only about
+  `2.06e-04 -> 2.32e-04 -> 3.89e-04 -> 2.48e-04` across `Iter 8 -> 11`,
+  while `PowerDiss` stays about `334.63 -> 403.67 -> 403.63 -> 397.33`
 - confirmed that the capped global shift becomes almost useless immediately
   after collapse:
   `fluidFractionRecoveredByShift` falls
@@ -122,29 +132,31 @@ Completed in the current cycle:
   a debug-scoped power-support floor for `adjointSensitivityProbe` that keeps
   the power sensitivity alive across the remaining interface band once the
   power constraint is active
-- captured that broadened-support rerun and confirmed that support broadening
-  alone still does not recover trapped motion
+- captured the extended-support projection-floor rerun and confirmed that
+  keeping support plus a small nonzero reopening multiplier alive still does
+  not recover trapped motion
 - added the current stronger reopening-path debug change in
   [lsmSensitivity.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/lsmSensitivity.H),
-  [opt_initialization.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/opt_initialization.H),
   [gradientOptWrite.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/gradientOptWrite.H),
   and [debugOptimizer.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/debugOptimizer.H):
-  extend the debug power-support reach to `phiLS >= -4*epsilonLSMActive` and
-  add a small `powerProjectionMultiplier` floor when that broadened support is
-  active
+  replace the fixed `0.2` projection floor with a cap-limited reopening
+  penalty that drives the fallback power signal up to the normal-velocity cap
+  once the analytical projection has collapsed
 - documented the first LSM-specific runtime experiment ladder in
   [TurbulenceLSMOptCollapseRecoveryExperimentPlan.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceLSMOptCollapseRecoveryExperimentPlan.md)
 
 Still pending:
 
 - rerun the active `power-reopen probe` case with the extended negative-reach
-  support and projection-floor fallback
+  support and cap-limited reopening penalty
 - inspect whether `lsm.powerSupportFloorVolumeFraction`,
   `lsm.powerSupportFloorNegativeReach`,
   `lsm.powerProjectionMultiplierAnalytical`,
   `lsm.powerProjectionMultiplierFloor`,
   `lsm.powerProjectionMultiplier`,
-  `sensitivity.interfacePowerL2`, and `sensitivity.normalVelocityL2`
+  `sensitivity.interfacePowerL2`,
+  `sensitivity.normalVelocityL2`, and
+  `lsm.normalVelocityCapHitCount`
   stay materially higher through `Iter 8 -> 10`
 
 Practical meaning:
@@ -163,12 +175,12 @@ Practical meaning:
 - they now also show that the broad `|phi| <= epsilon` band overstates usable
   reopening support after collapse, because meaningful `diracPhiLS` support is
   already gone by `Iter 7`
-- they also show that a first broadened power-support fallback is not
-  sufficient by itself, because the analytical projection drops to zero while
-  the trapped negative-side support is still present
+- they also show that support broadening is not the only blocker, because the
+  latest rerun keeps both support and a small nonzero reopening multiplier
+  alive through `Iter 8 -> 11` and still does not materially recover fluid
 - they also show that the tightened trapped-state guard now stops the run on
   the expected schedule, so the next useful discriminator is a stronger
-  reopening formulation rather than more stop-logic tuning
+  reopening-magnitude test rather than more stop-logic tuning
 
 ## First Ladder Result
 
@@ -557,45 +569,47 @@ Implication:
 - the next code change needs to target reopening support before `Iter 8`, not
   stop detection after `Iter 8`
 
-### The broader power-support fallback still was not enough
+### The extended-support projection-floor rerun still was not enough
 
-The latest logs show that the first post-ladder reopening probe did partially
-reach the trapped state:
+The latest logs show that the stronger trapped-state reopening probe does keep
+the power channel active after collapse:
 
-- `lsm.powerSupportFloorVolumeFraction` reaches `0.922` at `Iter 8`
-- but `lsm.powerProjectionMultiplier` is already `0` at that point
-- `sensitivity.interfacePowerL2` is only `4.14e-01` at `Iter 8`, then already
-  `2.70e-04` by `Iter 9`
-- `sensitivity.normalVelocityL2` is only `1.94e-01` at `Iter 8`, then already
-  `2.13e-04` by `Iter 9`
+- `lsm.powerSupportFloorVolumeFraction` stays about `0.922` through
+  `Iter 8 -> 10` and `0.921` at `Iter 11`
+- `lsm.powerProjectionMultiplier` stays at `0.2` through `Iter 8 -> 11`
+- `sensitivity.interfacePowerL2` stays about
+  `4.14e-01 -> 3.66e-01 -> 3.64e-01 -> 4.15e-01`
+- `sensitivity.normalVelocityL2` stays about
+  `2.12e-01 -> 7.31e-02 -> 7.29e-02 -> 8.30e-02`
 
 Implication:
 
-- broadening support without changing the projection formula is not enough
-- the trapped branch still sheds the fallback support within one more
-  optimizer step
-- the next debug change must test both support reach and nonzero projection
+- keeping a weak nonzero reopening push alive is not enough
+- support loss is no longer the only remaining blocker in the trapped state
+- the next debug change must test reopening magnitude much more aggressively
 
-### The next reopening-path probe is extended negative-side support plus a projection floor
+### The next reopening-path probe is a cap-limited reopening penalty
 
-The current code update strengthens the debug reopening probe for
+The current code update strengthens the debug reopening probe again for
 `adjointSensitivityProbe`:
 
-- keep the power-support floor at `0.1 / epsilonLSMActive`
-- extend its negative-side reach to `phiLS >= -4*epsilonLSMActive`
-- add a debug `powerProjectionMultiplier` floor of `0.20` whenever that
-  broadened support is actually active
-- expose the new controls through
-  `lsm.powerSupportFloorNegativeReach`,
-  `lsm.powerProjectionMultiplierAnalytical`, and
-  `lsm.powerProjectionMultiplierFloor`
+- keep the extended negative-side support
+- once the analytical projection has collapsed, replace the fixed `0.2`
+  fallback with a cap-limited reopening penalty
+- drive the fallback power signal up to the `maxNormalVelocity` limit across
+  the supported trapped region
+- keep exposing the applied strength through
+  `lsm.powerProjectionMultiplierAnalytical`,
+  `lsm.powerProjectionMultiplierFloor`, and
+  `lsm.powerProjectionMultiplier`
 
 Target outcome for the next rerun:
 
 - `lsm.powerSupportFloorVolumeFraction` stays large through `Iter 8 -> 10`
-- `lsm.powerProjectionMultiplier` no longer drops straight to `0` at `Iter 8`
-- `sensitivity.interfacePowerL2` and `sensitivity.normalVelocityL2` stay
-  materially above the current `Iter 8 -> 9` collapse
+- `lsm.powerProjectionMultiplierFloor` rises from the old `0.2` to the new
+  cap-limited value
+- `LSM Diagnostics -> controls.velCapHits` becomes materially nonzero
+- `fluidFractionRecoveredByShift` rises well above the current `O(1e-4)` trap
 
 ## Latest-Run Failure Sequence
 
@@ -895,10 +909,12 @@ The current ladder position is:
 10. low-fluid trapped-state guard tightened in the debug logic
 11. tightened-guard `power-reopen probe` rerun captured and characterized
 12. broader power-support fallback rerun captured and characterized
-13. extended negative-side support and projection-floor probe added
+13. extended negative-side support plus fixed projection-floor rerun captured
+    and characterized
+14. cap-limited reopening-penalty probe added
 
 The next action is to rerun the active `power-reopen probe` case with the
-extended negative-side support and projection-floor fallback and inspect:
+extended negative-side support and cap-limited reopening penalty and inspect:
 
 - `lsm.diracSupportCellCount`
 - `lsm.meaningfulDiracSupportCellCount`
@@ -908,11 +924,12 @@ extended negative-side support and projection-floor fallback and inspect:
 - `lsm.powerProjectionMultiplierAnalytical`
 - `lsm.powerProjectionMultiplierFloor`
 - `lsm.powerProjectionMultiplier`
+- `lsm.normalVelocityCapHitCount`
 - `lsm.fluidFractionPreShift`
 - `lsm.fluidFractionPostShift`
 - `lsm.fluidFractionRecoveredByShift`
 - `convergence.stalledLowFluidCandidate`
 
 If that rerun still reaches the same support-collapse signature, the next code
-step should move beyond projection-style reopening and test a more explicit
-power-penalty formulation.
+step should stop asking for more reopening magnitude and instead question the
+direction or localization of the trapped-state power update itself.

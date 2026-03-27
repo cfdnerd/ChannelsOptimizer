@@ -73,12 +73,20 @@ powerProjectionMultiplier = powerProjectionMultiplierAnalytical;
 const bool broadenedPowerSupportActive =
   powerSupportFloorCellCount > 0
   && powerSupportFloorVolumeFraction > 0.05;
-if (broadenPowerReopenSupport && broadenedPowerSupportActive)
+if
+(
+  broadenPowerReopenSupport
+  && broadenedPowerSupportActive
+  && powerProjectionMultiplierAnalytical <= SMALL
+)
 {
-  // Once the analytical projection collapses in the trapped state, keep a
-  // small reopening bias alive so the next rerun can tell whether support loss
-  // or the projection formula itself is the dominant blocker.
-  powerProjectionMultiplierFloor = 0.20;
+  // The previous rerun showed that a small additive reopening push keeps the
+  // trapped power channel alive but still recovers essentially no fluid.
+  // Drive the fallback power signal up to the normal-velocity cap so the next
+  // rerun cleanly answers whether the remaining blocker is magnitude or
+  // direction/localization.
+  powerProjectionMultiplierFloor =
+    maxNormalVelocity/Foam::max(powerSupportFloorValue, scalar(SMALL));
   powerProjectionMultiplier =
     Foam::max(powerProjectionMultiplier, powerProjectionMultiplierFloor);
 }

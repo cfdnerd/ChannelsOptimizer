@@ -837,4 +837,3 @@ if (Pstream::master())
 }
 
 previousXhStepMax = maxAbsXhChangeLocal;
-previousPhiStepMax = maxAbsPhiChangeLocal;

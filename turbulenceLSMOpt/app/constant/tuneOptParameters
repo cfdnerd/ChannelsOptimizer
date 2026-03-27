@@ -58,11 +58,11 @@ experimentControl
     forceContinuationHardeningUntilIter 0;
     forceContinuationHardeningUntilBeta -1;
     stopContinuationHardeningBelowGrayFraction 0.10;
-    lateStageStrictGateBelowGrayFraction 0.14;
+    lateStageStrictGateBelowGrayFraction 0.55;
     lateStageContinuationFeasibilityTol 0.98;
-    lateStageRefinementStartIter   170;
-    lateStageRefinementBelowGrayFraction 0.18;
-    lateStageBetaRampFactor        0.25;
+    lateStageRefinementStartIter   150;
+    lateStageRefinementBelowGrayFraction 0.55;
+    lateStageBetaRampFactor        0.20;
     lateStageAlphaRampFactor       1.0;
     lateStageMaxBeta               40;
     lateStageFilterRStartIter      120;
@@ -72,9 +72,9 @@ experimentControl
     laggingGrayCollapseBelowXhStepMax 0.06;
     laggingGrayCollapseMinGrayDrop 5e-3;
     laggingGrayCollapsePauseInterval 4;
-    overactiveTopologyStartIter    180;
-    overactiveTopologyBelowGrayFraction 0.16;
-    overactiveTopologyAboveXhStepMax 0.20;
+    overactiveTopologyStartIter    120;
+    overactiveTopologyBelowGrayFraction 0.75;
+    overactiveTopologyAboveXhStepMax 0.25;
 }
 
 adjointControl

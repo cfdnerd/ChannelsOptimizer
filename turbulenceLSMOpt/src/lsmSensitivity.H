@@ -6,12 +6,17 @@ forAll(interfaceObjectiveSensitivity, cellI)
   interfaceVolumeSensitivity[cellI] = -gsensVol[cellI]*diracValue;
 }
 
+const scalar activePowerConstraintWeight =
+  gx[0] > 0.0 ? effectivePowerConstraintWeight : scalar(0.0);
+const scalar activeVolumeConstraintWeight =
+  gx[1] > 0.0 ? optVolumeConstraintWeight : scalar(0.0);
+
 forAll(totalPhiSensitivity, cellI)
 {
   totalPhiSensitivity[cellI] =
       interfaceObjectiveSensitivity[cellI]
-    + effectivePowerConstraintWeight*interfacePowerSensitivity[cellI]
-    + optVolumeConstraintWeight*interfaceVolumeSensitivity[cellI];
+    + activePowerConstraintWeight*interfacePowerSensitivity[cellI]
+    + activeVolumeConstraintWeight*interfaceVolumeSensitivity[cellI];
 }
 
 interfaceObjectiveSensitivity.correctBoundaryConditions();

@@ -16,24 +16,21 @@ FoamFile
 
 dimensions      [0 2 -3 0 0 0 0];
 
-// Symmetric half-domain: modeled inlet width = 4 mm, full physical inlet = 8 mm.
-// Using the full physical inlet diameter in the turbulence length scale:
-// ell = 0.07*Dh = 0.07*8e-3 m, epsilon = Cmu^0.75*k^1.5/ell = 6.73815e-2 m2/s3.
-internalField   uniform 6.73815e-2;
+internalField   uniform 1.34763e-1;
 
 boundaryField
 {
     inlet
     {
         type            fixedValue;
-        value           uniform 6.73815e-2;
+        value           uniform 1.34763e-1;
     }
 
     outlet
     {
         type            inletOutlet;
-        inletValue      uniform 6.73815e-2;
-        value           uniform 6.73815e-2;
+        inletValue      uniform 1.34763e-1;
+        value           uniform 1.34763e-1;
     }
 
     Wall

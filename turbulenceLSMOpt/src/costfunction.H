@@ -61,16 +61,15 @@ for (i=0; i<nObjPatch; i++)
      + 0.5*magSqr(U.boundaryField()[conPatchList[i]]))); 
 }
 PowerDiss=PowerDiss/PowerDiss0;
-const bool isQuasi2D = Foam::mag(GeoDim - scalar(2.0)) < SMALL;
-const scalar meshFactor = std::pow(mesh.V()[0], 1.0/GeoDim);
-if(isQuasi2D)
+const scalar meshFactor = std::pow(mesh.V()[0],1.0/3);
+if(GeoDim==2)
 {
  PowerDiss=PowerDiss/meshFactor;
 }
 reduce(PowerDiss, sumOp<scalar>());
 
 PowerDissActualOverBase = PowerDiss;
-if(isQuasi2D)
+if(GeoDim==2)
 {
   PowerDissActualOverBase = PowerDissActualOverBase*meshFactor;
 }

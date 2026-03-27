@@ -23,7 +23,7 @@ The goal is to separate six candidate causes:
 As of the current debugging cycle:
 
 - the latest analyzed `optimizerlogs/` snapshot is now the
-  instrumented `power-reopen probe` rerun
+  tightened-trap-guard `power-reopen probe` rerun
 - the profile-fallback bug in
   [createFields.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/createFields.H)
   has been fixed and validated by the post-fix reruns
@@ -61,15 +61,24 @@ As of the current debugging cycle:
   lost meaningful support, and
   negligible shift recovery,
   because the previous step-freeze-based guard never armed in the trapped run
+- the tightened-guard rerun stopped at `Iter 11` with
+  `reason = stalledLowFluidInfeasible`, so the temporary stop logic now behaves
+  as intended
+- the next reopening-path debug change has now been added in
+  [lsmSensitivity.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/lsmSensitivity.H),
+  [opt_initialization.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/opt_initialization.H),
+  [gradientOptWrite.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/gradientOptWrite.H),
+  and [debugOptimizer.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/debugOptimizer.H):
+  a debug-scoped power-support floor for the active power sensitivity
 
 Therefore Experiments 1 through 6 are complete and the runtime ladder itself is
 now exhausted.
 
 Immediate next runs:
 
-1. rerun `power-reopen probe` with the tightened trapped-state guard
+1. rerun `power-reopen probe` with the broader power-support fallback
 2. if the rerun still falls into the same `Iter 7 -> 8` no-support trap, move
-   next to reopening-path code changes rather than more stop-logic work
+   next to stronger reopening-path formulation changes
 
 ## Run Order
 
@@ -473,6 +482,8 @@ Current status:
   `Iter 7`, then already `0` from `Iter 8` onward
 - `fluidFractionRecoveredByShift` falls
   `3.81e-02 -> 1.14e-03 -> 2.06e-04` across `Iter 6 -> 8`
+- the tightened-guard rerun then keeps `stalledLowFluidCandidate = 1` through
+  `Iter 7 -> 11` and stops at `Iter 11`
 
 Interpretation:
 
@@ -481,8 +492,9 @@ Interpretation:
 - the remaining issue lies deeper than simple power-weight tuning
 - the newer support/recovery probes confirm that the trapped state is already
   effectively unrecoverable by `Iter 7`
-- the next step is now a rerun with the tightened low-fluid trap guard, not a
-  seventh runtime-control permutation
+- the tightened low-fluid trap guard now works as intended
+- the next step is now a rerun with broader power support, not a seventh
+  runtime-control permutation
 
 ## Practical Pass/Fail Heuristics
 
@@ -545,6 +557,11 @@ Probes 2 through 5 are now available in the current branch through:
   `lsm.fluidFractionRecoveredByShift`, and
   `convergence.stalledLowFluidCandidate`
 - `gradientOpt.log` lines `projection control` and `fluid shift`
+- `debugOptimizer.log` row `power reopen`
+- `debugOptimizer.jsonl` fields
+  `lsm.powerSupportFloorValue`,
+  `lsm.powerSupportFloorCellCount`, and
+  `lsm.powerSupportFloorVolumeFraction`
 
 First combined result from the instrumented `power-reopen probe` rerun:
 
@@ -570,6 +587,23 @@ That is why the stop logic has now been tightened in
   shift-capped,
   low-support, and
   recovering almost no fluid volume from the capped shift
+
+Result from the tightened-guard rerun:
+
+- the branch still reaches the same `Iter 7 -> 8` trapped signature
+- but the rerun now stops cleanly at `Iter 11` with
+  `reason = stalledLowFluidInfeasible`
+- this confirms that stop detection is no longer the main blocker
+
+That is why the next debug change now broadens the active power support in
+[lsmSensitivity.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/lsmSensitivity.H):
+
+- keep `interfacePowerSensitivity` alive across the remaining broad band when
+  the power constraint is active
+- use a support floor of `0.1 / epsilonLSMActive`
+- expose the applied floor through
+  `lsm.powerSupportFloorValue` and
+  `lsm.powerSupportFloorVolumeFraction`
 
 First probe result from the `case-respected baseline` rerun:
 

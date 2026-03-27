@@ -2,7 +2,7 @@
 
 This note records the current debugging position for `turbulenceLSMOpt` and
 summarizes the failure mechanisms visible in the latest `optimizerlogs/`
-snapshot, which is now the instrumented `power-reopen probe` rerun.
+snapshot, which is now the tightened-trap-guard `power-reopen probe` rerun.
 
 Reference sources:
 
@@ -21,10 +21,10 @@ Current diagnosis:
   failure mechanism.
 - The dominant failure is an early level-set collapse followed by an inability
   to reopen blocked channels under severe power violation.
-- The instrumented `power-reopen probe` rerun does not materially change the
-  collapse timing or trapped-regime behavior relative to the
-  `Hamilton-Jacobi fallback` reference, but it does show more clearly why the
-  trapped regime becomes irreversible.
+- The tightened-trap-guard `power-reopen probe` rerun still does not materially
+  change the collapse timing or trapped-regime behavior relative to the
+  `Hamilton-Jacobi fallback` reference, but it confirms that the new guard can
+  stop the branch shortly after the trapped regime becomes unmistakable.
 - The turbulence physics backbone is probably not the primary blocker, because
   `turbulenceMMAOpt` already works with the same low-`q` turbulent baseline.
 - The main suspects are LSM-specific:
@@ -41,7 +41,7 @@ Current diagnosis:
 Completed in the current cycle:
 
 - examined the latest `optimizerlogs/` snapshot and confirmed that it is the
-  instrumented `power-reopen probe` rerun
+  tightened-trap-guard `power-reopen probe` rerun
 - confirmed from `solverConvergences.log` that the LSM branch is not failing by
   linear-solver blow-up
 - identified a code-level control issue where `branchRefinement400` was
@@ -99,16 +99,27 @@ Completed in the current cycle:
   lost meaningful `diracPhiLS` support, and
   negligible shift recovery,
   instead of waiting for `designStepFrozen`
+- captured the tightened-guard rerun and confirmed that
+  `stalledLowFluidCandidate` switches on at `Iter 7` and the run stops at
+  `Iter 11` with `reason = stalledLowFluidInfeasible`
+- added the next reopening-path debug change in
+  [lsmSensitivity.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/lsmSensitivity.H),
+  [opt_initialization.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/opt_initialization.H),
+  [gradientOptWrite.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/gradientOptWrite.H),
+  and [debugOptimizer.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/debugOptimizer.H):
+  a debug-scoped power-support floor for `adjointSensitivityProbe` that keeps
+  the power sensitivity alive across the remaining interface band once the
+  power constraint is active
 - documented the first LSM-specific runtime experiment ladder in
   [TurbulenceLSMOptCollapseRecoveryExperimentPlan.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceLSMOptCollapseRecoveryExperimentPlan.md)
 
 Still pending:
 
-- rerun the active `power-reopen probe` case with the tightened low-fluid trap
-  guard
-- confirm that the revised guard stops the run close to the
-  `Iter 7 -> 11` trapped window instead of letting the branch coast through the
-  same irrecoverable low-fluid state
+- rerun the active `power-reopen probe` case with the broadened power-support
+  fallback
+- inspect whether `lsm.powerSupportFloorVolumeFraction`,
+  `sensitivity.interfacePowerL2`, and `sensitivity.normalVelocityL2`
+  stay materially higher through `Iter 7 -> 8`
 
 Practical meaning:
 
@@ -126,9 +137,9 @@ Practical meaning:
 - they now also show that the broad `|phi| <= epsilon` band overstates usable
   reopening support after collapse, because meaningful `diracPhiLS` support is
   already gone by `Iter 7`
-- that means the first runtime ladder is now exhausted and the next useful
-  discriminator is trapped-state debug behavior, not further control-surface
-  tuning alone
+- they also show that the tightened trapped-state guard now stops the run on
+  the expected schedule, so the next useful discriminator is reopening support
+  itself rather than more stop-logic tuning
 
 ## First Ladder Result
 
@@ -498,6 +509,45 @@ Implication:
 - once that window closes, the capped global shift is no longer recovering a
   meaningful amount of fluid volume
 
+### The tightened trap guard now trips on the intended trapped regime
+
+The new rerun with the revised low-fluid guard confirms that the stop logic is
+now tracking the trapped state rather than waiting indefinitely:
+
+- `stalledLowFluidCandidate` is still `0` through `Iter 6`
+- it switches to `1` at `Iter 7` exactly when meaningful support has already
+  collapsed to `9.624e-04`
+- it stays `1` through `Iter 11`
+- the run stops at `Iter 11` with
+  `reason = stalledLowFluidInfeasible`
+
+Implication:
+
+- the temporary debug stop logic is now behaving as intended
+- the remaining problem is not how long the branch runs after trapping
+- the next code change needs to target reopening support before `Iter 8`, not
+  stop detection after `Iter 8`
+
+### The next reopening-path probe is broader power support
+
+Because the newer logs show that the broad interface band still exists at
+`Iter 7` even after meaningful `diracPhiLS` support has already collapsed, the
+next debug change keeps the power sensitivity alive across that remaining band
+for `adjointSensitivityProbe`:
+
+- apply a power-support floor of `0.1 / epsilonLSMActive`
+- only apply it when the power constraint is active
+- only apply it to the power sensitivity, not to the objective or volume
+  sensitivities
+
+Target outcome for the next rerun:
+
+- `lsm.powerSupportFloorVolumeFraction` stays large at `Iter 7`
+- `sensitivity.interfacePowerL2` remains materially above the old
+  `3.37 -> 0.120` drop across `Iter 7 -> 8`
+- `sensitivity.normalVelocityL2` remains materially above the old
+  `5.82 -> 0.194` drop across `Iter 7 -> 8`
+
 ## Latest-Run Failure Sequence
 
 ### 1. Iterations 1-5: stable but drifting toward closure
@@ -705,6 +755,22 @@ Interpretation:
   lost meaningful support, and
   negligible shift recovery instead
 
+### 8. The next likely blocker is strict power localization, not stop logic
+
+In the tightened-guard rerun:
+
+- `stalledLowFluidCandidate` now behaves correctly
+- but the collapse still reaches the same `Iter 7 -> 8` no-support window
+  before the run stops
+- at `Iter 7`, the broad band is still present while meaningful support is not
+
+Interpretation:
+
+- the next change should act earlier than the stop logic
+- the clearest remaining candidate is the strict use of `diracPhiLS` in
+  `interfacePowerSensitivity`, which is now being relaxed in a debug-scoped
+  way for the next rerun
+
 ## Comparison To `turbulenceMMAOpt`
 
 [TurbulenceMMAOptDebugFindings.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceMMAOptDebugFindings.md)
@@ -778,18 +844,22 @@ The current ladder position is:
 8. first deeper code probes added to the branch
 9. instrumented `power-reopen probe` rerun captured and characterized
 10. low-fluid trapped-state guard tightened in the debug logic
+11. tightened-guard `power-reopen probe` rerun captured and characterized
+12. broader power-support fallback added for the next rerun
 
 The next action is to rerun the active `power-reopen probe` case with the
-revised trapped-state guard and inspect:
+broader power-support fallback and inspect:
 
 - `lsm.diracSupportCellCount`
 - `lsm.meaningfulDiracSupportCellCount`
+- `lsm.powerSupportFloorValue`
+- `lsm.powerSupportFloorVolumeFraction`
 - `lsm.powerProjectionMultiplier`
 - `lsm.fluidFractionPreShift`
 - `lsm.fluidFractionPostShift`
 - `lsm.fluidFractionRecoveredByShift`
 - `convergence.stalledLowFluidCandidate`
 
-If that rerun still reaches the same support-collapse signature before stopping,
-the next code step should move from logging/stall logic to actual reopening-path
-surgery.
+If that rerun still reaches the same support-collapse signature, the next code
+step should move from support broadening to a stronger reopening formulation
+change.

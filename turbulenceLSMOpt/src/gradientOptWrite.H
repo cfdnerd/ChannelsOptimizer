@@ -224,7 +224,10 @@ if (Pstream::master())
     << " velocity reg: min=" << regVelMinGradLocal << " max=" << regVelMaxGradLocal
     << " l2=" << regVelL2Grad << "\n"
     << " projection control: powerProj=" << powerProjectionMultiplier
+    << " powerFloor=" << powerSupportFloorValue
     << " volumeProj=" << volumeProjectionMultiplier << "\n"
+    << " power support: floorVol=" << powerSupportFloorVolumeFraction
+    << " floorCells=" << powerSupportFloorCellCount << "\n"
     << " volume control: proj=" << volumeProjectionMultiplier
     << " phiShiftRaw=" << volumePhiShiftRaw
     << " phiShiftApplied=" << volumePhiShiftApplied

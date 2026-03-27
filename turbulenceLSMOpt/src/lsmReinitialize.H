@@ -88,4 +88,94 @@ if (triggerReinitialization)
   }
 }
 
-#include "lsmRestoreInterfaceBand.H"
+const scalar interfaceBandPhiCap = 4.0*Foam::max(epsilonLSMActive, scalar(SMALL));
+const scalar interfaceCellMagnitude = 0.5*Foam::max(epsilonLSMActive, scalar(SMALL));
+const scalar neighborCellMagnitude = 1.5*Foam::max(epsilonLSMActive, scalar(SMALL));
+const labelListList& cellCells = mesh.cellCells();
+
+std::vector<unsigned char> fixedLSMCells(mesh.nCells(), 0);
+if (solid_area)
+{
+  forAll(cells_solid, zoneI)
+  {
+    fixedLSMCells[cells_solid[zoneI]] = 1;
+  }
+}
+if (fluid_area)
+{
+  forAll(cells_fluid, zoneI)
+  {
+    fixedLSMCells[cells_fluid[zoneI]] = 1;
+  }
+}
+if (test_area)
+{
+  forAll(cells_test, zoneI)
+  {
+    fixedLSMCells[cells_test[zoneI]] = 1;
+  }
+}
+
+std::vector<unsigned char> interfaceCells(mesh.nCells(), 0);
+std::vector<unsigned char> neighborCells(mesh.nCells(), 0);
+forAll(phiLS, cellI)
+{
+  const bool positiveCell = phiLS[cellI] >= 0.0;
+  const labelList& nbrs = cellCells[cellI];
+  forAll(nbrs, nbrI)
+  {
+    const label nbrCellI = nbrs[nbrI];
+    if ((phiLS[nbrCellI] >= 0.0) != positiveCell)
+    {
+      interfaceCells[cellI] = 1;
+      interfaceCells[nbrCellI] = 1;
+    }
+  }
+}
+
+forAll(phiLS, cellI)
+{
+  if (!interfaceCells[cellI])
+  {
+    continue;
+  }
+
+  const labelList& nbrs = cellCells[cellI];
+  forAll(nbrs, nbrI)
+  {
+    const label nbrCellI = nbrs[nbrI];
+    if (!interfaceCells[nbrCellI])
+    {
+      neighborCells[nbrCellI] = 1;
+    }
+  }
+}
+
+forAll(phiLS, cellI)
+{
+  if (fixedLSMCells[cellI])
+  {
+    continue;
+  }
+
+  scalar phiValue = phiLS[cellI];
+  if (!std::isfinite(static_cast<double>(phiValue)))
+  {
+    phiValue = 0.0;
+  }
+
+  const scalar signValue = phiValue >= 0.0 ? 1.0 : -1.0;
+  scalar absPhiValue = Foam::mag(phiValue);
+  if (interfaceCells[cellI])
+  {
+    absPhiValue = Foam::min(absPhiValue, interfaceCellMagnitude);
+  }
+  else if (neighborCells[cellI])
+  {
+    absPhiValue = Foam::min(absPhiValue, neighborCellMagnitude);
+  }
+
+  phiLS[cellI] = signValue*Foam::min(absPhiValue, interfaceBandPhiCap);
+}
+
+phiLS.correctBoundaryConditions();

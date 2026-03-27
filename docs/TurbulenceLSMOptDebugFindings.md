@@ -50,17 +50,20 @@ Completed in the current cycle:
 
 Still pending:
 
-- the next discriminator run is now `reduced volume-shift cap`
-- after that, move to `wider interface band` only if the reduced-cap run does
-  not materially delay collapse or preserve reopening support
+- the next discriminator run is now `wider interface band`
+- after that, move to `Hamilton-Jacobi fallback` only if the wider-band run
+  does not materially delay collapse or preserve reopening support
 
 Practical meaning:
 
 - the current logs now include valid post-fix references for both
-  `case-respected baseline` and `profile baseline`
+  `case-respected baseline`, `profile baseline`, and
+  `reduced volume-shift cap`
 - they show that fixing the profile override was necessary, but not sufficient,
   and that changing from `branchRefinement400` to `baseline` is also not
   sufficient, to prevent the early LSM collapse
+- they also show that reducing the shift cap makes the collapse earlier,
+  which argues against the capped global shift being the main destabilizer
 
 ## First Ladder Result
 
@@ -159,9 +162,10 @@ clear recovery:
 Practical conclusion:
 
 - `baseline` is the slightly better profile and should be retained
-- but the next useful discriminator is no longer another profile tweak
-- the strongest remaining runtime suspect is still the capped global
-  post-update `phiLS` shift
+- but at that point the next useful discriminator was no longer another
+  profile tweak
+- at that point the strongest remaining runtime suspect still looked like the
+  capped global post-update `phiLS` shift
 
 ### The late `phi/eps` histogram still supports the shift-cap hypothesis
 
@@ -171,9 +175,71 @@ By the late trapped regime in the baseline-profile run:
 - `phiOverEpsFarFraction` was only about `9e-03`
 
 So even after many trapped iterations, the state still looks more like a
-shoulder/outer-band trap than a far-tail blowout. That strengthens the case
-for moving next to the reduced-cap experiment rather than skipping straight to
-interface-band or wall-distance surgery.
+shoulder/outer-band trap than a far-tail blowout. That was the main reason the
+ladder moved next to the reduced-cap experiment rather than skipping straight
+to interface-band or wall-distance surgery.
+
+## Third Ladder Result
+
+### `reduced volume-shift cap` made the collapse earlier
+
+The reduced-cap rerun kept the intended post-fix control surface:
+
+- `experimentProfile = baseline`
+- `betaIncrementActive = 0.12`
+- `continuationFeasibilityTolActive = 1.15`
+- `forceContinuationHardeningUntilIter = 0`
+- `forceContinuationHardeningUntilBeta = -1`
+
+But the cap change itself was strongly visible in the early iterations:
+
+- `volumePhiShiftApplied` fell to about `0.029` at `Iter 1` and `Iter 2`
+  instead of the earlier `~0.145`
+
+That change did not help. It made the run fail sooner:
+
+- `xhGrayVolumeFraction` was already `9.624e-04` by `Iter 3`
+- `PowerDiss` rose `5.36 -> 15.85 -> 51.86 -> 338.45` across `Iter 2 -> 5`
+- `volumePhiShiftRaw` still grew quickly to about `1.10` at `Iter 3`
+  and `1.55` at `Iter 4`
+
+Practical conclusion:
+
+- the capped global post-update shift is not the main trigger of the collapse
+- in the current branch, the shift cap appears more compensatory than
+  destabilizing
+- reducing it removes recovery capacity and lets the design lock shut sooner
+
+### The reduced-cap run still died as a narrow-band/outer-band trap
+
+Even in the reduced-cap run, the geometry of failure did not look like a
+far-tail blowout:
+
+- the usual one-iteration lag remained around the collapse event, with
+  `xhGrayVolumeFraction` collapsing before `interfaceBandVolumeFraction`
+  catches up
+- by the late trapped regime, `phiOverEpsAboveTwoFraction` was still about
+  `0.919`
+- `phiOverEpsFarFraction` remained only about `2e-03`
+- `interfacePowerL2` remained only about `1.05e-03`
+- `normalVelocityL2` remained only about `7.6e-04`
+
+That keeps the strongest remaining runtime hypothesis on interface-band width
+and loss of usable support rather than on excessive global shift amplitude.
+
+### The next clean discriminator is `wider interface band`
+
+Because the reduced-cap test was clearly negative, the next experiment should
+not stack that harmful cap reduction with the band-width change. The sensible
+next case is:
+
+- keep `experimentControl.profile baseline;`
+- restore `maxVolumePhiShiftFactor = 0.10;`
+- increase `epsilonLSM = 2.5;`
+- increase `epsilonLSMMin = 1.0;`
+
+This isolates whether the current collapse is fundamentally a too-narrow-band
+problem.
 
 ## Latest-Run Failure Sequence
 
@@ -416,9 +482,10 @@ The current ladder position is:
 1. code-level profile-fallback bug fixed
 2. `case-respected baseline` rerun captured and characterized
 3. `profile baseline` rerun captured and characterized
-4. `reduced volume-shift cap` is the active next discriminator run
+4. `reduced volume-shift cap` rerun captured and characterized
+5. `wider interface band` is the active next discriminator run
 
 Do not skip directly to deeper LSM code surgery before capturing that
-`reduced volume-shift cap` run. It is now the cleanest remaining check for
-whether the capped global post-update shift is the main trigger behind the
-early LSM collapse.
+`wider interface band` run. It is now the cleanest remaining runtime check for
+whether the current collapse is fundamentally caused by interface-band
+shrinkage and shoulder saturation.

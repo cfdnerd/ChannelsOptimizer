@@ -23,30 +23,30 @@ The goal is to separate six candidate causes:
 As of the current debugging cycle:
 
 - the latest analyzed `optimizerlogs/` snapshot is now the
-  `profile baseline` rerun
+  `reduced volume-shift cap` rerun
 - the profile-fallback bug in
   [createFields.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/createFields.H)
-  has been fixed and validated by both post-fix reruns
-- both reruns respected the explicit case dictionaries:
+  has been fixed and validated by the post-fix reruns
+- all completed post-fix reruns respected the explicit case dictionaries:
   `betaIncrement = 0.12`,
   `continuationFeasibilityTol = 1.15`,
   `forceContinuationHardeningUntilIter = 0`, and
   `forceContinuationHardeningUntilBeta = -1`
-- the `profile baseline` rerun still collapses between `Iter 5` and `Iter 6`
-  and remains trapped afterward
-- `profile baseline` softened the late trapped regime only mildly relative to
-  `branchRefinement400`, so the profile itself is not the primary blocker
+- the reduced-cap rerun collapsed even earlier, between `Iter 2` and `Iter 4`
+  with the first hard failure signal already visible at `Iter 3`
+- reducing the cap therefore looks clearly harmful rather than restorative
+  and argues against the capped global shift being the primary trigger
 
-Therefore Experiments 1 and 2 are complete and the ladder is now positioned at
-Experiment 3 in practice.
+Therefore Experiments 1 through 3 are complete and the ladder is now
+positioned at Experiment 4 in practice.
 
 Immediate next runs:
 
-1. `reduced volume-shift cap`
-2. `wider interface band`
+1. `wider interface band`
+2. `Hamilton-Jacobi fallback`
 
-Do not jump ahead to later experiments until the `reduced volume-shift cap`
-run is archived and reviewed.
+Do not jump ahead to later experiments until the `wider interface band` run is
+archived and reviewed.
 
 ## Run Order
 
@@ -250,10 +250,29 @@ Optional follow-up if this experiment is strongly positive:
 
 Current status:
 
-- this is now the active next run
-- the active case has already been staged with
-  `experimentControl.profile baseline;`
-  and `maxVolumePhiShiftFactor = 0.02`
+- completed
+- the reduced cap was genuinely active from the start:
+  `volumePhiShiftApplied` fell to about `0.029` at `Iter 1` and `Iter 2`
+  instead of the earlier `~0.145`
+- the collapse happened earlier, not later:
+  `xhGrayVolumeFraction` was already `9.624e-04` by `Iter 3`
+- `PowerDiss` jumped `5.36 -> 15.85 -> 51.86 -> 338.45` across
+  `Iter 2 -> 5`
+- `volumePhiShiftRaw` still grew quickly, reaching about `1.10` at `Iter 3`
+  and `1.55` at `Iter 4`
+- the late trapped regime was not meaningfully healthier:
+  `PowerDiss` settled around `321-325`,
+  `xhFluidVolumeFraction` stayed only about `0.081`,
+  and `interfacePowerL2` remained only about `1.0e-03`
+
+Interpretation:
+
+- a smaller cap did not delay collapse or preserve reopening support
+- the early lower applied shift appears to remove one of the few mechanisms
+  still correcting the design, so the capped global shift is more protective
+  than causative in the current branch
+- this pushes the ladder away from shift-cap tuning and toward interface-band
+  width as the next runtime discriminator
 
 ### 4. `wider interface band`
 
@@ -264,6 +283,7 @@ Purpose:
 
 Change:
 
+- restore `maxVolumePhiShiftFactor` to `0.10` so this run isolates band width
 - increase `epsilonLSM` from `1.5` to `2.5`
 - increase `epsilonLSMMin` from `0.5` to `1.0`
 
@@ -280,6 +300,15 @@ Key signals to inspect:
 - `interfaceBandVolumeFraction`
 - `normalVelocityL2`
 - `interfacePowerL2`
+
+Current status:
+
+- this is now the active next run
+- the active case has already been staged with
+  `experimentControl.profile baseline;`
+  `maxVolumePhiShiftFactor = 0.10;`
+  `epsilonLSM = 2.5;`
+  and `epsilonLSMMin = 1.0;`
 
 ### 5. `Hamilton-Jacobi fallback`
 
@@ -404,7 +433,18 @@ Second probe result from the `profile baseline` rerun:
 - this remains more consistent with a capped-shift, shoulder/outer-band trap
   than with a wholesale blowout to the far tail
 
-That keeps the reduced-cap experiment as the most justified next rung.
+That was the main reason the ladder moved next to the reduced-cap experiment.
+
+Third probe result from the `reduced volume-shift cap` rerun:
+
+- the collapse moved earlier to the `Iter 3 -> 4` window
+- by the late trapped regime, `phiOverEpsAboveTwoFraction` was still about
+  `0.919`, while `phiOverEpsFarFraction` remained only about `2e-03`
+- the run still looks like a shoulder/outer-band trap rather than a far-tail
+  blowout, even after the cap reduction
+
+That makes a wider interface band more justified than further shift-cap
+tuning for the next rung.
 
 ## Current Snapshot Reference Values
 

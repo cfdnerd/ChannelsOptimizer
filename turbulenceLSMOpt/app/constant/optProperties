@@ -47,12 +47,12 @@ alphaRampEarlySlope 0.08;
 alphaRampLateFactor 1.0;
 
 dAlphaPorosityEps   1e-3;
-epsilonLSM          1.5;
-epsilonLSMMin       0.5;
+epsilonLSM          2.5;
+epsilonLSMMin       1.0;
 lsmVelocityRadius   10;
 lsmCFL              0.2;
 maxNormalVelocity   0.25;
-maxVolumePhiShiftFactor 0.02;
+maxVolumePhiShiftFactor 0.10;
 maxTurbulentViscosity 1e-3;
 reinitInterval      5;
 reinitPseudoSteps   5;

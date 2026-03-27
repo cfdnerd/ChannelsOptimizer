@@ -53,7 +53,7 @@ continuationSwitches
 
 experimentControl
 {
-    profile                         branchRefinement400;
+    profile                         baseline;
     forceContinuationHardening      false;
     forceContinuationHardeningUntilIter 0;
     forceContinuationHardeningUntilBeta -1;

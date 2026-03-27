@@ -42,20 +42,78 @@ Completed in the current cycle:
   overriding explicit case settings in
   [createFields.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/createFields.H)
 - corrected that profile behavior so explicit case values now win
+- captured a clean `case-respected baseline` rerun and verified from
+  `optimizerlogs/` that the intended case values were active in the early
+  iterations
 - documented the first LSM-specific runtime experiment ladder in
   [TurbulenceLSMOptCollapseRecoveryExperimentPlan.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceLSMOptCollapseRecoveryExperimentPlan.md)
 
 Still pending:
 
-- no clean post-fix rerun has yet been captured in `optimizerlogs/`
-- the first required rerun is the `case-respected baseline`
-- after that, the next discriminator run is `profile baseline`
+- the next discriminator run is now `profile baseline`
+- after that, move to `reduced volume-shift cap` only if the baseline-profile
+  run behaves almost the same
 
 Practical meaning:
 
-- the logs analyzed below are still from the pre-rerun trapped state
-- they are useful for diagnosis, but they are not yet proof of the branch's
-  behavior after the profile-fallback fix
+- the current logs are now a valid post-fix `case-respected baseline`
+  reference
+- they show that fixing the profile override was necessary, but not sufficient,
+  to prevent the early LSM collapse
+
+## First Ladder Result
+
+### `case-respected baseline` passed the control-parity check but still failed
+
+The new rerun confirms that the explicit case settings are now actually active
+before collapse:
+
+- `betaIncrementActive = 0.12`
+- `continuationFeasibilityTolActive = 1.15`
+- `forceContinuationHardeningUntilIter = 0`
+- `forceContinuationHardeningUntilBeta = -1`
+
+That means the old hidden-profile bug is no longer contaminating the ladder.
+
+However, the behavioral outcome did not materially improve:
+
+- `xhGrayVolumeFraction` stayed near `0.923` through `Iter 4`, then dropped to
+  `9.624e-04` at `Iter 5`
+- `PowerDiss` still jumped `10.63 -> 20.21 -> 79.91` across `Iter 4 -> 6`
+- `volumePhiShiftRaw` still climbed `0.861 -> 1.149 -> 1.618` across
+  `Iter 4 -> 6`
+- by the late trapped regime, `PowerDiss` was still about `366-371`
+
+Practical conclusion:
+
+- Experiment 1 is complete
+- the next required discriminator is `profile baseline`
+- if that run still collapses on nearly the same schedule, the dominant
+  blocker is deeper than the `branchRefinement400` profile alone
+
+### The new `phi/eps` probe points to shoulder saturation, not immediate far-tail blowout
+
+The added `phiLS / epsilonLSMActive` histogram gives a more specific picture of
+the collapse geometry:
+
+- at `Iter 4`, most of the still-gray region already lies in
+  `-1 < phiLS / epsilonLSMActive <= -0.5`
+- at `Iter 5`, `xhGrayVolumeFraction` collapses while
+  `interfaceBandVolumeFraction` still shows the old high value for one
+  iteration
+- by `Iter 6`, almost all non-fluid volume has moved into
+  `1 < |phiLS / epsilonLSMActive| <= 2`
+- the far-tail fraction `|phiLS / epsilonLSMActive| > 2` is still essentially
+  zero at the actual collapse event
+
+Implication:
+
+- the current failure looks more like projection-shoulder saturation and loss
+  of usable narrow-band support than an immediate explosion to very large
+  `|phi| / epsilon` values
+- this keeps Experiments 2 through 4 in the same order, but it increases the
+  value of comparing `baseline` against `branchRefinement400` before moving
+  on to cap or band-width changes
 
 ## Latest-Run Failure Sequence
 
@@ -296,9 +354,9 @@ parameter-chasing loops that were only appropriate for the MMA branch.
 The current ladder position is:
 
 1. code-level profile-fallback bug fixed
-2. pre-fix trapped logs characterized
-3. waiting on a clean `case-respected baseline` rerun
+2. `case-respected baseline` rerun captured and characterized
+3. `profile baseline` is the active next discriminator run
 
-Do not skip directly to deeper LSM code surgery before capturing that rerun.
-Without it, we still do not know how much of the current stray behavior
-survives once the case controls are truly respected.
+Do not skip directly to deeper LSM code surgery before capturing that
+`profile baseline` run. It is the cleanest remaining check for whether
+`branchRefinement400` itself is still a major destabilizer.

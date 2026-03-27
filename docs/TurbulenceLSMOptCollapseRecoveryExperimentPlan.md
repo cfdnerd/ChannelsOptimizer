@@ -22,21 +22,29 @@ The goal is to separate six candidate causes:
 
 As of the current debugging cycle:
 
-- the latest analyzed `optimizerlogs/` snapshot is still a trapped run where
-  collapse happens between `Iter 4` and `Iter 6`
+- the latest analyzed `optimizerlogs/` snapshot is now the
+  `case-respected baseline` rerun
 - the profile-fallback bug in
   [createFields.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/createFields.H)
-  has already been fixed
-- no fresh rerun has yet been recorded after that fix
+  has been fixed and validated by the rerun
+- the early runtime dump now respects the case dictionaries:
+  `betaIncrement = 0.12`,
+  `continuationFeasibilityTol = 1.15`,
+  `forceContinuationHardeningUntilIter = 0`, and
+  `forceContinuationHardeningUntilBeta = -1`
+- despite that fix, the rerun still collapses between `Iter 5` and `Iter 6`
+  and remains trapped afterward
 
-Therefore the ladder is currently positioned before Experiment 1 in practice.
+Therefore Experiment 1 is complete and the ladder is now positioned at
+Experiment 2 in practice.
 
 Immediate next runs:
 
-1. `case-respected baseline`
-2. `profile baseline`
+1. `profile baseline`
+2. `reduced volume-shift cap`
 
-Do not jump ahead to later experiments until these two runs are archived.
+Do not jump ahead to later experiments until the `profile baseline` run is
+archived and reviewed.
 
 ## Run Order
 
@@ -145,8 +153,16 @@ Success signs:
 
 Current status:
 
-- this run has not yet been re-executed after the profile-fallback fix
-- it is the highest-priority missing datapoint
+- completed
+- `Iter 1 -> 4` confirmed the intended case values were active
+- `betaIncrementActive = 0.12` and `continuationFeasibilityTolActive = 1.15`
+  before collapse
+- the collapse still happened on the old schedule:
+  `xhGrayVolumeFraction` stayed near `0.923` through `Iter 4`, then dropped to
+  `9.624e-04` at `Iter 5`
+- `volumePhiShiftRaw` still climbed `0.861 -> 1.149 -> 1.618` across
+  `Iter 4 -> 6`
+- `PowerDiss` still jumped `10.63 -> 20.21 -> 79.91` across `Iter 4 -> 6`
 
 ### 2. `profile baseline`
 
@@ -177,8 +193,7 @@ Key signals to inspect:
 
 Current status:
 
-- this is the second run to execute immediately after the
-  `case-respected baseline`
+- this is now the active next run
 - its purpose is to tell us whether the adaptive profile is still a major
   destabilizer once the explicit case values are respected
 
@@ -339,6 +354,19 @@ Probe 1 is now available in the current branch through:
 
 The remaining probes should still be added only after the runtime ladder has
 been exhausted.
+
+First probe result from the `case-respected baseline` rerun:
+
+- at `Iter 4`, most of the still-gray design already sits in the negative
+  inner shoulder `-1 < phiLS / epsilonLSMActive <= -0.5`
+- at `Iter 5`, `xhGrayVolumeFraction` collapses before
+  `interfaceBandVolumeFraction` catches up
+- by `Iter 6`, almost all non-fluid cells sit in the shoulder range
+  `1 < |phiLS / epsilonLSMActive| <= 2`, not in the far-tail `|.| > 2` range
+
+That makes the current collapse look more like projection-shoulder saturation
+and narrow-band loss than an immediate blowout to very large `|phi| / epsilon`
+values.
 
 ## Current Snapshot Reference Values
 

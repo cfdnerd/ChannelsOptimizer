@@ -30,6 +30,33 @@ Current diagnosis:
   - continuation logic that becomes irrelevant once the design has already
     solidified too far
 
+## Current Debugging Status
+
+Completed in the current cycle:
+
+- examined the latest `optimizerlogs/` snapshot and traced the main failure
+  window to the `Iter 4 -> 6` transition
+- confirmed from `solverConvergences.log` that the LSM branch is not failing by
+  linear-solver blow-up
+- identified a code-level control issue where `branchRefinement400` was
+  overriding explicit case settings in
+  [createFields.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/createFields.H)
+- corrected that profile behavior so explicit case values now win
+- documented the first LSM-specific runtime experiment ladder in
+  [TurbulenceLSMOptCollapseRecoveryExperimentPlan.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceLSMOptCollapseRecoveryExperimentPlan.md)
+
+Still pending:
+
+- no clean post-fix rerun has yet been captured in `optimizerlogs/`
+- the first required rerun is the `case-respected baseline`
+- after that, the next discriminator run is `profile baseline`
+
+Practical meaning:
+
+- the logs analyzed below are still from the pre-rerun trapped state
+- they are useful for diagnosis, but they are not yet proof of the branch's
+  behavior after the profile-fallback fix
+
 ## Latest-Run Failure Sequence
 
 ### 1. Iterations 1-4: stable but drifting toward closure
@@ -37,8 +64,8 @@ Current diagnosis:
 Observed in the latest logs:
 
 - `xhGrayVolumeFraction` stays near `0.923`
-- `PowerDiss` rises from `3.83` to `13.09`
-- `volumePhiShiftRaw` grows from `0.176` to `0.873`
+- `PowerDiss` rises from `3.68` to `10.63`
+- `volumePhiShiftRaw` grows from `0.176` to `0.861`
 - `volumePhiShiftApplied` is capped every iteration
 - solver health remains `OK`
 
@@ -54,9 +81,9 @@ At `Iter 5`:
 
 - `xhGrayVolumeFraction` drops from `0.923` to `9.624e-04`
 - `xhSolidVolumeFraction` jumps to about `0.922`
-- `PowerDiss` jumps to `27.49`
-- `volumePhiShiftRaw` grows to `1.17` while `volumePhiShiftApplied` remains
-  capped at `0.349`
+- `PowerDiss` jumps to `20.21`
+- `volumePhiShiftRaw` grows to `1.15` while `volumePhiShiftApplied` remains
+  capped at about `0.355`
 
 Interpretation:
 
@@ -68,12 +95,12 @@ Interpretation:
 
 After collapse:
 
-- `PowerDiss` jumps to `128.7`, then `467`, then stays near `460`
-- `interfacePowerSensitivity L2` falls from `15.66` at `Iter 4` to `1.77` at
-  `Iter 6`, then to about `5e-04` by `Iter 16`
-- `normalVelocity L2` falls from `3.09e+01` at `Iter 4` to `2.88` at `Iter 6`,
-  then to about `4e-04` by `Iter 16`
-- `volumePhiShiftRaw` climbs to about `5.36` while the applied shift stays
+- `PowerDiss` jumps to `79.91`, then `382`, then stays near `376-382`
+- `interfacePowerSensitivity L2` falls from `16.10` at `Iter 4` to `2.71` at
+  `Iter 6`, then to about `5e-04` by `Iter 15`
+- `normalVelocity L2` falls from `3.09e+01` at `Iter 4` to `4.60` at `Iter 6`,
+  then to about `4e-04` by `Iter 15`
+- `volumePhiShiftRaw` climbs to about `5.47` while the applied shift stays
   fixed at the cap
 - the objective changes only weakly once the channel is blocked
 
@@ -106,6 +133,13 @@ Implication:
 
 - every future LSM debug run must first verify the runtime option dump
 - otherwise the experiment being tested may not be the experiment actually run
+
+Observed mismatch in the pre-fix logs:
+
+- runtime dump showed `betaIncrement = 0.2` instead of case `0.12`
+- runtime dump showed `alphaRampEarlySlope = 1/7` instead of case `0.08`
+- runtime dump showed `continuationFeasibilityTol = 2.0` instead of case `1.15`
+- runtime dump showed hardening-floor values that were not intended by the case
 
 ## Remaining Primary Findings
 
@@ -149,6 +183,8 @@ Interpretation:
 - but the capped correction is too small to restore the target fluid fraction
 - once the interface-support region is weak, this correction no longer repairs
   the topology
+- in the current trapped logs, `volumePhiShiftRaw` reaches about `5.47` while
+  the applied shift remains near `0.355`
 
 ### 4. Volume control is split across two inconsistent mechanisms
 
@@ -181,6 +217,22 @@ Interpretation:
   power constraint
 - this is the most important remaining functional blocker once the early
   collapse has happened
+
+### 6. There is at least one diagnostic inconsistency around the collapse event
+
+In the current snapshot:
+
+- at `Iter 5`, `xhGrayVolumeFraction` already says the design is almost binary
+- but `interfaceBandVolumeFraction` still reports the old high-band value for
+  one iteration
+- by `Iter 6`, both fields agree again
+
+Interpretation:
+
+- there may be a one-step diagnostic lag or ordering issue around the
+  `phiLS -> xh` reconstruction and debug writeout
+- this does not look like the primary optimizer bug, but it is important to
+  keep in mind when interpreting the collapse event
 
 ## Comparison To `turbulenceMMAOpt`
 
@@ -238,3 +290,15 @@ When `turbulenceLSMOpt` fails, inspect in this order:
 
 This order should prevent LSM debugging from getting stuck in the same
 parameter-chasing loops that were only appropriate for the MMA branch.
+
+## Immediate Next Action
+
+The current ladder position is:
+
+1. code-level profile-fallback bug fixed
+2. pre-fix trapped logs characterized
+3. waiting on a clean `case-respected baseline` rerun
+
+Do not skip directly to deeper LSM code surgery before capturing that rerun.
+Without it, we still do not know how much of the current stray behavior
+survives once the case controls are truly respected.

@@ -9,7 +9,7 @@ See also:
 - [PlanTurbulenceOpt-MMA.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/PlanTurbulenceOpt-MMA.md) for the working turbulence density-optimizer architecture that this branch should reuse wherever possible.
 - [TurbulenceMMAOptDebugFindings.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceMMAOptDebugFindings.md) for the completed 2026-03 debugging cycle that identified which runtime controls actually govern optimizer evolution.
 - [TurbulenceLSMOptDebugFindings.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceLSMOptDebugFindings.md) for the current LSM-specific failure diagnosis from the latest structured log snapshot.
-- [TurbulenceLSMOptGrayFractionExperimentPlan.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceLSMOptGrayFractionExperimentPlan.md) for the current LSM experiment ladder that targets early collapse and failed channel reopening.
+- [TurbulenceLSMOptCollapseRecoveryExperimentPlan.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceLSMOptCollapseRecoveryExperimentPlan.md) for the current LSM experiment ladder that targets early collapse and failed channel reopening.
 - [tuningGuideMMA.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/tuningGuideMMA.md) for the current control-surface philosophy that has already been proven useful in practice.
 
 ---
@@ -25,13 +25,17 @@ own folder:
 But the implementation plan must now be grounded in the current repository
 state:
 
-- `turbulenceLSMOpt` is **not yet a true LSM solver**
-- the current source still follows the laminar/MMA density workflow with
-  `x/xp/xh`
-- the current update path still uses `MMA`, `filter_x.H`, `filter_chainrule.H`,
-  and `MMAsolver`
-- `tuneOptParameters` in the LSM app is currently only a minimal convergence
-  stub
+- `turbulenceLSMOpt` already carries a real `phiLS` field together with
+  LSM-specific reconstruction, sensitivity, regularization, advection, and
+  reinitialization modules
+- the branch still retains some inherited density-era infrastructure
+  (`x/xp/xh`, `MMA`, `filter_x.H`, and `filter_chainrule.H`) for shared
+  plumbing and debug fallback
+- the current blocker is no longer missing instrumentation or missing LSM
+  scaffolding, but early collapse of the active update path and failed channel
+  reopening
+- the LSM app now has the broad `tuneOptParameters` structure and structured
+  debug logs needed for the current runtime experiment ladder
 
 Therefore this document is not a greenfield formulation note. It is a **refactor
 and replacement plan** for converting the current density-style scaffold into a
@@ -548,9 +552,8 @@ Always write:
 - `solverConvergences.log`
 - `optimization.hst`
 
-The current LSM app does not yet provide the full MMA-grade logging surface, so
-porting this infrastructure is an early implementation task, not a late
-refinement.
+The current LSM app now provides this core logging surface, and these files are
+the primary evidence source for the current collapse-recovery ladder.
 
 ### 8.2 Startup option dump
 
@@ -615,6 +618,15 @@ The implementation order below is intentionally shaped by the current
 repository, not by abstract LSM literature alone.
 
 ### Phase 0 - Port the proven optimizer framework first
+
+Status in the current branch:
+
+- largely complete
+- `turbulenceLSMOpt` now has runtime-option dumping, `gradientOpt.log`,
+  solver-convergence aggregation, power-relaxation controls, continuation
+  gating/throttles, and adjoint runaway protection
+- the present debugging ladder therefore starts from runtime behavior and LSM
+  evolution, not from missing instrumentation
 
 Before introducing `phiLS`, port into `turbulenceLSMOpt`:
 

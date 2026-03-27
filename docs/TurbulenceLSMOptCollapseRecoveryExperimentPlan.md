@@ -1,4 +1,4 @@
-# turbulenceLSMOpt Gray-Fraction And Reopening Experiment Plan
+# turbulenceLSMOpt Collapse-Recovery Experiment Plan
 
 This plan targets the specific failure mode seen in the latest
 `turbulenceLSMOpt` run:
@@ -17,6 +17,26 @@ The goal is to separate six candidate causes:
 4. the LSM interface band is too narrow and becomes effectively binary too fast
 5. the reaction-diffusion update path is damping away reopening motion
 6. the power-reopening sensitivity is too weak even when the adjoint is healthy
+
+## Current Ladder Status
+
+As of the current debugging cycle:
+
+- the latest analyzed `optimizerlogs/` snapshot is still a trapped run where
+  collapse happens between `Iter 4` and `Iter 6`
+- the profile-fallback bug in
+  [createFields.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/createFields.H)
+  has already been fixed
+- no fresh rerun has yet been recorded after that fix
+
+Therefore the ladder is currently positioned before Experiment 1 in practice.
+
+Immediate next runs:
+
+1. `case-respected baseline`
+2. `profile baseline`
+
+Do not jump ahead to later experiments until these two runs are archived.
 
 ## Run Order
 
@@ -39,6 +59,14 @@ Use these files:
 - [tuneOptParameters](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/app/constant/tuneOptParameters)
 - [optProperties](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/app/constant/optProperties)
 
+For each rung in this ladder:
+
+- inspect the latest `optimizerlogs/` snapshot first
+- then modify the active case dictionaries in `turbulenceLSMOpt/app/constant/`
+  directly for the next run
+- record in the run notes exactly which dictionary values were changed before
+  rerunning
+
 Check the active settings in:
 
 - `optimizerlogs/debugOptimizer.log`
@@ -51,6 +79,8 @@ Most important JSON fields for this ladder:
 - `design.xhGrayVolumeFraction`
 - `design.interfaceBandVolumeFraction`
 - `objective.powerDissipationConstraintValue`
+- `objective.volumeConstraintValue`
+- `objective.volumeConstraintMargin`
 - `lsm.volumePhiShiftRaw`
 - `lsm.volumePhiShiftApplied`
 - `sensitivity.interfacePowerL2`
@@ -58,6 +88,24 @@ Most important JSON fields for this ladder:
 - `interpolation.powerFeasibilityRatio`
 - `interpolation.continuationGateSatisfied`
 - `interpolation.hardeningEnabled`
+
+## Interpretation Guardrails
+
+Keep the following findings from
+[TurbulenceLSMOptDebugFindings.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceLSMOptDebugFindings.md)
+in mind while reading the ladder results:
+
+- volume control is currently split across two mechanisms:
+  the optimizer-side volume constraint and the capped global post-update
+  `phiLS` shift. A run can therefore look "feasible enough" to the optimizer
+  while still being too over-solid to reopen flow.
+- the trapped snapshot appears to show a one-iteration diagnostic lag around
+  the `Iter 5 -> 6` collapse event, where `xhGrayVolumeFraction` collapses
+  before `interfaceBandVolumeFraction` fully catches up. Read those two signals
+  together instead of over-interpreting a single iteration in isolation.
+- wall-distance and adjoint-fidelity probes are still considered lower-priority
+  than the six runtime experiments below. They should only move to the front of
+  the queue after the current ladder has been exhausted.
 
 ## Experiment Matrix
 
@@ -95,6 +143,11 @@ Success signs:
 - `PowerDiss` does not jump two orders of magnitude immediately after the first
   blockage
 
+Current status:
+
+- this run has not yet been re-executed after the profile-fallback fix
+- it is the highest-priority missing datapoint
+
 ### 2. `profile baseline`
 
 Purpose:
@@ -121,6 +174,13 @@ Key signals to inspect:
 - `interfaceBandVolumeFraction`
 - `volumePhiShiftRaw`
 - `PowerDiss`
+
+Current status:
+
+- this is the second run to execute immediately after the
+  `case-respected baseline`
+- its purpose is to tell us whether the adaptive profile is still a major
+  destabilizer once the explicit case values are respected
 
 ### 3. `reduced volume-shift cap`
 
@@ -269,3 +329,32 @@ next cycle should add temporary code probes:
    since the current optimizer constraint treats low-fluid states too leniently
 
 Those probes should be added only after the runtime ladder has been exhausted.
+
+## Current Snapshot Reference Values
+
+These are the trapped-run values that later experiments should compare against:
+
+- collapse window: `Iter 4 -> 6`
+- `PowerDiss`:
+  - `10.63` at `Iter 4`
+  - `20.21` at `Iter 5`
+  - `79.91` at `Iter 6`
+  - `~376-382` in the late trapped regime
+- `xhGrayVolumeFraction`:
+  - `0.923` before collapse
+  - `9.624e-04` immediately after collapse
+- `volumePhiShiftRaw`:
+  - `0.861` at `Iter 4`
+  - `1.149` at `Iter 5`
+  - `1.618` at `Iter 6`
+  - `~5.47` late in the trapped regime
+- `interfacePowerSensitivity L2`:
+  - `16.10` at `Iter 4`
+  - `11.04` at `Iter 5`
+  - `2.71` at `Iter 6`
+  - `O(1e-04 to 1e-03)` late in the trapped regime
+- `normalVelocityRaw L2`:
+  - `30.92` at `Iter 4`
+  - `22.89` at `Iter 5`
+  - `4.60` at `Iter 6`
+  - `O(1e-04 to 1e-03)` late in the trapped regime

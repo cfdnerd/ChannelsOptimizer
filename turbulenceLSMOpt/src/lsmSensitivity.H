@@ -1,27 +1,35 @@
+powerProjectionMultiplierAnalytical = 0.0;
 powerSupportFloorValue = 0.0;
+powerSupportFloorNegativeReach = 0.0;
 powerSupportFloorVolumeFraction = 0.0;
 powerSupportFloorCellCount = 0;
+powerProjectionMultiplierFloor = 0.0;
 const bool broadenPowerReopenSupport =
   experimentProfile == "adjointSensitivityProbe"
   && gx[0] > 0.0;
 if (broadenPowerReopenSupport)
 {
-  // The instrumented trap rerun showed that meaningful dirac support dies one
-  // iteration before the broad interface band catches up. Keep the power
-  // reopening signal alive across that remaining band for this debug profile.
+  // The trapped reruns show a two-stage loss of reopening support:
+  // first the meaningful dirac band collapses, then the over-solid branch
+  // marches through the negative shoulder into the outer band. Keep the debug
+  // power signal alive across that trapped negative side long enough to test
+  // whether a stronger reopening push can recover channels.
   powerSupportFloorValue = 0.1/Foam::max(epsilonLSMActive, scalar(SMALL));
+  powerSupportFloorNegativeReach = 4.0*epsilonLSMActive;
 }
 
 scalar powerSupportVolumeLocal(0.0);
 label powerSupportCellCountLocal(0);
 forAll(interfaceObjectiveSensitivity, cellI)
 {
+  const scalar phiValue = phiLS[cellI];
   const scalar diracValue = diracPhiLS[cellI];
   scalar powerSupportValue = diracValue;
   if
   (
     powerSupportFloorValue > 0.0
-    && Foam::mag(phiLS[cellI]) <= epsilonLSMActive
+    && phiValue <= epsilonLSMActive
+    && phiValue >= -powerSupportFloorNegativeReach
   )
   {
     const scalar broadenedSupport =
@@ -56,10 +64,24 @@ forAll(interfaceObjectiveSensitivity, cellI)
 reduce(powerObjectiveInnerLocal, sumOp<scalar>());
 reduce(powerSensitivityNormLocal, sumOp<scalar>());
 
-powerProjectionMultiplier =
+powerProjectionMultiplierAnalytical =
   (gx[0] > 0.0 && powerSensitivityNormLocal > SMALL)
   ? Foam::max(scalar(0.0), -powerObjectiveInnerLocal/powerSensitivityNormLocal)
   : scalar(0.0);
+powerProjectionMultiplier = powerProjectionMultiplierAnalytical;
+
+const bool broadenedPowerSupportActive =
+  powerSupportFloorCellCount > 0
+  && powerSupportFloorVolumeFraction > 0.05;
+if (broadenPowerReopenSupport && broadenedPowerSupportActive)
+{
+  // Once the analytical projection collapses in the trapped state, keep a
+  // small reopening bias alive so the next rerun can tell whether support loss
+  // or the projection formula itself is the dominant blocker.
+  powerProjectionMultiplierFloor = 0.20;
+  powerProjectionMultiplier =
+    Foam::max(powerProjectionMultiplier, powerProjectionMultiplierFloor);
+}
 
 forAll(totalPhiSensitivity, cellI)
 {

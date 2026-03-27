@@ -23,7 +23,8 @@ The goal is to separate six candidate causes:
 As of the current debugging cycle:
 
 - the latest analyzed `optimizerlogs/` snapshot is now the
-  tightened-trap-guard `power-reopen probe` rerun
+  broadened-power-support `power-reopen probe` rerun with the tightened
+  low-fluid trap guard
 - the profile-fallback bug in
   [createFields.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/createFields.H)
   has been fixed and validated by the post-fix reruns
@@ -70,15 +71,28 @@ As of the current debugging cycle:
   [gradientOptWrite.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/gradientOptWrite.H),
   and [debugOptimizer.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/debugOptimizer.H):
   a debug-scoped power-support floor for the active power sensitivity
+- the broadened-support rerun confirmed that
+  `lsm.powerSupportFloorVolumeFraction` does reach `0.922` at `Iter 8`,
+  but `lsm.powerProjectionMultiplier` is already `0` there and the fallback
+  support is gone again by `Iter 9`
+- the current stronger reopening-path debug change is now in
+  [lsmSensitivity.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/lsmSensitivity.H),
+  [opt_initialization.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/opt_initialization.H),
+  [gradientOptWrite.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/gradientOptWrite.H),
+  and [debugOptimizer.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/debugOptimizer.H):
+  extend the power-support reach to `phiLS >= -4*epsilonLSMActive` and add a
+  small debug `powerProjectionMultiplier` floor when that fallback is active
 
 Therefore Experiments 1 through 6 are complete and the runtime ladder itself is
 now exhausted.
 
 Immediate next runs:
 
-1. rerun `power-reopen probe` with the broader power-support fallback
-2. if the rerun still falls into the same `Iter 7 -> 8` no-support trap, move
-   next to stronger reopening-path formulation changes
+1. rerun `power-reopen probe` with the extended negative-side support and
+   projection-floor fallback
+2. if the rerun still falls into the same `Iter 8 -> 10` trapped signature,
+   move next to a stronger reopening-path formulation change than orthogonal
+   projection alone
 
 ## Run Order
 
@@ -126,8 +140,11 @@ Most important JSON fields for this ladder:
 - `lsm.volumePhiShiftRaw`
 - `lsm.volumePhiShiftApplied`
 - `lsm.powerProjectionMultiplier`
+- `lsm.powerProjectionMultiplierAnalytical`
+- `lsm.powerProjectionMultiplierFloor`
 - `lsm.diracSupportVolumeFraction`
 - `lsm.meaningfulDiracSupportVolumeFraction`
+- `lsm.powerSupportFloorNegativeReach`
 - `lsm.fluidFractionRecoveredByShift`
 - `sensitivity.interfacePowerL2`
 - `sensitivity.normalVelocityL2`
@@ -493,8 +510,8 @@ Interpretation:
 - the newer support/recovery probes confirm that the trapped state is already
   effectively unrecoverable by `Iter 7`
 - the tightened low-fluid trap guard now works as intended
-- the next step is now a rerun with broader power support, not a seventh
-  runtime-control permutation
+- the next step is now a rerun with stronger reopening fallback logic, not a
+  seventh runtime-control permutation
 
 ## Practical Pass/Fail Heuristics
 
@@ -560,8 +577,13 @@ Probes 2 through 5 are now available in the current branch through:
 - `debugOptimizer.log` row `power reopen`
 - `debugOptimizer.jsonl` fields
   `lsm.powerSupportFloorValue`,
+  `lsm.powerSupportFloorNegativeReach`,
   `lsm.powerSupportFloorCellCount`, and
   `lsm.powerSupportFloorVolumeFraction`
+- `debugOptimizer.jsonl` fields
+  `lsm.powerProjectionMultiplierAnalytical`,
+  `lsm.powerProjectionMultiplierFloor`, and
+  `lsm.powerProjectionMultiplier`
 
 First combined result from the instrumented `power-reopen probe` rerun:
 
@@ -595,7 +617,7 @@ Result from the tightened-guard rerun:
   `reason = stalledLowFluidInfeasible`
 - this confirms that stop detection is no longer the main blocker
 
-That is why the next debug change now broadens the active power support in
+That is why the first post-ladder debug change broadened the active power support in
 [lsmSensitivity.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/lsmSensitivity.H):
 
 - keep `interfacePowerSensitivity` alive across the remaining broad band when
@@ -604,6 +626,32 @@ That is why the next debug change now broadens the active power support in
 - expose the applied floor through
   `lsm.powerSupportFloorValue` and
   `lsm.powerSupportFloorVolumeFraction`
+
+Result from the broadened-support rerun:
+
+- at `Iter 8`, `powerSupportFloorVolumeFraction` reaches `0.922`, so the first
+  fallback does reach the trapped negative side
+- but at that same `Iter 8`, `powerProjectionMultiplier` is already `0`,
+  `interfacePowerL2` is only `4.14e-01`, and `normalVelocityL2` is only
+  `1.94e-01`
+- by `Iter 9`, `powerSupportFloorVolumeFraction` is back to `0`, while
+  `interfacePowerL2` and `normalVelocityL2` have already collapsed to only
+  about `2.7e-04` and `2.1e-04`
+
+That means support broadening by itself is not enough. The analytical
+projection is already disengaging just as the fallback support becomes active,
+and the trapped branch leaves that support again one iteration later.
+
+That is why the current debug change now strengthens the reopening probe in
+[lsmSensitivity.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/lsmSensitivity.H):
+
+- extend the negative-side support reach to `phiLS >= -4*epsilonLSMActive`
+- add a debug `powerProjectionMultiplier` floor of `0.20` when that broadened
+  support is active
+- expose the new diagnostics through
+  `lsm.powerSupportFloorNegativeReach`,
+  `lsm.powerProjectionMultiplierAnalytical`, and
+  `lsm.powerProjectionMultiplierFloor`
 
 First probe result from the `case-respected baseline` rerun:
 

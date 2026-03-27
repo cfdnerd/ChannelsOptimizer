@@ -749,9 +749,10 @@ if (Pstream::master())
   writeRow("bound clamps", "lower="+fmtCount(xLowerBoundCountLocal), "upper="+fmtCount(xUpperBoundCountLocal), "nonFiniteX="+fmtCount(xNonFiniteCountLocal));
   writeRow("lsm", "mode="+std::string(activeLSMUpdateMode.c_str()), "dt="+fmtScalar(lsmPseudoTimeStep), "gradDev="+fmtScalar(phiGradDeviationMax), "reinit="+fmtScalar(phiReinitResidual));
   writeRow("support", "cells>0="+fmtCount(diracSupportCellCountLocal), "vol>0="+fmtScalar(diracSupportVolumeFraction), "cells>0.1/eps="+fmtCount(meaningfulDiracSupportCellCountLocal), "vol>0.1/eps="+fmtScalar(meaningfulDiracSupportVolumeFraction));
-  writeRow("power reopen", "floor="+fmtScalar(powerSupportFloorValue), "floorCells="+fmtCount(powerSupportFloorCellCount), "floorVol="+fmtScalar(powerSupportFloorVolumeFraction));
+  writeRow("power reopen", "floor="+fmtScalar(powerSupportFloorValue), "reach="+fmtScalar(powerSupportFloorNegativeReach), "floorCells="+fmtCount(powerSupportFloorCellCount), "floorVol="+fmtScalar(powerSupportFloorVolumeFraction));
   writeRow("volume ctl", "proj="+fmtScalar(volumeProjectionMultiplier), "shiftRaw="+fmtScalar(volumePhiShiftRaw), "shiftApply="+fmtScalar(volumePhiShiftApplied), "shiftCap="+fmtScalar(volumePhiShiftCap));
-  writeRow("power ctl", "proj="+fmtScalar(powerProjectionMultiplier), "fluidPre="+fmtScalar(fluidFractionBeforeVolumeShift), "fluidPost="+fmtScalar(fluidFractionAfterVolumeShift), "fluidDelta="+fmtScalar(fluidFractionRecoveredByShift));
+  writeRow("power ctl", "raw="+fmtScalar(powerProjectionMultiplierAnalytical), "floor="+fmtScalar(powerProjectionMultiplierFloor), "apply="+fmtScalar(powerProjectionMultiplier), "fluidDelta="+fmtScalar(fluidFractionRecoveredByShift));
+  writeRow("fluid reopen", "fluidPre="+fmtScalar(fluidFractionBeforeVolumeShift), "fluidPost="+fmtScalar(fluidFractionAfterVolumeShift), "fluidDelta="+fmtScalar(fluidFractionRecoveredByShift));
 
   writeSectionHeader("Sensitivity Diagnostics");
   writeRow("objective", "min="+fmtScalar(fsensLocalMin), "max="+fmtScalar(fsensLocalMax), "l2="+fmtScalar(fsensL2), "nonFinite="+fmtCount(fsensNonFiniteCountLocal));
@@ -939,8 +940,11 @@ if (Pstream::master())
       << ",\"meaningfulDiracSupportCellCount\":" << meaningfulDiracSupportCellCountLocal
       << ",\"meaningfulDiracSupportVolumeFraction\":" << meaningfulDiracSupportVolumeFraction
       << ",\"powerSupportFloorValue\":" << powerSupportFloorValue
+      << ",\"powerSupportFloorNegativeReach\":" << powerSupportFloorNegativeReach
       << ",\"powerSupportFloorCellCount\":" << powerSupportFloorCellCount
       << ",\"powerSupportFloorVolumeFraction\":" << powerSupportFloorVolumeFraction
+      << ",\"powerProjectionMultiplierAnalytical\":" << powerProjectionMultiplierAnalytical
+      << ",\"powerProjectionMultiplierFloor\":" << powerProjectionMultiplierFloor
       << ",\"powerProjectionMultiplier\":" << powerProjectionMultiplier
       << ",\"fluidFractionPreShift\":" << fluidFractionBeforeVolumeShift
       << ",\"fluidFractionPostShift\":" << fluidFractionAfterVolumeShift

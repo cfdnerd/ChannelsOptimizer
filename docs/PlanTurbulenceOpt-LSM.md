@@ -8,6 +8,8 @@ See also:
 
 - [PlanTurbulenceOpt-MMA.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/PlanTurbulenceOpt-MMA.md) for the working turbulence density-optimizer architecture that this branch should reuse wherever possible.
 - [TurbulenceMMAOptDebugFindings.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceMMAOptDebugFindings.md) for the completed 2026-03 debugging cycle that identified which runtime controls actually govern optimizer evolution.
+- [TurbulenceLSMOptDebugFindings.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceLSMOptDebugFindings.md) for the current LSM-specific failure diagnosis from the latest structured log snapshot.
+- [TurbulenceLSMOptGrayFractionExperimentPlan.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceLSMOptGrayFractionExperimentPlan.md) for the current LSM experiment ladder that targets early collapse and failed channel reopening.
 - [tuningGuideMMA.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/tuningGuideMMA.md) for the current control-surface philosophy that has already been proven useful in practice.
 
 ---

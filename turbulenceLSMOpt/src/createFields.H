@@ -332,6 +332,19 @@ scalar overactiveTopologyAboveXhStepMax
 (
   experimentControl.lookupOrDefault<scalar>("overactiveTopologyAboveXhStepMax", -1.0)
 );
+// Treat profile values as fallbacks so explicit case tuning is not silently
+// overwritten at runtime.
+const bool betaIncrementSpecified = optProperties.found("betaIncrement");
+const bool alphaRampEarlySlopeSpecified = optProperties.found("alphaRampEarlySlope");
+const bool alphaRampLateFactorSpecified = optProperties.found("alphaRampLateFactor");
+const bool continuationFeasibilityTolSpecified =
+  optProperties.found("continuationFeasibilityTol");
+const bool forceContinuationHardeningSpecified =
+  experimentControl.found("forceContinuationHardening");
+const bool forceContinuationHardeningUntilIterSpecified =
+  experimentControl.found("forceContinuationHardeningUntilIter");
+const bool forceContinuationHardeningUntilBetaSpecified =
+  experimentControl.found("forceContinuationHardeningUntilBeta");
 
 if (experimentProfile == "baseline")
 {
@@ -339,27 +352,66 @@ if (experimentProfile == "baseline")
 }
 else if (experimentProfile == "laminarGrayRamp")
 {
-  betaIncrement = 0.2;
-  alphaRampEarlySlope = 1.0/7.0;
-  alphaRampLateFactor = 1.05;
+  if (!betaIncrementSpecified)
+  {
+    betaIncrement = 0.2;
+  }
+  if (!alphaRampEarlySlopeSpecified)
+  {
+    alphaRampEarlySlope = 1.0/7.0;
+  }
+  if (!alphaRampLateFactorSpecified)
+  {
+    alphaRampLateFactor = 1.05;
+  }
 }
 else if (experimentProfile == "relaxedGateGrayRamp")
 {
-  betaIncrement = 0.2;
-  alphaRampEarlySlope = 1.0/7.0;
-  alphaRampLateFactor = 1.05;
-  continuationFeasibilityTol = Foam::max(continuationFeasibilityTol, scalar(2.5));
+  if (!betaIncrementSpecified)
+  {
+    betaIncrement = 0.2;
+  }
+  if (!alphaRampEarlySlopeSpecified)
+  {
+    alphaRampEarlySlope = 1.0/7.0;
+  }
+  if (!alphaRampLateFactorSpecified)
+  {
+    alphaRampLateFactor = 1.05;
+  }
+  if (!continuationFeasibilityTolSpecified)
+  {
+    continuationFeasibilityTol = Foam::max(continuationFeasibilityTol, scalar(2.5));
+  }
 }
 else if (experimentProfile == "betaFloorGrayRamp")
 {
-  betaIncrement = 0.2;
-  alphaRampEarlySlope = 1.0/7.0;
-  alphaRampLateFactor = 1.05;
-  continuationFeasibilityTol = Foam::max(continuationFeasibilityTol, scalar(2.5));
-  forceContinuationHardeningUntilIter =
-    Foam::max(forceContinuationHardeningUntilIter, label(80));
-  forceContinuationHardeningUntilBeta =
-    Foam::max(forceContinuationHardeningUntilBeta, scalar(16.0));
+  if (!betaIncrementSpecified)
+  {
+    betaIncrement = 0.2;
+  }
+  if (!alphaRampEarlySlopeSpecified)
+  {
+    alphaRampEarlySlope = 1.0/7.0;
+  }
+  if (!alphaRampLateFactorSpecified)
+  {
+    alphaRampLateFactor = 1.05;
+  }
+  if (!continuationFeasibilityTolSpecified)
+  {
+    continuationFeasibilityTol = Foam::max(continuationFeasibilityTol, scalar(2.5));
+  }
+  if (!forceContinuationHardeningUntilIterSpecified)
+  {
+    forceContinuationHardeningUntilIter =
+      Foam::max(forceContinuationHardeningUntilIter, label(80));
+  }
+  if (!forceContinuationHardeningUntilBetaSpecified)
+  {
+    forceContinuationHardeningUntilBeta =
+      Foam::max(forceContinuationHardeningUntilBeta, scalar(16.0));
+  }
   if (stopContinuationHardeningBelowGrayFraction < 0.0)
   {
     stopContinuationHardeningBelowGrayFraction = 0.07;
@@ -401,14 +453,32 @@ else if (experimentProfile == "betaFloorGrayRamp")
 }
 else if (experimentProfile == "branchRefinement400")
 {
-  betaIncrement = 0.2;
-  alphaRampEarlySlope = 1.0/7.0;
-  alphaRampLateFactor = 1.05;
-  continuationFeasibilityTol = Foam::max(continuationFeasibilityTol, scalar(2.0));
-  forceContinuationHardeningUntilIter =
-    Foam::max(forceContinuationHardeningUntilIter, label(80));
-  forceContinuationHardeningUntilBeta =
-    Foam::max(forceContinuationHardeningUntilBeta, scalar(16.0));
+  if (!betaIncrementSpecified)
+  {
+    betaIncrement = 0.2;
+  }
+  if (!alphaRampEarlySlopeSpecified)
+  {
+    alphaRampEarlySlope = 1.0/7.0;
+  }
+  if (!alphaRampLateFactorSpecified)
+  {
+    alphaRampLateFactor = 1.05;
+  }
+  if (!continuationFeasibilityTolSpecified)
+  {
+    continuationFeasibilityTol = Foam::max(continuationFeasibilityTol, scalar(2.0));
+  }
+  if (!forceContinuationHardeningUntilIterSpecified)
+  {
+    forceContinuationHardeningUntilIter =
+      Foam::max(forceContinuationHardeningUntilIter, label(80));
+  }
+  if (!forceContinuationHardeningUntilBetaSpecified)
+  {
+    forceContinuationHardeningUntilBeta =
+      Foam::max(forceContinuationHardeningUntilBeta, scalar(16.0));
+  }
   if (stopContinuationHardeningBelowGrayFraction < 0.0)
   {
     stopContinuationHardeningBelowGrayFraction = 0.10;
@@ -478,10 +548,22 @@ else if (experimentProfile == "branchRefinement400")
 }
 else if (experimentProfile == "ungatedGrayRamp")
 {
-  betaIncrement = 0.2;
-  alphaRampEarlySlope = 1.0/7.0;
-  alphaRampLateFactor = 1.05;
-  forceContinuationHardening = true;
+  if (!betaIncrementSpecified)
+  {
+    betaIncrement = 0.2;
+  }
+  if (!alphaRampEarlySlopeSpecified)
+  {
+    alphaRampEarlySlope = 1.0/7.0;
+  }
+  if (!alphaRampLateFactorSpecified)
+  {
+    alphaRampLateFactor = 1.05;
+  }
+  if (!forceContinuationHardeningSpecified)
+  {
+    forceContinuationHardening = true;
+  }
 }
 else if (experimentProfile == "adjointSensitivityProbe")
 {

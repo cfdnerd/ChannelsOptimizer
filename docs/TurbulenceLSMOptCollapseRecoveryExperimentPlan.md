@@ -23,7 +23,7 @@ The goal is to separate six candidate causes:
 As of the current debugging cycle:
 
 - the latest analyzed `optimizerlogs/` snapshot is now the
-  `reduced volume-shift cap` rerun
+  `wider interface band` rerun
 - the profile-fallback bug in
   [createFields.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/createFields.H)
   has been fixed and validated by the post-fix reruns
@@ -32,21 +32,25 @@ As of the current debugging cycle:
   `continuationFeasibilityTol = 1.15`,
   `forceContinuationHardeningUntilIter = 0`, and
   `forceContinuationHardeningUntilBeta = -1`
-- the reduced-cap rerun collapsed even earlier, between `Iter 2` and `Iter 4`
-  with the first hard failure signal already visible at `Iter 3`
-- reducing the cap therefore looks clearly harmful rather than restorative
-  and argues against the capped global shift being the primary trigger
+- the wider-band rerun respected the intended controls
+  `experimentProfile = baseline`,
+  `maxVolumePhiShiftFactor = 0.10`,
+  `epsilonLSM = 2.5`, and `epsilonLSMMin = 1.0`
+- the wider band delayed `xhGrayVolumeFraction` collapse from `Iter 5` to
+  `Iter 6` and delayed `interfaceBandVolumeFraction` collapse to `Iter 8`
+- that delay was only modest, and the run still fell into the same trapped
+  high-power regime by `Iter 8`
 
-Therefore Experiments 1 through 3 are complete and the ladder is now
-positioned at Experiment 4 in practice.
+Therefore Experiments 1 through 4 are complete and the ladder is now
+positioned at Experiment 5 in practice.
 
 Immediate next runs:
 
-1. `wider interface band`
-2. `Hamilton-Jacobi fallback`
+1. `Hamilton-Jacobi fallback`
+2. `power-reopen probe`
 
-Do not jump ahead to later experiments until the `wider interface band` run is
-archived and reviewed.
+Do not jump ahead to later experiments until the `Hamilton-Jacobi fallback`
+run is archived and reviewed.
 
 ## Run Order
 
@@ -109,8 +113,8 @@ in mind while reading the ladder results:
   the optimizer-side volume constraint and the capped global post-update
   `phiLS` shift. A run can therefore look "feasible enough" to the optimizer
   while still being too over-solid to reopen flow.
-- the trapped snapshot appears to show a one-iteration diagnostic lag around
-  the `Iter 5 -> 6` collapse event, where `xhGrayVolumeFraction` collapses
+- the trapped snapshot now appears to show a multi-step diagnostic lag around
+  the `Iter 6 -> 8` collapse event, where `xhGrayVolumeFraction` collapses
   before `interfaceBandVolumeFraction` fully catches up. Read those two signals
   together instead of over-interpreting a single iteration in isolation.
 - wall-distance and adjoint-fidelity probes are still considered lower-priority
@@ -303,12 +307,30 @@ Key signals to inspect:
 
 Current status:
 
-- this is now the active next run
-- the active case has already been staged with
+- completed
+- the runtime dump confirmed the intended controls were active:
   `experimentControl.profile baseline;`
   `maxVolumePhiShiftFactor = 0.10;`
   `epsilonLSM = 2.5;`
   and `epsilonLSMMin = 1.0;`
+- `xhGrayVolumeFraction` stayed near `0.923` through `Iter 5`, then collapsed
+  to `9.624e-04` at `Iter 6`
+- `interfaceBandVolumeFraction` stayed near `0.923` through `Iter 7`, then
+  collapsed to `9.624e-04` at `Iter 8`
+- `PowerDiss` still climbed `7.54 -> 9.79 -> 15.93 -> 41.61 -> 334.63` across
+  `Iter 4 -> 8`
+- the late trapped regime still looked essentially blocked:
+  `PowerDiss ~382`,
+  `xhFluidVolumeFraction ~0.081`,
+  `interfaceBandVolumeFraction ~2.03e-03`,
+  and `interfacePowerL2` only `O(1e-04 to 1e-03)`
+
+Interpretation:
+
+- wider band helps, but only modestly
+- it delays loss of support rather than curing it
+- that makes interface-band width contributory, not dominant, and pushes the
+  ladder on to the update-path discriminator
 
 ### 5. `Hamilton-Jacobi fallback`
 
@@ -336,6 +358,18 @@ Key signals to inspect:
 - `normalVelocityL2`
 - `phiStepL2OverSqrtN`
 - `interfacePowerL2`
+
+Current status:
+
+- this is now the active next run
+- the active case has been staged with the wider-band settings retained:
+  `experimentControl.profile baseline;`
+  `maxVolumePhiShiftFactor = 0.10;`
+  `epsilonLSM = 2.5;`
+  `epsilonLSMMin = 1.0;`
+- in `lsmSwitches`, the next run now uses
+  `useReactionDiffusionLSMUpdate false;` and
+  `usePureHamiltonJacobiFallback true;`
 
 ### 6. `power-reopen probe`
 
@@ -446,31 +480,60 @@ Third probe result from the `reduced volume-shift cap` rerun:
 That makes a wider interface band more justified than further shift-cap
 tuning for the next rung.
 
+Fourth probe result from the `wider interface band` rerun:
+
+- `xhGrayVolumeFraction` stayed high through `Iter 5`, but collapsed at
+  `Iter 6`
+- `interfaceBandVolumeFraction` stayed high through `Iter 7`, then collapsed
+  at `Iter 8`
+- by the late trapped regime, `phiOverEpsAboveTwoFraction` was still about
+  `0.919`, while `phiOverEpsFarFraction` remained only about `2e-03`
+- `interfacePowerL2` and `normalVelocityL2` remained stronger through
+  `Iter 6 -> 7` than in the earlier baseline reference, but still decayed to
+  only `O(1e-04 to 1e-03)` late in the run
+
+That means the wider band does preserve support a bit longer, but not enough to
+avoid the same shoulder/outer-band trap. The next rung should therefore
+interrogate the update path itself rather than tuning the band width further.
+
 ## Current Snapshot Reference Values
 
 These are the trapped-run values that later experiments should compare against:
 
-- collapse window: `Iter 4 -> 6`
+- collapse window:
+  `xhGrayVolumeFraction` collapses at `Iter 6`,
+  while `interfaceBandVolumeFraction` does not fully catch up until `Iter 8`
 - `PowerDiss`:
-  - `10.63` at `Iter 4`
-  - `20.21` at `Iter 5`
-  - `79.91` at `Iter 6`
-  - `~376-382` in the late trapped regime
+  - `7.54` at `Iter 4`
+  - `9.79` at `Iter 5`
+  - `15.93` at `Iter 6`
+  - `41.61` at `Iter 7`
+  - `334.63` at `Iter 8`
+  - `~382` in the late trapped regime
 - `xhGrayVolumeFraction`:
   - `0.923` before collapse
-  - `9.624e-04` immediately after collapse
+  - `9.624e-04` at `Iter 6`
+- `interfaceBandVolumeFraction`:
+  - `0.923` through `Iter 7`
+  - `9.624e-04` at `Iter 8`
 - `volumePhiShiftRaw`:
-  - `0.861` at `Iter 4`
-  - `1.149` at `Iter 5`
-  - `1.618` at `Iter 6`
-  - `~5.47` late in the trapped regime
+  - `1.087` at `Iter 4`
+  - `1.298` at `Iter 5`
+  - `1.681` at `Iter 6`
+  - `2.328` at `Iter 7`
+  - `3.307` at `Iter 8`
+  - `~9.05` late in the trapped regime
 - `interfacePowerSensitivity L2`:
-  - `16.10` at `Iter 4`
-  - `11.04` at `Iter 5`
-  - `2.71` at `Iter 6`
+  - `11.33` at `Iter 4`
+  - `10.70` at `Iter 5`
+  - `8.51` at `Iter 6`
+  - `3.55` at `Iter 7`
+  - `0.124` at `Iter 8`
   - `O(1e-04 to 1e-03)` late in the trapped regime
-- `normalVelocityRaw L2`:
-  - `30.92` at `Iter 4`
-  - `22.89` at `Iter 5`
-  - `4.60` at `Iter 6`
+- `normalVelocity L2`:
+  - `22.78` at `Iter 4`
+  - `22.37` at `Iter 5`
+  - `18.35` at `Iter 6`
+  - `6.55` at `Iter 7`
+  - `0.202` at `Iter 8`
   - `O(1e-04 to 1e-03)` late in the trapped regime

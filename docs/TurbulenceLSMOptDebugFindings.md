@@ -21,11 +21,15 @@ Current diagnosis:
   failure mechanism.
 - The dominant failure is an early level-set collapse followed by an inability
   to reopen blocked channels under severe power violation.
+- The `wider interface band` rerun delayed that collapse only modestly, so band
+  width is contributory but not dominant in the current branch.
 - The turbulence physics backbone is probably not the primary blocker, because
   `turbulenceMMAOpt` already works with the same low-`q` turbulent baseline.
 - The main suspects are LSM-specific:
-  - hidden runtime-control overrides
-  - global post-update `phiLS` shifts that stay permanently capped
+  - the reaction-diffusion update path or its regularization may be damping
+    reopening motion too aggressively
+  - global post-update `phiLS` shifts that stay permanently capped once the
+    design starts collapsing
   - loss of usable interface support for the power sensitivity after collapse
   - continuation logic that becomes irrelevant once the design has already
     solidified too far
@@ -34,8 +38,8 @@ Current diagnosis:
 
 Completed in the current cycle:
 
-- examined the latest `optimizerlogs/` snapshot and traced the main failure
-  window to the `Iter 4 -> 6` transition
+- examined the latest `optimizerlogs/` snapshot and confirmed that it is the
+  `wider interface band` rerun
 - confirmed from `solverConvergences.log` that the LSM branch is not failing by
   linear-solver blow-up
 - identified a code-level control issue where `branchRefinement400` was
@@ -45,25 +49,36 @@ Completed in the current cycle:
 - captured a clean `case-respected baseline` rerun and verified from
   `optimizerlogs/` that the intended case values were active in the early
   iterations
+- verified from the current runtime dump that the wider-band controls were
+  genuinely active:
+  `experimentProfile = baseline`,
+  `maxVolumePhiShiftFactor = 0.10`,
+  `epsilonLSM = 2.5`, and
+  `epsilonLSMMin = 1.0`
+- confirmed that the wider band delayed `xh` collapse from `Iter 5` to
+  `Iter 6` and delayed `interfaceBandVolumeFraction` collapse to `Iter 8`, but
+  did not prevent the same trapped high-power regime
 - documented the first LSM-specific runtime experiment ladder in
   [TurbulenceLSMOptCollapseRecoveryExperimentPlan.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceLSMOptCollapseRecoveryExperimentPlan.md)
 
 Still pending:
 
-- the next discriminator run is now `wider interface band`
-- after that, move to `Hamilton-Jacobi fallback` only if the wider-band run
-  does not materially delay collapse or preserve reopening support
+- the next discriminator run is now `Hamilton-Jacobi fallback`
+- after that, move to `power-reopen probe` only if the Hamilton-Jacobi fallback
+  does not materially extend reopening support or delay the trapped regime
 
 Practical meaning:
 
-- the current logs now include valid post-fix references for both
-  `case-respected baseline`, `profile baseline`, and
-  `reduced volume-shift cap`
+- the current logs now include valid post-fix references for
+  `case-respected baseline`, `profile baseline`,
+  `reduced volume-shift cap`, and `wider interface band`
 - they show that fixing the profile override was necessary, but not sufficient,
   and that changing from `branchRefinement400` to `baseline` is also not
   sufficient, to prevent the early LSM collapse
 - they also show that reducing the shift cap makes the collapse earlier,
-  which argues against the capped global shift being the main destabilizer
+  while widening the interface band only delays collapse modestly
+- that shifts the strongest remaining runtime discriminator toward the LSM
+  update path itself rather than toward more band-width or shift-cap tuning
 
 ## First Ladder Result
 
@@ -227,30 +242,85 @@ far-tail blowout:
 That keeps the strongest remaining runtime hypothesis on interface-band width
 and loss of usable support rather than on excessive global shift amplitude.
 
-### The next clean discriminator is `wider interface band`
+## Fourth Ladder Result
 
-Because the reduced-cap test was clearly negative, the next experiment should
-not stack that harmful cap reduction with the band-width change. The sensible
-next case is:
+### `wider interface band` delayed collapse modestly but did not restore reopening
+
+The wider-band rerun confirmed that the intended controls were genuinely
+active:
+
+- `experimentProfile = baseline`
+- `maxVolumePhiShiftFactor = 0.10`
+- `epsilonLSM = 2.5`
+- `epsilonLSMMin = 1.0`
+
+Relative to the earlier baseline-profile reference, the wider band did buy a
+small amount of extra survival time:
+
+- `xhGrayVolumeFraction` stayed near `0.923` through `Iter 5`, then dropped to
+  `9.624e-04` at `Iter 6`
+- `interfaceBandVolumeFraction` stayed near `0.923` through `Iter 7`, then
+  dropped to `9.624e-04` at `Iter 8`
+- `PowerDiss` rose `7.54 -> 9.79 -> 15.93 -> 41.61 -> 334.63` across
+  `Iter 4 -> 8`
+- `volumePhiShiftRaw` rose `1.087 -> 1.298 -> 1.681 -> 2.328 -> 3.307` across
+  `Iter 4 -> 8` while the applied shift stayed capped near `0.589`
+- `interfacePowerL2` stayed at `11.33` at `Iter 4`, `10.70` at `Iter 5`,
+  `8.51` at `Iter 6`, and `3.55` at `Iter 7`, before falling to `0.124` at
+  `Iter 8`
+
+Practical conclusion:
+
+- the wider band delayed the snap-to-solid event, but only by about one
+  optimizer iteration for `xh`
+- it preserved usable interface support slightly longer, but not long enough to
+  reopen the blocked channels
+- interface-band width therefore matters, but it is not the dominant remaining
+  blocker
+
+### The wider-band late state is still the same trapped outer-band regime
+
+By the late trapped regime in the wider-band run:
+
+- `PowerDiss` still sat near `382`
+- `xhFluidVolumeFraction` stayed only about `0.081`
+- `interfaceBandVolumeFraction` remained only about `2.03e-03`
+- `interfacePowerL2` remained only about `1.9e-04` to `7.5e-04`
+- `normalVelocityL2` remained only about `1.3e-04` to `5.9e-04`
+- `volumePhiShiftRaw` still sat near `9.05` while the applied shift stayed
+  capped near `0.589`
+
+Implication:
+
+- the extra band width delays the loss of usable support, but the run still
+  falls into the same nearly motionless over-solid trap
+
+### The next clean discriminator is `Hamilton-Jacobi fallback`
+
+Because the wider-band test only helped modestly, the next experiment should
+keep the wider-band settings and isolate the LSM update path itself:
 
 - keep `experimentControl.profile baseline;`
-- restore `maxVolumePhiShiftFactor = 0.10;`
-- increase `epsilonLSM = 2.5;`
-- increase `epsilonLSMMin = 1.0;`
+- keep `maxVolumePhiShiftFactor = 0.10;`
+- keep `epsilonLSM = 2.5;`
+- keep `epsilonLSMMin = 1.0;`
+- set `useReactionDiffusionLSMUpdate false;`
+- set `usePureHamiltonJacobiFallback true;`
 
-This isolates whether the current collapse is fundamentally a too-narrow-band
-problem.
+This isolates whether the current reopening loss is mainly coming from the
+reaction-diffusion regularization/update path.
 
 ## Latest-Run Failure Sequence
 
-### 1. Iterations 1-4: stable but drifting toward closure
+### 1. Iterations 1-5: stable but drifting toward closure
 
 Observed in the latest logs:
 
 - `xhGrayVolumeFraction` stays near `0.923`
-- `PowerDiss` rises from `3.68` to `10.63`
-- `volumePhiShiftRaw` grows from `0.176` to `0.861`
-- `volumePhiShiftApplied` is capped every iteration
+- `PowerDiss` rises from `3.19` to `9.79`
+- `volumePhiShiftRaw` grows from `0.028` to `1.298`
+- `volumePhiShiftApplied` is cap-limited from `Iter 2` onward and reaches
+  about `0.59` by `Iter 4 -> 5`
 - solver health remains `OK`
 
 Interpretation:
@@ -259,15 +329,16 @@ Interpretation:
 - but the interface is already being pushed hard by the global volume
   correction before power feasibility is recovered
 
-### 2. Iteration 5: abrupt projection collapse
+### 2. Iteration 6: `xh` collapses while the band diagnostics still lag
 
-At `Iter 5`:
+At `Iter 6`:
 
 - `xhGrayVolumeFraction` drops from `0.923` to `9.624e-04`
-- `xhSolidVolumeFraction` jumps to about `0.922`
-- `PowerDiss` jumps to `20.21`
-- `volumePhiShiftRaw` grows to `1.15` while `volumePhiShiftApplied` remains
-  capped at about `0.355`
+- `interfaceBandVolumeFraction` still reports the old high value for the
+  second lagged iteration
+- `PowerDiss` crosses into hard violation at `15.93`
+- `volumePhiShiftRaw` grows to `1.681` while `volumePhiShiftApplied` remains
+  capped at about `0.589`
 
 Interpretation:
 
@@ -275,23 +346,28 @@ Interpretation:
 - the run has not crashed, but it has already left the viable
   channel-evolution path
 
-### 3. Iterations 6-17: power violation explodes, but reopening dies
+### 3. Iterations 7-34: band support briefly lingers, then reopening dies
 
 After collapse:
 
-- `PowerDiss` jumps to `79.91`, then `382`, then stays near `376-382`
-- `interfacePowerSensitivity L2` falls from `16.10` at `Iter 4` to `2.71` at
-  `Iter 6`, then to about `5e-04` by `Iter 15`
-- `normalVelocity L2` falls from `3.09e+01` at `Iter 4` to `4.60` at `Iter 6`,
-  then to about `4e-04` by `Iter 15`
-- `volumePhiShiftRaw` climbs to about `5.47` while the applied shift stays
+- `interfaceBandVolumeFraction` stays high for `Iter 7`, then collapses to
+  `9.624e-04` at `Iter 8`
+- `PowerDiss` jumps to `41.61` at `Iter 7`, then `334.63` at `Iter 8`, then
+  stays near `382`
+- `interfacePowerSensitivity L2` falls from `3.55` at `Iter 7` to `0.124` at
+  `Iter 8`, then to `O(1e-04 to 1e-03)` late in the run
+- `normalVelocity L2` falls from `6.55` at `Iter 7` to `0.202` at `Iter 8`,
+  then to `O(1e-04 to 1e-03)` late in the run
+- `volumePhiShiftRaw` climbs to about `9.05` while the applied shift stays
   fixed at the cap
 - the objective changes only weakly once the channel is blocked
 
 Interpretation:
 
-- once the interface-support region collapses, the power adjoint no longer
-  generates enough motion to reopen the flow path
+- the wider band prolongs the interface-support region slightly, but not long
+  enough to recover a viable reopening path
+- once that support finally collapses, the power adjoint no longer generates
+  enough motion to reopen the flow path
 - the run becomes dynamically trapped even though the power constraint is badly
   violated
 
@@ -299,7 +375,7 @@ Interpretation:
 
 ### Profile overrides were stronger than the case dictionaries
 
-The latest run's runtime dump showed:
+The pre-fix failing run's runtime dump showed:
 
 - `betaIncrement = 0.2`
 - `alphaRampEarlySlope = 1/7`
@@ -367,8 +443,8 @@ Interpretation:
 - but the capped correction is too small to restore the target fluid fraction
 - once the interface-support region is weak, this correction no longer repairs
   the topology
-- in the current trapped logs, `volumePhiShiftRaw` reaches about `5.47` while
-  the applied shift remains near `0.355`
+- in the current trapped logs, `volumePhiShiftRaw` reaches about `9.05` while
+  the applied shift remains near `0.589`
 
 ### 4. Volume control is split across two inconsistent mechanisms
 
@@ -406,14 +482,14 @@ Interpretation:
 
 In the current snapshot:
 
-- at `Iter 5`, `xhGrayVolumeFraction` already says the design is almost binary
-- but `interfaceBandVolumeFraction` still reports the old high-band value for
-  one iteration
-- by `Iter 6`, both fields agree again
+- at `Iter 6`, `xhGrayVolumeFraction` already says the design is almost binary
+- but `interfaceBandVolumeFraction` still reports the old high-band value
+  through `Iter 7`
+- by `Iter 8`, both fields agree again
 
 Interpretation:
 
-- there may be a one-step diagnostic lag or ordering issue around the
+- there may be a multi-step diagnostic lag or ordering issue around the
   `phiLS -> xh` reconstruction and debug writeout
 - this does not look like the primary optimizer bug, but it is important to
   keep in mind when interpreting the collapse event
@@ -483,9 +559,10 @@ The current ladder position is:
 2. `case-respected baseline` rerun captured and characterized
 3. `profile baseline` rerun captured and characterized
 4. `reduced volume-shift cap` rerun captured and characterized
-5. `wider interface band` is the active next discriminator run
+5. `wider interface band` rerun captured and characterized
+6. `Hamilton-Jacobi fallback` is the active next discriminator run
 
-Do not skip directly to deeper LSM code surgery before capturing that
-`wider interface band` run. It is now the cleanest remaining runtime check for
-whether the current collapse is fundamentally caused by interface-band
-shrinkage and shoulder saturation.
+Do not skip directly to deeper LSM code surgery before capturing the
+`Hamilton-Jacobi fallback` run. After the wider-band result, it is now the
+cleanest remaining runtime check for whether the regularized LSM update path is
+what is killing reopening motion.

@@ -87,3 +87,5 @@ if (triggerReinitialization)
     phiLS.correctBoundaryConditions();
   }
 }
+
+#include "lsmRestoreInterfaceBand.H"

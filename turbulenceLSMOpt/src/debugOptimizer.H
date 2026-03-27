@@ -14,6 +14,7 @@ scalar phiVolumeSumLocal = 0;
 scalar grayVolumeLocal = 0;
 scalar solidVolumeLocal = 0;
 scalar fluidVolumeLocal = 0;
+scalar interfaceBandVolumeLocal = 0;
 scalar maxAbsXChangeLocal = 0;
 scalar l2XChangeLocal = 0;
 scalar maxAbsXhChangeLocal = 0;
@@ -111,6 +112,10 @@ for(i=0;i<n;i++)
   if (xhValue > 0.05 && xhValue < 0.95)
   {
     grayVolumeLocal += cellVolume;
+  }
+  if (Foam::mag(phiValue) <= epsilonLSMActive)
+  {
+    interfaceBandVolumeLocal += cellVolume;
   }
   if (xhValue <= 0.05)
   {
@@ -247,6 +252,7 @@ reduce(phiVolumeSumLocal, sumOp<scalar>());
 reduce(grayVolumeLocal, sumOp<scalar>());
 reduce(solidVolumeLocal, sumOp<scalar>());
 reduce(fluidVolumeLocal, sumOp<scalar>());
+reduce(interfaceBandVolumeLocal, sumOp<scalar>());
 reduce(UMeanMagLocal, sumOp<scalar>());
 reduce(UaMeanMagLocal, sumOp<scalar>());
 reduce(UbMeanMagLocal, sumOp<scalar>());
@@ -302,6 +308,7 @@ const scalar phiMean = phiVolumeSumLocal/area;
 const scalar grayVolumeFraction = grayVolumeLocal/area;
 const scalar solidVolumeFraction = solidVolumeLocal/area;
 const scalar fluidVolumeFraction = fluidVolumeLocal/area;
+const scalar interfaceBandVolumeFraction = interfaceBandVolumeLocal/area;
 const scalar l2XChange = std::sqrt(l2XChangeLocal);
 const scalar l2XhChange = std::sqrt(l2XhChangeLocal);
 const scalar l2PhiChange = std::sqrt(l2PhiChangeLocal);
@@ -578,6 +585,7 @@ if (Pstream::master())
   writeRow("xh bounds", "min="+fmtScalar(xhLocalMin), "max="+fmtScalar(xhLocalMax), "mean="+fmtScalar(xhMean));
   writeRow("phi bounds", "min="+fmtScalar(phiLocalMin), "max="+fmtScalar(phiLocalMax), "mean="+fmtScalar(phiMean), "eps="+fmtScalar(epsilonLSMActive));
   writeRow("xh phases", "gray="+fmtScalar(grayVolumeFraction), "solid="+fmtScalar(solidVolumeFraction), "fluid="+fmtScalar(fluidVolumeFraction));
+  writeRow("phi band", "|phi|<=eps="+fmtScalar(interfaceBandVolumeFraction));
   writeRow("x step", "max="+fmtScalar(maxAbsXChangeLocal), "l2="+fmtScalar(l2XChange), "l2/sqrtN="+fmtScalar(normalizedL2XChange));
   writeRow("xh step", "max="+fmtScalar(maxAbsXhChangeLocal), "l2="+fmtScalar(l2XhChange), "l2/sqrtN="+fmtScalar(normalizedL2XhChange));
   writeRow("phi step", "max="+fmtScalar(maxAbsPhiChangeLocal), "l2="+fmtScalar(l2PhiChange), "l2/sqrtN="+fmtScalar(normalizedL2PhiChange));
@@ -715,6 +723,7 @@ if (Pstream::master())
       << ",\"xhGrayVolumeFraction\":" << grayVolumeFraction
       << ",\"xhSolidVolumeFraction\":" << solidVolumeFraction
       << ",\"xhFluidVolumeFraction\":" << fluidVolumeFraction
+      << ",\"interfaceBandVolumeFraction\":" << interfaceBandVolumeFraction
       << ",\"xStepMax\":" << maxAbsXChangeLocal
       << ",\"xStepL2\":" << l2XChange
       << ",\"xhStepMax\":" << maxAbsXhChangeLocal

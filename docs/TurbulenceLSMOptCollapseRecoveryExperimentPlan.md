@@ -23,7 +23,7 @@ The goal is to separate six candidate causes:
 As of the current debugging cycle:
 
 - the latest analyzed `optimizerlogs/` snapshot is now the
-  `Hamilton-Jacobi fallback` rerun
+  `power-reopen probe` rerun
 - the profile-fallback bug in
   [createFields.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/createFields.H)
   has been fixed and validated by the post-fix reruns
@@ -37,21 +37,28 @@ As of the current debugging cycle:
   `experimentProfile = baseline`,
   `maxVolumePhiShiftFactor = 0.10`,
   `epsilonLSM = 2.5`, and `epsilonLSMMin = 1.0`
-- the fallback path skipped the `Vn regularize` solve as intended, but the
-  collapse window still stayed at `Iter 6 -> 8`
-- the Hamilton-Jacobi rerun therefore looks effectively neutral relative to the
-  wider-band reference and does not materially improve reopening support
+- the `power-reopen probe` respected the intended controls
+  `experimentProfile = adjointSensitivityProbe`,
+  `optPowerConstraintWeight = 5.0`,
+  `optPowerViolationScaleExponent = 2.0`,
+  `useReactionDiffusionLSMUpdate = false`, and
+  `usePureHamiltonJacobiFallback = true`
+- the `power-reopen probe` still collapsed on the same `Iter 6 -> 8` window
+  and did not materially improve the trapped-regime motion
+- the first deeper code probes have now been added in
+  [opt_initialization.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/opt_initialization.H),
+  [lsmSensitivity.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/lsmSensitivity.H),
+  [sensitivity.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/sensitivity.H),
+  [gradientOptWrite.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/gradientOptWrite.H),
+  and [debugOptimizer.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/debugOptimizer.H)
 
-Therefore Experiments 1 through 5 are complete and the ladder is now
-positioned at Experiment 6 in practice.
+Therefore Experiments 1 through 6 are complete and the runtime ladder itself is
+now exhausted.
 
 Immediate next runs:
 
-1. `power-reopen probe`
-2. deeper code probes only if Experiment 6 is also negative
-
-Do not jump ahead to deeper code probes until the `power-reopen probe` run is
-archived and reviewed.
+1. rerun `power-reopen probe` with the new deeper probes active
+2. only then decide whether production logic needs to change
 
 ## Run Order
 
@@ -98,8 +105,13 @@ Most important JSON fields for this ladder:
 - `objective.volumeConstraintMargin`
 - `lsm.volumePhiShiftRaw`
 - `lsm.volumePhiShiftApplied`
+- `lsm.powerProjectionMultiplier`
+- `lsm.diracSupportVolumeFraction`
+- `lsm.meaningfulDiracSupportVolumeFraction`
+- `lsm.fluidFractionRecoveredByShift`
 - `sensitivity.interfacePowerL2`
 - `sensitivity.normalVelocityL2`
+- `convergence.stalledLowFluidCandidate`
 - `interpolation.powerFeasibilityRatio`
 - `interpolation.continuationGateSatisfied`
 - `interpolation.hardeningEnabled`
@@ -416,17 +428,40 @@ Key signals to inspect:
 
 Current status:
 
-- this is now the active next run
-- the active case retains the wider-band plus Hamilton-Jacobi settings:
+- completed
+- the runtime dump confirmed that the active case retained the wider-band plus
+  Hamilton-Jacobi settings:
   `useReactionDiffusionLSMUpdate false;`
   `usePureHamiltonJacobiFallback true;`
   `maxVolumePhiShiftFactor = 0.10;`
   `epsilonLSM = 2.5;`
   `epsilonLSMMin = 1.0;`
-- in the current staged case:
+- the latest run also confirmed:
   `experimentControl.profile adjointSensitivityProbe;`
   `optPowerConstraintWeight = 5.0;`
   `optPowerViolationScaleExponent = 2.0;`
+- `xhGrayVolumeFraction` still stayed near `0.923` through `Iter 5`, then
+  still dropped to `9.624e-04` at `Iter 6`
+- `interfaceBandVolumeFraction` still stayed near `0.923` through `Iter 7`,
+  then still dropped to `9.624e-04` at `Iter 8`
+- `PowerDiss` still climbed `7.54 -> 9.79 -> 15.93 -> 41.61 -> 334.63` across
+  `Iter 4 -> 8`
+- `interfacePowerL2` was only `11.05 -> 10.20 -> 8.02 -> 3.37 -> 0.120`
+  across `Iter 4 -> 8`
+- `normalVelocityL2` was only `21.16 -> 21.20 -> 15.83 -> 5.82 -> 0.194`
+  across `Iter 4 -> 8`
+- by `Iter 20 -> 22`, `interfacePowerL2` remained only about
+  `4.4e-04 -> 1.6e-04`
+- by `Iter 20 -> 22`, `normalVelocityL2` remained only about
+  `3.2e-04 -> 1.1e-04`
+
+Interpretation:
+
+- stronger power weighting did not materially delay collapse
+- stronger power weighting did not materially preserve reopening motion
+- the remaining issue lies deeper than simple power-weight tuning
+- the next step is now an instrumented rerun, not a seventh runtime-control
+  permutation
 
 ## Practical Pass/Fail Heuristics
 
@@ -449,8 +484,8 @@ the design still collapses early and the reopening sensitivity still dies.
 
 ## If The Runtime Ladder Still Fails
 
-If none of the six runtime experiments restores a viable reopening path, the
-next cycle should add temporary code probes:
+Because none of the six runtime experiments restored a viable reopening path,
+the branch now carries the next temporary code probes:
 
 1. log a histogram of `phiLS / epsilonLSMActive` to distinguish true narrow-band
    collapse from shoulder saturation
@@ -472,8 +507,23 @@ Probe 1 is now available in the current branch through:
   `design.phiOverEpsAboveTwoFraction`, and
   `design.phiOverEpsHistogram`
 
-The remaining probes should still be added only after the runtime ladder has
-been exhausted.
+Probes 2 through 5 are now available in the current branch through:
+
+- `debugOptimizer.log` row `support`
+- `debugOptimizer.log` row `power ctl`
+- `debugOptimizer.log` row `Stall Guard` with `lowFluid=yes/no`
+- `debugOptimizer.jsonl` fields
+  `lsm.diracSupportCellCount`,
+  `lsm.diracSupportVolumeFraction`,
+  `lsm.meaningfulDiracSupportThreshold`,
+  `lsm.meaningfulDiracSupportCellCount`,
+  `lsm.meaningfulDiracSupportVolumeFraction`,
+  `lsm.powerProjectionMultiplier`,
+  `lsm.fluidFractionPreShift`,
+  `lsm.fluidFractionPostShift`,
+  `lsm.fluidFractionRecoveredByShift`, and
+  `convergence.stalledLowFluidCandidate`
+- `gradientOpt.log` lines `projection control` and `fluid shift`
 
 First probe result from the `case-respected baseline` rerun:
 

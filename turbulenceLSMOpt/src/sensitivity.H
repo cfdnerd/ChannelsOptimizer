@@ -297,6 +297,8 @@ auto fluidFractionForPhiShift = [&](const scalar phiShift) -> scalar
   return area > SMALL ? fluidVolumeLocal/area : 0.0;
 };
 
+fluidFractionBeforeVolumeShift = fluidFractionForPhiShift(0.0);
+
 scalar lowerShift = -volumePhiMagnitudeCap;
 scalar upperShift = volumePhiMagnitudeCap;
 scalar lowerFraction = fluidFractionForPhiShift(lowerShift);
@@ -360,6 +362,10 @@ forAll(phiLS, cellI)
 }
 phiLS.correctBoundaryConditions();
 #include "lsmInterfaceReconstruct.H"
+fluidFractionAfterVolumeShift =
+  area > SMALL ? fvc::domainIntegrate(xh).value()/area : 0.0;
+fluidFractionRecoveredByShift =
+  fluidFractionAfterVolumeShift - fluidFractionBeforeVolumeShift;
 V = fvc::domainIntegrate(xh).value()/area - voluse;
 gx[1] = optVolumeConstraintWeight*V;
 #include "updateInterpolationFields.H"

@@ -15,6 +15,8 @@ scalar grayVolumeLocal = 0;
 scalar solidVolumeLocal = 0;
 scalar fluidVolumeLocal = 0;
 scalar interfaceBandVolumeLocal = 0;
+scalar diracSupportVolumeLocal = 0;
+scalar meaningfulDiracSupportVolumeLocal = 0;
 scalar phiOverEpsNegFarVolumeLocal = 0;
 scalar phiOverEpsNegOuterVolumeLocal = 0;
 scalar phiOverEpsNegShoulderVolumeLocal = 0;
@@ -34,6 +36,8 @@ label xLowerBoundCountLocal = 0;
 label xUpperBoundCountLocal = 0;
 label normalVelocityCapHitCountLocal = 0;
 label xNonFiniteCountLocal = 0;
+label diracSupportCellCountLocal = 0;
+label meaningfulDiracSupportCellCountLocal = 0;
 scalar drhoLocalMin = 1e300, drhoLocalMax = -1e300;
 scalar fsensLocalMin = 1e300, fsensLocalMax = -1e300, fsensL2Local = 0;
 scalar gsensPowerLocalMin = 1e300, gsensPowerLocalMax = -1e300, gsensPowerL2Local = 0;
@@ -54,6 +58,8 @@ label normalVelocityNonFiniteCountLocal = 0;
 scalar UMaxMagLocal = 0, UaMaxMagLocal = 0, UbMaxMagLocal = 0;
 scalar UMeanMagLocal = 0, UaMeanMagLocal = 0, UbMeanMagLocal = 0;
 scalar objectivePnormSumLocal = 0;
+const scalar diracMeaningfulSupportThreshold =
+  0.1/Foam::max(epsilonLSMActive, scalar(SMALL));
 
 for(i=0;i<n;i++)
 {
@@ -127,6 +133,16 @@ for(i=0;i<n;i++)
   if (Foam::mag(phiValue) <= epsilonLSMActive)
   {
     interfaceBandVolumeLocal += cellVolume;
+  }
+  if (drhoValue > SMALL)
+  {
+    diracSupportCellCountLocal++;
+    diracSupportVolumeLocal += cellVolume;
+  }
+  if (drhoValue >= diracMeaningfulSupportThreshold)
+  {
+    meaningfulDiracSupportCellCountLocal++;
+    meaningfulDiracSupportVolumeLocal += cellVolume;
   }
   if (phiOverEpsValue <= -4.0)
   {
@@ -300,6 +316,8 @@ reduce(grayVolumeLocal, sumOp<scalar>());
 reduce(solidVolumeLocal, sumOp<scalar>());
 reduce(fluidVolumeLocal, sumOp<scalar>());
 reduce(interfaceBandVolumeLocal, sumOp<scalar>());
+reduce(diracSupportVolumeLocal, sumOp<scalar>());
+reduce(meaningfulDiracSupportVolumeLocal, sumOp<scalar>());
 reduce(phiOverEpsNegFarVolumeLocal, sumOp<scalar>());
 reduce(phiOverEpsNegOuterVolumeLocal, sumOp<scalar>());
 reduce(phiOverEpsNegShoulderVolumeLocal, sumOp<scalar>());
@@ -322,6 +340,8 @@ reduce(xLowerBoundCountLocal, sumOp<label>());
 reduce(xUpperBoundCountLocal, sumOp<label>());
 reduce(normalVelocityCapHitCountLocal, sumOp<label>());
 reduce(xNonFiniteCountLocal, sumOp<label>());
+reduce(diracSupportCellCountLocal, sumOp<label>());
+reduce(meaningfulDiracSupportCellCountLocal, sumOp<label>());
 reduce(drhoLocalMin, minOp<scalar>());
 reduce(drhoLocalMax, maxOp<scalar>());
 reduce(fsensLocalMin, minOp<scalar>());
@@ -365,6 +385,9 @@ const scalar grayVolumeFraction = grayVolumeLocal/area;
 const scalar solidVolumeFraction = solidVolumeLocal/area;
 const scalar fluidVolumeFraction = fluidVolumeLocal/area;
 const scalar interfaceBandVolumeFraction = interfaceBandVolumeLocal/area;
+const scalar diracSupportVolumeFraction = diracSupportVolumeLocal/area;
+const scalar meaningfulDiracSupportVolumeFraction =
+  meaningfulDiracSupportVolumeLocal/area;
 const scalar phiOverEpsNegFarFraction = phiOverEpsNegFarVolumeLocal/area;
 const scalar phiOverEpsNegOuterFraction = phiOverEpsNegOuterVolumeLocal/area;
 const scalar phiOverEpsNegShoulderFraction = phiOverEpsNegShoulderVolumeLocal/area;
@@ -560,11 +583,21 @@ const bool designStepFrozen =
 const bool volumeShiftCapped =
   volumePhiShiftCap > SMALL
   && Foam::mag(volumePhiShiftRaw) > volumePhiShiftCap + SMALL;
-const bool stalledInfeasibleCandidate =
+const scalar lowFluidStallThreshold(0.10);
+const bool stalledLowFluidCandidate =
   opt >= optMinIterations
-  && maxConstraintViolation > optConstraintTol
+  && V <= -lowFluidStallThreshold
   && designStepFrozen
   && volumeShiftCapped;
+const bool stalledInfeasibleCandidate =
+  stalledLowFluidCandidate
+  ||
+  (
+    opt >= optMinIterations
+    && maxConstraintViolation > optConstraintTol
+    && designStepFrozen
+    && volumeShiftCapped
+  );
 const bool convergenceCandidate =
   opt >= optMinIterations
   &&
@@ -593,7 +626,10 @@ else if (optimizerStalledInfeasibleStreak >= optStallWindow)
 {
   stopOptimization = true;
   optimizerConvergedStreak = 0;
-  optimizerStopReason = word("stalledInfeasible");
+  optimizerStopReason =
+    stalledLowFluidCandidate
+    ? word("stalledLowFluidInfeasible")
+    : word("stalledInfeasible");
 }
 
 if (Pstream::master())
@@ -671,7 +707,7 @@ if (Pstream::master())
   writeRow("Health", std::string("Design=")+designHealth, std::string("Constr=")+constraintHealth, std::string("Sens=")+sensitivityHealth, std::string("Solver=")+solverHealth);
   writeRow("Convergence", "objRel="+fmtScalar(objectiveRelativeDelta), "maxViol="+fmtScalar(maxConstraintViolation), "phiStep="+fmtScalar(maxAbsPhiChangeLocal), "streak="+fmtCount(optimizerConvergedStreak)+"/"+fmtCount(optStallWindow));
   writeRow("Stop", "candidate="+std::string(convergenceCandidate ? "yes" : "no"), "stop="+std::string(stopOptimization ? "yes" : "no"), "reason="+std::string(optimizerStopReason.c_str()));
-  writeRow("Stall Guard", "designFrozen="+std::string(designStepFrozen ? "yes" : "no"), "shiftCapped="+std::string(volumeShiftCapped ? "yes" : "no"), "streak="+fmtCount(optimizerStalledInfeasibleStreak)+"/"+fmtCount(optStallWindow));
+  writeRow("Stall Guard", "designFrozen="+std::string(designStepFrozen ? "yes" : "no"), "shiftCapped="+std::string(volumeShiftCapped ? "yes" : "no"), "lowFluid="+std::string(stalledLowFluidCandidate ? "yes" : "no"), "streak="+fmtCount(optimizerStalledInfeasibleStreak)+"/"+fmtCount(optStallWindow));
 
   writeSectionHeader("Design Diagnostics");
   writeRow("x bounds", "min="+fmtScalar(xLocalMin), "max="+fmtScalar(xLocalMax), "mean="+fmtScalar(xMean));
@@ -706,7 +742,9 @@ if (Pstream::master())
   writeRow("filter", "baseR="+fmtScalar(filterR), "activeR="+fmtScalar(activeFilterR), "capIter="+fmtCount(lateStageFilterRStartIter), "cap="+fmtScalar(lateStageFilterRCap));
   writeRow("bound clamps", "lower="+fmtCount(xLowerBoundCountLocal), "upper="+fmtCount(xUpperBoundCountLocal), "nonFiniteX="+fmtCount(xNonFiniteCountLocal));
   writeRow("lsm", "mode="+std::string(activeLSMUpdateMode.c_str()), "dt="+fmtScalar(lsmPseudoTimeStep), "gradDev="+fmtScalar(phiGradDeviationMax), "reinit="+fmtScalar(phiReinitResidual));
+  writeRow("support", "cells>0="+fmtCount(diracSupportCellCountLocal), "vol>0="+fmtScalar(diracSupportVolumeFraction), "cells>0.1/eps="+fmtCount(meaningfulDiracSupportCellCountLocal), "vol>0.1/eps="+fmtScalar(meaningfulDiracSupportVolumeFraction));
   writeRow("volume ctl", "proj="+fmtScalar(volumeProjectionMultiplier), "shiftRaw="+fmtScalar(volumePhiShiftRaw), "shiftApply="+fmtScalar(volumePhiShiftApplied), "shiftCap="+fmtScalar(volumePhiShiftCap));
+  writeRow("power ctl", "proj="+fmtScalar(powerProjectionMultiplier), "fluidPre="+fmtScalar(fluidFractionBeforeVolumeShift), "fluidPost="+fmtScalar(fluidFractionAfterVolumeShift), "fluidDelta="+fmtScalar(fluidFractionRecoveredByShift));
 
   writeSectionHeader("Sensitivity Diagnostics");
   writeRow("objective", "min="+fmtScalar(fsensLocalMin), "max="+fmtScalar(fsensLocalMax), "l2="+fmtScalar(fsensL2), "nonFinite="+fmtCount(fsensNonFiniteCountLocal));
@@ -806,6 +844,7 @@ if (Pstream::master())
       << ",\"candidate\":" << (convergenceCandidate ? 1 : 0)
       << ",\"designStepFrozen\":" << (designStepFrozen ? 1 : 0)
       << ",\"volumeShiftCapped\":" << (volumeShiftCapped ? 1 : 0)
+      << ",\"stalledLowFluidCandidate\":" << (stalledLowFluidCandidate ? 1 : 0)
       << ",\"stalledInfeasibleCandidate\":" << (stalledInfeasibleCandidate ? 1 : 0)
       << ",\"stop\":" << (stopOptimization ? 1 : 0)
       << ",\"reason\":\"" << optimizerStopReason << "\""
@@ -887,6 +926,15 @@ if (Pstream::master())
       << ",\"pseudoDt\":" << lsmPseudoTimeStep
       << ",\"phiGradDeviationMax\":" << phiGradDeviationMax
       << ",\"phiReinitResidual\":" << phiReinitResidual
+      << ",\"diracSupportCellCount\":" << diracSupportCellCountLocal
+      << ",\"diracSupportVolumeFraction\":" << diracSupportVolumeFraction
+      << ",\"meaningfulDiracSupportThreshold\":" << diracMeaningfulSupportThreshold
+      << ",\"meaningfulDiracSupportCellCount\":" << meaningfulDiracSupportCellCountLocal
+      << ",\"meaningfulDiracSupportVolumeFraction\":" << meaningfulDiracSupportVolumeFraction
+      << ",\"powerProjectionMultiplier\":" << powerProjectionMultiplier
+      << ",\"fluidFractionPreShift\":" << fluidFractionBeforeVolumeShift
+      << ",\"fluidFractionPostShift\":" << fluidFractionAfterVolumeShift
+      << ",\"fluidFractionRecoveredByShift\":" << fluidFractionRecoveredByShift
       << ",\"volumeProjectionMultiplier\":" << volumeProjectionMultiplier
       << ",\"volumePhiShiftRaw\":" << volumePhiShiftRaw
       << ",\"volumePhiShiftApplied\":" << volumePhiShiftApplied

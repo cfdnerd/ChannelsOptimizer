@@ -19,7 +19,7 @@ forAll(interfaceObjectiveSensitivity, cellI)
 reduce(powerObjectiveInnerLocal, sumOp<scalar>());
 reduce(powerSensitivityNormLocal, sumOp<scalar>());
 
-const scalar powerProjectionMultiplier =
+powerProjectionMultiplier =
   (gx[0] > 0.0 && powerSensitivityNormLocal > SMALL)
   ? Foam::max(scalar(0.0), -powerObjectiveInnerLocal/powerSensitivityNormLocal)
   : scalar(0.0);

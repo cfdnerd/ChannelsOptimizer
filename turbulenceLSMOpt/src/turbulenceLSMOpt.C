@@ -7,6 +7,7 @@
 #include <cstring>
 #include <iomanip>
 #include <sstream>
+#include <vector>
 #include <diff.c>
 
 int main(int argc, char *argv[])

@@ -64,10 +64,33 @@ forAll(gsenshPowerDiss, cellI)
 
 fsensMeanTRaw = fsenshMeanT;
 gsensPowerDissRaw = gsenshPowerDiss;
+
+// Keep the production LSM update aligned with the MMA optimizer semantics:
+// sanitize and normalize the objective/power sensitivities before combining
+// them into a single descent field. This prevents one raw adjoint channel from
+// overwhelming the constrained update purely by scale.
+const scalar fsensScale = gMax(mag(fsenshMeanT.primitiveField()));
+if (fsensScale > SMALL)
+{
+  fsensMeanT = fsenshMeanT/fsensScale;
+}
+else
+{
+  fsensMeanT = dimensionedScalar("zero", fsenshMeanT.dimensions(), 0.0);
+}
+
+const scalar gsensPowerScale = gMax(mag(gsenshPowerDiss.primitiveField()));
+if (gsensPowerScale > SMALL)
+{
+  gsensPowerDiss = gsenshPowerDiss/gsensPowerScale;
+}
+else
+{
+  gsensPowerDiss = dimensionedScalar("zero", gsenshPowerDiss.dimensions(), 0.0);
+}
+
 gsensVol = gsensVolRaw;
 gsenshVol = gsensVolRaw;
-fsensMeanT = fsenshMeanT;
-gsensPowerDiss = gsenshPowerDiss;
 
 const scalar powerLimit =
   usePowerConstraintRelaxation

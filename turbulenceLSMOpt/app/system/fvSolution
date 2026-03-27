@@ -56,19 +56,17 @@ solvers
         nCellsInCoarsestLevel 20;
         maxIter         20000;
     }  
-     "(Ta|Tb)"
+    Tb
     {
-        solver          GAMG;
+        // The LSM branch can drive the thermal adjoint into a nearly singular
+        // regime once the interface band collapses. GAMG then fails in the
+        // coarsest-level Krylov solve, so keep Tb on a more robust single-level
+        // smoother while we continue debugging the LSM update path itself.
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        nSweeps         2;
         tolerance       1e-10;
         relTol          0;
-        smoother        GaussSeidel;
-        cacheAgglomeration true;
-        agglomerator    faceAreaPair;
-        mergeLevels     1;
-        nPreSweeps      0;
-        nPostSweeps     2;
-        nFinestSweeps   2;
-        nCellsInCoarsestLevel 20;
         maxIter         20000;
     }
      "(xp|fsensMeanT|gsensVol|gsensPowerDiss|normalVelocity)"

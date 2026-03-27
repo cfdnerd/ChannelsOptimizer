@@ -115,7 +115,10 @@ gx[1] = weightedVolumeConstraint;
 #include "lsmVelocityRegularization.H"
 #include "lsmAdvection.H"
 #include "lsmReinitialize.H"
+#include "lsmVolumeCorrection.H"
 #include "lsmInterfaceReconstruct.H"
+V = fvc::domainIntegrate(xh).value()/area - voluse;
+gx[1] = optVolumeConstraintWeight*V;
 #include "updateInterpolationFields.H"
 #include "gradientOptWrite.H"
 #include "debugOptimizer.H"

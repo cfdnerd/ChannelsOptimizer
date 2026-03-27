@@ -178,11 +178,11 @@ Switch useFullAdjointSymmetricStress
 );
 Switch useInterfaceDerivedWallDistance
 (
-  lsmSwitches.lookupOrDefault<Switch>("useInterfaceDerivedWallDistance", true)
+  lsmSwitches.lookupOrDefault<Switch>("useInterfaceDerivedWallDistance", false)
 );
 Switch useAuxiliaryPDEWallDistance
 (
-  lsmSwitches.lookupOrDefault<Switch>("useAuxiliaryPDEWallDistance", false)
+  lsmSwitches.lookupOrDefault<Switch>("useAuxiliaryPDEWallDistance", true)
 );
 Switch useReactionDiffusionLSMUpdate
 (

@@ -31,8 +31,8 @@ frameworkSwitches
 
 lsmSwitches
 {
-    useInterfaceDerivedWallDistance true;
-    useAuxiliaryPDEWallDistance     false;
+    useInterfaceDerivedWallDistance false;
+    useAuxiliaryPDEWallDistance     true;
     useReactionDiffusionLSMUpdate   true;
     usePureHamiltonJacobiFallback   false;
     useSussmanReinitialization      true;

@@ -150,6 +150,8 @@ if (Pstream::master())
   debugLogFile << "\n--- adjointControl ---\n";
   writeRuntimeOption("adjointMomentumSweeps", adjointMomentumSweeps);
   writeRuntimeOption("adjointExplicitStressScale", adjointExplicitStressScale);
+  writeRuntimeOption("adjointSoftFreezeRatio", adjointSoftFreezeRatio);
+  writeRuntimeOption("adjointSoftFreezeGrowthFactor", adjointSoftFreezeGrowthFactor);
   writeRuntimeSwitch("resetAdjointsEachIteration", resetAdjointsEachIteration);
   writeRuntimeSwitch("stopOnAdjointRunaway", stopOnAdjointRunaway);
 
@@ -351,6 +353,8 @@ word optimizerStopReason("running");
 bool continuationHealthOk(true);
 scalar previousGrayVolumeFractionForContinuation(1.0);
 scalar previousXhStepMax(0.0);
+scalar previousAdjointPowerToPrimalRatio(0.0);
+scalar previousAdjointHeatToPrimalRatio(0.0);
 scalar lsmPseudoTimeStep(0.0);
 scalar phiGradDeviationMax(0.0);
 scalar phiReinitResidual(0.0);

@@ -81,6 +81,8 @@ adjointControl
 {
     adjointMomentumSweeps           30;
     adjointExplicitStressScale      0.30;
+    adjointSoftFreezeRatio          1000;
+    adjointSoftFreezeGrowthFactor   1.5;
     resetAdjointsEachIteration      true;
     stopOnAdjointRunaway            true;
 }

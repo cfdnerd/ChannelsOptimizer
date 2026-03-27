@@ -222,6 +222,28 @@ const scalar gsensVolL2 = std::sqrt(gsensVolL2Local);
 const scalar primalVelocityScale = Foam::max(UMaxMagLocal, SMALL);
 const scalar adjointPowerToPrimalRatio = UaMaxMagLocal/primalVelocityScale;
 const scalar adjointHeatToPrimalRatio = UbMaxMagLocal/primalVelocityScale;
+const scalar adjointPowerGrowthFactor =
+  previousAdjointPowerToPrimalRatio > SMALL
+  ? adjointPowerToPrimalRatio/Foam::max(previousAdjointPowerToPrimalRatio, SMALL)
+  : 1.0;
+const scalar adjointHeatGrowthFactor =
+  previousAdjointHeatToPrimalRatio > SMALL
+  ? adjointHeatToPrimalRatio/Foam::max(previousAdjointHeatToPrimalRatio, SMALL)
+  : 1.0;
+const bool adjointPowerSpike =
+  adjointSoftFreezeRatio > 0.0
+  && adjointSoftFreezeGrowthFactor > 0.0
+  && previousAdjointPowerToPrimalRatio > SMALL
+  && adjointPowerToPrimalRatio >= adjointSoftFreezeRatio
+  && adjointPowerGrowthFactor >= adjointSoftFreezeGrowthFactor;
+const bool adjointHeatSpike =
+  adjointSoftFreezeRatio > 0.0
+  && adjointSoftFreezeGrowthFactor > 0.0
+  && previousAdjointHeatToPrimalRatio > SMALL
+  && adjointHeatToPrimalRatio >= adjointSoftFreezeRatio
+  && adjointHeatGrowthFactor >= adjointSoftFreezeGrowthFactor;
+const bool adjointContinuationFreezeRequested =
+  adjointPowerSpike || adjointHeatSpike;
 const bool adjointRunaway =
   adjointPowerToPrimalRatio > adjointRunawayRatioLimit
   || adjointHeatToPrimalRatio > adjointRunawayRatioLimit;
@@ -250,8 +272,12 @@ if (adjointRunaway)
 {
   solverSeverity = Foam::max(solverSeverity, label(2));
 }
+else if (adjointContinuationFreezeRequested)
+{
+  solverSeverity = Foam::max(solverSeverity, label(1));
+}
 reduce(solverSeverity, maxOp<label>());
-continuationHealthOk = !adjointRunaway;
+continuationHealthOk = !(adjointRunaway || adjointContinuationFreezeRequested);
 
 const scalar objectiveRelativeDelta = Foam::mag(objectiveDelta)/Foam::max(Foam::mag(objectiveValue), SMALL);
 const scalar powerConstraintWeightSafe = Foam::max(optPowerConstraintWeight, SMALL);
@@ -484,6 +510,7 @@ if (Pstream::master())
   writeRow("adjoint power", "|Ua|max="+fmtScalar(UaMaxMagLocal), "|Ua|mean="+fmtScalar(UaMeanMag), "paMin="+fmtScalar(paLocalMin), "paMax="+fmtScalar(paLocalMax));
   writeRow("adjoint heat", "|Ub|max="+fmtScalar(UbMaxMagLocal), "|Ub|mean="+fmtScalar(UbMeanMag), "pbMin="+fmtScalar(pbLocalMin), "pbMax="+fmtScalar(pbLocalMax));
   writeRow("adjoint ratios", "Ua/U="+fmtScalar(adjointPowerToPrimalRatio), "Ub/U="+fmtScalar(adjointHeatToPrimalRatio), "limit="+fmtScalar(adjointRunawayRatioLimit), "hardening="+std::string(continuationHealthOk ? "on" : "frozen"));
+  writeRow("adjoint guard", "freeze="+std::string(adjointContinuationFreezeRequested ? "yes" : "no"), std::string("Ua x")+fmtScalar(adjointPowerGrowthFactor), std::string("Ub x")+fmtScalar(adjointHeatGrowthFactor), "soft>="+fmtScalar(adjointSoftFreezeRatio));
 
   writeSectionHeader("Interpolation Diagnostics");
   writeRow("interp bounds", "alphaMin="+fmtScalar(alphaLocalMin), "alphaMax="+fmtScalar(alphaLocalMax), "DTMin="+fmtScalar(DTLocalMin), "DTMax="+fmtScalar(DTLocalMax));
@@ -647,6 +674,9 @@ if (Pstream::master())
       << ",\"pbMax\":" << pbLocalMax
       << ",\"uaToUMaxRatio\":" << adjointPowerToPrimalRatio
       << ",\"ubToUMaxRatio\":" << adjointHeatToPrimalRatio
+      << ",\"uaGrowthFactor\":" << adjointPowerGrowthFactor
+      << ",\"ubGrowthFactor\":" << adjointHeatGrowthFactor
+      << ",\"adjointContinuationFreezeRequested\":" << (adjointContinuationFreezeRequested ? 1 : 0)
       << ",\"adjointRunaway\":" << (adjointRunaway ? 1 : 0)
     << "}"
       << ",\"interpolation\":{"
@@ -704,3 +734,5 @@ if (Pstream::master())
 }
 
 previousXhStepMax = maxAbsXhChangeLocal;
+previousAdjointPowerToPrimalRatio = adjointPowerToPrimalRatio;
+previousAdjointHeatToPrimalRatio = adjointHeatToPrimalRatio;

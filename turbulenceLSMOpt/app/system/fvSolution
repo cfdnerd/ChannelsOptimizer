@@ -69,7 +69,7 @@ solvers
         relTol          0;
         maxIter         20000;
     }
-     "(xp|fsensMeanT|gsensVol|gsensPowerDiss|normalVelocity)"
+     "(xp|dAlpha2|fsensMeanT|gsensVol|gsensPowerDiss|normalVelocity)"
     {
         solver          PCG;
         preconditioner  DIC;

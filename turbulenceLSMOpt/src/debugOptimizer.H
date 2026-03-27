@@ -629,6 +629,7 @@ if (Pstream::master())
   writeRow("adjoint heat", "|Ub|max="+fmtScalar(UbMaxMagLocal), "|Ub|mean="+fmtScalar(UbMeanMag), "pbMin="+fmtScalar(pbLocalMin), "pbMax="+fmtScalar(pbLocalMax));
   writeRow("adjoint ratios", "Ua/U="+fmtScalar(adjointPowerToPrimalRatio), "Ub/U="+fmtScalar(adjointHeatToPrimalRatio), "limit="+fmtScalar(adjointRunawayRatioLimit), "hardening="+std::string(continuationHealthOk ? "on" : "frozen"));
   writeRow("adjoint guard", "freeze="+std::string(adjointContinuationFreezeRequested ? "yes" : "no"), std::string("Ua x")+fmtScalar(adjointPowerGrowthFactor), std::string("Ub x")+fmtScalar(adjointHeatGrowthFactor), "soft>="+fmtScalar(adjointSoftFreezeRatio));
+  writeRow("adjoint clamp", "preUa/U="+fmtScalar(adjointPowerToPrimalRatioPreGuard), "preUb/U="+fmtScalar(adjointHeatToPrimalRatioPreGuard), "UaScale="+fmtScalar(adjointSoftFreezeScalePower), "UbScale="+fmtScalar(adjointSoftFreezeScaleHeat));
 
   writeSectionHeader("Interpolation Diagnostics");
   writeRow("interp bounds", "alphaMin="+fmtScalar(alphaLocalMin), "alphaMax="+fmtScalar(alphaLocalMax), "DTMin="+fmtScalar(DTLocalMin), "DTMax="+fmtScalar(DTLocalMax));
@@ -823,6 +824,12 @@ if (Pstream::master())
       << ",\"ubToUMaxRatio\":" << adjointHeatToPrimalRatio
       << ",\"uaGrowthFactor\":" << adjointPowerGrowthFactor
       << ",\"ubGrowthFactor\":" << adjointHeatGrowthFactor
+      << ",\"uaToUMaxRatioPreGuard\":" << adjointPowerToPrimalRatioPreGuard
+      << ",\"ubToUMaxRatioPreGuard\":" << adjointHeatToPrimalRatioPreGuard
+      << ",\"adjointSoftFreezeAppliedPower\":" << (adjointSoftFreezeAppliedPower ? 1 : 0)
+      << ",\"adjointSoftFreezeAppliedHeat\":" << (adjointSoftFreezeAppliedHeat ? 1 : 0)
+      << ",\"adjointSoftFreezeScalePower\":" << adjointSoftFreezeScalePower
+      << ",\"adjointSoftFreezeScaleHeat\":" << adjointSoftFreezeScaleHeat
       << ",\"adjointContinuationFreezeRequested\":" << (adjointContinuationFreezeRequested ? 1 : 0)
       << ",\"adjointRunaway\":" << (adjointRunaway ? 1 : 0)
     << "}"

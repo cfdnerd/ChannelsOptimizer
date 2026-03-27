@@ -584,10 +584,16 @@ const bool volumeShiftCapped =
   volumePhiShiftCap > SMALL
   && Foam::mag(volumePhiShiftRaw) > volumePhiShiftCap + SMALL;
 const scalar lowFluidStallThreshold(0.10);
+const scalar lowSupportStallThreshold(1e-2);
+const scalar lowRecoveryStallThreshold(5e-3);
+// In the trapped LSM regime the design can keep taking large capped phi steps,
+// so design-step freezing is a poor stall indicator. Use lost meaningful
+// dirac support plus negligible shift recovery instead.
 const bool stalledLowFluidCandidate =
-  opt >= optMinIterations
+  opt >= 5
   && V <= -lowFluidStallThreshold
-  && designStepFrozen
+  && meaningfulDiracSupportVolumeFraction <= lowSupportStallThreshold
+  && Foam::mag(fluidFractionRecoveredByShift) <= lowRecoveryStallThreshold
   && volumeShiftCapped;
 const bool stalledInfeasibleCandidate =
   stalledLowFluidCandidate

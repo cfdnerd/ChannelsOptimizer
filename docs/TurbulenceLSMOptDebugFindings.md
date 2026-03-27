@@ -2,7 +2,7 @@
 
 This note records the current debugging position for `turbulenceLSMOpt` and
 summarizes the failure mechanisms visible in the latest `optimizerlogs/`
-snapshot, which is now the `power-reopen probe` rerun.
+snapshot, which is now the instrumented `power-reopen probe` rerun.
 
 Reference sources:
 
@@ -21,9 +21,10 @@ Current diagnosis:
   failure mechanism.
 - The dominant failure is an early level-set collapse followed by an inability
   to reopen blocked channels under severe power violation.
-- The `power-reopen probe` rerun does not materially change the collapse timing
-  or trapped-regime behavior relative to the `Hamilton-Jacobi fallback`
-  reference.
+- The instrumented `power-reopen probe` rerun does not materially change the
+  collapse timing or trapped-regime behavior relative to the
+  `Hamilton-Jacobi fallback` reference, but it does show more clearly why the
+  trapped regime becomes irreversible.
 - The turbulence physics backbone is probably not the primary blocker, because
   `turbulenceMMAOpt` already works with the same low-`q` turbulent baseline.
 - The main suspects are LSM-specific:
@@ -40,7 +41,7 @@ Current diagnosis:
 Completed in the current cycle:
 
 - examined the latest `optimizerlogs/` snapshot and confirmed that it is the
-  `power-reopen probe` rerun
+  instrumented `power-reopen probe` rerun
 - confirmed from `solverConvergences.log` that the LSM branch is not failing by
   linear-solver blow-up
 - identified a code-level control issue where `branchRefinement400` was
@@ -66,6 +67,20 @@ Completed in the current cycle:
 - confirmed that the `power-reopen probe` did not materially move the collapse
   window or the trapped-regime sensitivity decay relative to the
   `Hamilton-Jacobi fallback` reference
+- confirmed from the new probe fields that meaningful `diracPhiLS` support
+  collapses before the broad `|phiLS| <= epsilonLSMActive` band catches up:
+  at `Iter 7`,
+  `meaningfulDiracSupportVolumeFraction` is already `9.624e-04` while
+  `interfaceBandVolumeFraction` is still `0.923`
+- confirmed that `powerProjectionMultiplier` only acts briefly:
+  it is `0.341` at `Iter 6`,
+  `0.187` at `Iter 7`,
+  and already back to `0` from `Iter 8` onward
+- confirmed that the capped global shift becomes almost useless immediately
+  after collapse:
+  `fluidFractionRecoveredByShift` falls
+  `3.81e-02 -> 1.14e-03 -> 2.06e-04` across `Iter 6 -> 8`,
+  and remains only about `2.5e-04 -> 3.0e-04` late in the run
 - added the first deeper LSM code probes in
   [opt_initialization.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/opt_initialization.H),
   [lsmSensitivity.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/lsmSensitivity.H),
@@ -77,15 +92,23 @@ Completed in the current cycle:
   `powerProjectionMultiplier`,
   pre/post-shift fluid fractions, and
   a low-fluid stalled-infeasible flag
+- tightened the temporary low-fluid stalled-infeasible guard in
+  [debugOptimizer.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/debugOptimizer.H)
+  so it now keys off
+  low fluid fraction,
+  lost meaningful `diracPhiLS` support, and
+  negligible shift recovery,
+  instead of waiting for `designStepFrozen`
 - documented the first LSM-specific runtime experiment ladder in
   [TurbulenceLSMOptCollapseRecoveryExperimentPlan.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceLSMOptCollapseRecoveryExperimentPlan.md)
 
 Still pending:
 
-- rerun the active `power-reopen probe` case with the new code probes active
-- inspect whether meaningful `diracPhiLS` support disappears before the power
-  projection can act, and whether the capped global shift is recovering any
-  useful fluid volume after collapse
+- rerun the active `power-reopen probe` case with the tightened low-fluid trap
+  guard
+- confirm that the revised guard stops the run close to the
+  `Iter 7 -> 11` trapped window instead of letting the branch coast through the
+  same irrecoverable low-fluid state
 
 Practical meaning:
 
@@ -100,9 +123,12 @@ Practical meaning:
   widening the interface band only delays collapse modestly, switching to
   Hamilton-Jacobi does not materially improve reopening, and strengthening the
   power weighting also does not materially improve reopening
+- they now also show that the broad `|phi| <= epsilon` band overstates usable
+  reopening support after collapse, because meaningful `diracPhiLS` support is
+  already gone by `Iter 7`
 - that means the first runtime ladder is now exhausted and the next useful
-  discriminator is the newly added code-level instrumentation rather than
-  further control-surface tuning alone
+  discriminator is trapped-state debug behavior, not further control-surface
+  tuning alone
 
 ## First Ladder Result
 
@@ -443,8 +469,34 @@ Implication:
 - the stronger reopening weight does not keep the interface motion alive after
   the blocked state has formed
 - the six-rung runtime ladder is now exhausted
-- the next run should be the same case with the new code-level probes active,
-  not another runtime-control permutation
+- the next run should be the same case with the tightened low-fluid trap
+  guard, not another runtime-control permutation
+
+### The instrumented rerun sharpens the trapped-state signature
+
+The new deeper probes show why the branch stops reopening even though the broad
+band diagnostics still look alive for one extra step:
+
+- at `Iter 6`, `diracSupportVolumeFraction` and
+  `meaningfulDiracSupportVolumeFraction` are still both `0.923`, and
+  `powerProjectionMultiplier` reaches `0.341`
+- at `Iter 7`, `diracSupportVolumeFraction` is still `0.923`, but
+  `meaningfulDiracSupportVolumeFraction` has already collapsed to
+  `9.624e-04`
+- at the same `Iter 7`, `powerProjectionMultiplier` has already softened to
+  `0.187`, and `fluidFractionRecoveredByShift` is only `1.14e-03`
+- by `Iter 8`, `diracSupportVolumeFraction` itself has collapsed to
+  `9.624e-04`, `powerProjectionMultiplier` is back to `0`, and
+  `fluidFractionRecoveredByShift` is only `2.06e-04`
+
+Implication:
+
+- the usable interface support dies before the older band metric fully admits
+  it
+- the power projection only has a two-iteration window in which it can still
+  act
+- once that window closes, the capped global shift is no longer recovering a
+  meaningful amount of fluid volume
 
 ## Latest-Run Failure Sequence
 
@@ -613,21 +665,45 @@ Interpretation:
 - this is the most important remaining functional blocker once the early
   collapse has happened
 
-### 6. There is at least one diagnostic inconsistency around the collapse event
+### 6. The broad interface-band metric overstates usable support after collapse
 
 In the current snapshot:
 
 - at `Iter 6`, `xhGrayVolumeFraction` already says the design is almost binary
 - but `interfaceBandVolumeFraction` still reports the old high-band value
   through `Iter 7`
-- by `Iter 8`, both fields agree again
+- at `Iter 7`, `meaningfulDiracSupportVolumeFraction` is already only
+  `9.624e-04` even though `interfaceBandVolumeFraction` is still `0.923`
+- by `Iter 8`, all three fields agree that the usable support is essentially
+  gone
 
 Interpretation:
 
-- there may be a multi-step diagnostic lag or ordering issue around the
-  `phiLS -> xh` reconstruction and debug writeout
-- this does not look like the primary optimizer bug, but it is important to
-  keep in mind when interpreting the collapse event
+- the older `|phi| <= epsilon` band metric is too generous for diagnosing the
+  actual reopening window
+- the more important signal is now meaningful `diracPhiLS` support rather than
+  the broad band fraction alone
+- this is not just bookkeeping noise; it changes which late-collapse signals
+  should drive the next code changes
+
+### 7. The first low-fluid trap guard was still too lenient
+
+In the instrumented snapshot:
+
+- `volumeShiftCapped` is already `yes` from the early run onward
+- `V` is already about `-0.322` from `Iter 8` onward
+- `stalledLowFluidCandidate` still remains `0` throughout the current
+  `Iter 1 -> 26` snapshot
+
+Interpretation:
+
+- waiting for `designStepFrozen` is too strict for this LSM branch
+- the trapped regime still takes large capped `phiLS` steps, so step-size
+  freezing is not the right stop criterion
+- that is why the debug guard has now been changed to use
+  low fluid,
+  lost meaningful support, and
+  negligible shift recovery instead
 
 ## Comparison To `turbulenceMMAOpt`
 
@@ -700,16 +776,20 @@ The current ladder position is:
 6. `Hamilton-Jacobi fallback` rerun captured and characterized
 7. `power-reopen probe` rerun captured and characterized
 8. first deeper code probes added to the branch
+9. instrumented `power-reopen probe` rerun captured and characterized
+10. low-fluid trapped-state guard tightened in the debug logic
 
-The next action is to rerun the active `power-reopen probe` case with the new
-instrumentation active and inspect:
+The next action is to rerun the active `power-reopen probe` case with the
+revised trapped-state guard and inspect:
 
 - `lsm.diracSupportCellCount`
 - `lsm.meaningfulDiracSupportCellCount`
 - `lsm.powerProjectionMultiplier`
 - `lsm.fluidFractionPreShift`
 - `lsm.fluidFractionPostShift`
+- `lsm.fluidFractionRecoveredByShift`
 - `convergence.stalledLowFluidCandidate`
 
-Do not jump to larger production-logic surgery until that instrumented rerun is
-archived and reviewed.
+If that rerun still reaches the same support-collapse signature before stopping,
+the next code step should move from logging/stall logic to actual reopening-path
+surgery.

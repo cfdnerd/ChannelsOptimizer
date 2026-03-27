@@ -23,7 +23,7 @@ The goal is to separate six candidate causes:
 As of the current debugging cycle:
 
 - the latest analyzed `optimizerlogs/` snapshot is now the
-  `power-reopen probe` rerun
+  instrumented `power-reopen probe` rerun
 - the profile-fallback bug in
   [createFields.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/createFields.H)
   has been fixed and validated by the post-fix reruns
@@ -51,14 +51,25 @@ As of the current debugging cycle:
   [sensitivity.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/sensitivity.H),
   [gradientOptWrite.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/gradientOptWrite.H),
   and [debugOptimizer.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/debugOptimizer.H)
+- the instrumented rerun confirmed that meaningful `diracPhiLS` support dies at
+  `Iter 7` before the broad band metric catches up, and that
+  `fluidFractionRecoveredByShift` is already only about `1e-03` at that point
+- the temporary low-fluid stalled-infeasible guard in
+  [debugOptimizer.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/debugOptimizer.H)
+  has now been tightened to use
+  low fluid,
+  lost meaningful support, and
+  negligible shift recovery,
+  because the previous step-freeze-based guard never armed in the trapped run
 
 Therefore Experiments 1 through 6 are complete and the runtime ladder itself is
 now exhausted.
 
 Immediate next runs:
 
-1. rerun `power-reopen probe` with the new deeper probes active
-2. only then decide whether production logic needs to change
+1. rerun `power-reopen probe` with the tightened trapped-state guard
+2. if the rerun still falls into the same `Iter 7 -> 8` no-support trap, move
+   next to reopening-path code changes rather than more stop-logic work
 
 ## Run Order
 
@@ -454,14 +465,24 @@ Current status:
   `4.4e-04 -> 1.6e-04`
 - by `Iter 20 -> 22`, `normalVelocityL2` remained only about
   `3.2e-04 -> 1.1e-04`
+- the instrumented rerun now also shows:
+  `meaningfulDiracSupportVolumeFraction = 0.923` at `Iter 6`,
+  then `9.624e-04` already at `Iter 7`, while
+  `interfaceBandVolumeFraction` is still `0.923` there
+- `powerProjectionMultiplier` is only `0.341` at `Iter 6` and `0.187` at
+  `Iter 7`, then already `0` from `Iter 8` onward
+- `fluidFractionRecoveredByShift` falls
+  `3.81e-02 -> 1.14e-03 -> 2.06e-04` across `Iter 6 -> 8`
 
 Interpretation:
 
 - stronger power weighting did not materially delay collapse
 - stronger power weighting did not materially preserve reopening motion
 - the remaining issue lies deeper than simple power-weight tuning
-- the next step is now an instrumented rerun, not a seventh runtime-control
-  permutation
+- the newer support/recovery probes confirm that the trapped state is already
+  effectively unrecoverable by `Iter 7`
+- the next step is now a rerun with the tightened low-fluid trap guard, not a
+  seventh runtime-control permutation
 
 ## Practical Pass/Fail Heuristics
 
@@ -524,6 +545,31 @@ Probes 2 through 5 are now available in the current branch through:
   `lsm.fluidFractionRecoveredByShift`, and
   `convergence.stalledLowFluidCandidate`
 - `gradientOpt.log` lines `projection control` and `fluid shift`
+
+First combined result from the instrumented `power-reopen probe` rerun:
+
+- at `Iter 6`, meaningful support is still broad and
+  `powerProjectionMultiplier` reaches `0.341`, but the shift only recovers
+  about `3.81e-02` of fluid fraction
+- at `Iter 7`, meaningful support has already collapsed to `9.624e-04` while
+  `interfaceBandVolumeFraction` still reads `0.923`, and the shift recovers
+  only `1.14e-03`
+- at `Iter 8`, both the broad band and meaningful support are down near
+  `9.624e-04`, `powerProjectionMultiplier` is `0`, and the shift recovers only
+  `2.06e-04`
+- through the full current `Iter 1 -> 26` snapshot,
+  `stalledLowFluidCandidate` remained `0` under the older guard because the
+  branch never looked step-frozen, even though it was already trapped
+
+That is why the stop logic has now been tightened in
+[debugOptimizer.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/debugOptimizer.H):
+
+- do not wait for `designStepFrozen`
+- instead treat the branch as stalled-infeasible once it is
+  low-fluid,
+  shift-capped,
+  low-support, and
+  recovering almost no fluid volume from the capped shift
 
 First probe result from the `case-respected baseline` rerun:
 

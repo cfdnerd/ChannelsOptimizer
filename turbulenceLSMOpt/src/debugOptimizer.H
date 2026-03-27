@@ -22,7 +22,7 @@ scalar maxAbsPhiChangeLocal = 0;
 scalar l2PhiChangeLocal = 0;
 label xLowerBoundCountLocal = 0;
 label xUpperBoundCountLocal = 0;
-label xMoveLimitHitCountLocal = 0;
+label normalVelocityCapHitCountLocal = 0;
 label xNonFiniteCountLocal = 0;
 scalar drhoLocalMin = 1e300, drhoLocalMax = -1e300;
 scalar fsensLocalMin = 1e300, fsensLocalMax = -1e300, fsensL2Local = 0;
@@ -136,9 +136,9 @@ for(i=0;i<n;i++)
   {
     xUpperBoundCountLocal++;
   }
-  if (absXChange >= 0.999*movlim)
+  if (Foam::mag(normalVelocityRawValue) >= 0.999*maxNormalVelocity)
   {
-    xMoveLimitHitCountLocal++;
+    normalVelocityCapHitCountLocal++;
   }
   if (!std::isfinite(static_cast<double>(xValue)))
   {
@@ -258,7 +258,7 @@ reduce(maxAbsPhiChangeLocal, maxOp<scalar>());
 reduce(l2PhiChangeLocal, sumOp<scalar>());
 reduce(xLowerBoundCountLocal, sumOp<label>());
 reduce(xUpperBoundCountLocal, sumOp<label>());
-reduce(xMoveLimitHitCountLocal, sumOp<label>());
+reduce(normalVelocityCapHitCountLocal, sumOp<label>());
 reduce(xNonFiniteCountLocal, sumOp<label>());
 reduce(drhoLocalMin, minOp<scalar>());
 reduce(drhoLocalMax, maxOp<scalar>());
@@ -570,7 +570,7 @@ if (Pstream::master())
   writeRow("thermal", "meanT="+fmtScalar(MeanT), "maxT="+fmtScalar(maxT));
 
   writeSectionHeader("LSM Diagnostics");
-  writeRow("controls", "moveLimit="+fmtScalar(movlim), "moveHits="+fmtCount(xMoveLimitHitCountLocal));
+  writeRow("controls", "velocityCap="+fmtScalar(maxNormalVelocity), "velCapHits="+fmtCount(normalVelocityCapHitCountLocal));
   writeRow("filter", "baseR="+fmtScalar(filterR), "activeR="+fmtScalar(activeFilterR), "capIter="+fmtCount(lateStageFilterRStartIter), "cap="+fmtScalar(lateStageFilterRCap));
   writeRow("bound clamps", "lower="+fmtCount(xLowerBoundCountLocal), "upper="+fmtCount(xUpperBoundCountLocal), "nonFiniteX="+fmtCount(xNonFiniteCountLocal));
   writeRow("lsm", "mode="+std::string(activeLSMUpdateMode.c_str()), "dt="+fmtScalar(lsmPseudoTimeStep), "gradDev="+fmtScalar(phiGradDeviationMax), "reinit="+fmtScalar(phiReinitResidual));
@@ -721,8 +721,8 @@ if (Pstream::master())
     << "}"
     << ",\"lsm\":{"
       << "\"iteration\":" << opt
-      << ",\"moveLimit\":" << movlim
-      << ",\"moveLimitHitCount\":" << xMoveLimitHitCountLocal
+      << ",\"normalVelocityCap\":" << maxNormalVelocity
+      << ",\"normalVelocityCapHitCount\":" << normalVelocityCapHitCountLocal
       << ",\"lowerBoundCount\":" << xLowerBoundCountLocal
       << ",\"upperBoundCount\":" << xUpperBoundCountLocal
       << ",\"designNonFiniteCount\":" << xNonFiniteCountLocal

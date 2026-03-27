@@ -4,7 +4,6 @@
 #include "turbulentTransportModel.H"
 #include "simpleControl.H"
 #include "fvOptions.H"//
-#include "MMA/MMA.h"
 #include <cstring>
 #include <iomanip>
 #include <sstream>

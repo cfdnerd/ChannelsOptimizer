@@ -35,9 +35,6 @@ lsmSwitches
     useAuxiliaryPDEWallDistance     false;
     useReactionDiffusionLSMUpdate   true;
     usePureHamiltonJacobiFallback   false;
-    useDensityAssistedLSMDebug      false;
-    useTopologicalNucleation        false;
-    useWENO5ForPhiAdvection         false;
     useSussmanReinitialization      true;
 }
 
@@ -90,6 +87,11 @@ adjointControl
 
 convergenceControl
 {
+    optMinIterations                50;
+    optStallWindow                  5;
+    optObjectiveTol                 1e-3;
+    optConstraintTol                1e-3;
+    optStepTol                      5e-3;
     optPowerConstraintWeight        2.0;
     optPowerViolationScaleExponent  1.0;
     optVolumeConstraintWeight       1.0;

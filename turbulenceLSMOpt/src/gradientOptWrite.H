@@ -10,7 +10,7 @@ label rawObjNonFiniteLocal = 0, rawPowNonFiniteLocal = 0, rawVolNonFiniteLocal =
 label filtObjNonFiniteLocal = 0, filtPowNonFiniteLocal = 0, filtVolNonFiniteLocal = 0;
 scalar drhoMinGradLocal = GREAT, drhoMaxGradLocal = -GREAT;
 scalar grayVolumeGradLocal = 0.0, solidVolumeGradLocal = 0.0, fluidVolumeGradLocal = 0.0;
-label lowerBoundGradLocal = 0, upperBoundGradLocal = 0, moveLimitGradLocal = 0;
+label lowerBoundGradLocal = 0, upperBoundGradLocal = 0, velocityCapGradLocal = 0;
 scalar maxAbsDesignChangeLocal = 0.0, l2DesignChangeLocal = 0.0;
 scalar phiMinGradLocal = GREAT, phiMaxGradLocal = -GREAT;
 scalar maxAbsPhiChangeGradLocal = 0.0, l2PhiChangeGradLocal = 0.0;
@@ -82,7 +82,7 @@ forAll(fsensMeanTRaw, i)
   if (xh[i] >= 0.95) fluidVolumeGradLocal += cellVolume;
   if (x[i] <= 1e-8) lowerBoundGradLocal++;
   if (x[i] >= 1.0 - 1e-8) upperBoundGradLocal++;
-  if (Foam::mag(designChange) >= 0.999*movlim) moveLimitGradLocal++;
+  if (Foam::mag(rawVel) >= 0.999*maxNormalVelocity) velocityCapGradLocal++;
   maxAbsDesignChangeLocal = Foam::max(maxAbsDesignChangeLocal, Foam::mag(designChange));
   l2DesignChangeLocal += designChange*designChange;
   maxAbsPhiChangeGradLocal = Foam::max(maxAbsPhiChangeGradLocal, Foam::mag(phiChange));
@@ -144,7 +144,7 @@ reduce(solidVolumeGradLocal, sumOp<scalar>());
 reduce(fluidVolumeGradLocal, sumOp<scalar>());
 reduce(lowerBoundGradLocal, sumOp<label>());
 reduce(upperBoundGradLocal, sumOp<label>());
-reduce(moveLimitGradLocal, sumOp<label>());
+reduce(velocityCapGradLocal, sumOp<label>());
 reduce(maxAbsDesignChangeLocal, maxOp<scalar>());
 reduce(l2DesignChangeLocal, sumOp<scalar>());
 reduce(maxAbsPhiChangeGradLocal, maxOp<scalar>());
@@ -235,7 +235,7 @@ if (Pstream::master())
     << " l2/sqrtN=" << normL2DesignChange << "\n"
     << " bound counts: lower=" << lowerBoundGradLocal
     << " upper=" << upperBoundGradLocal
-    << " moveLimit=" << moveLimitGradLocal << "\n"
+    << " velCap=" << velocityCapGradLocal << "\n"
     << " xh fractions: gray=" << grayVolumeGradLocal/area
     << " solid=" << solidVolumeGradLocal/area
     << " fluid=" << fluidVolumeGradLocal/area << "\n";

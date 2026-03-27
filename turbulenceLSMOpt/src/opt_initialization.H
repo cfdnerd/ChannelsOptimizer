@@ -52,11 +52,6 @@ if (Pstream::master())
     << "# Format: sectioned human-readable report, one block per optimization iteration\n"
     << "\n[Runtime Option Dump]\n"
     << "\n--- optProperties ---\n";
-  writeRuntimeOption("raa0", raa0);
-  writeRuntimeOption("mma_init", mma_init);
-  writeRuntimeOption("mma_dec", mma_dec);
-  writeRuntimeOption("mma_inc", mma_inc);
-  writeRuntimeOption("movlim", movlim);
   writeRuntimeOption("voluse", voluse);
   writeRuntimeOption("PowerDiss0", PowerDiss0);
   writeRuntimeOption("PowerDissMax", PowerDissMax);
@@ -117,9 +112,6 @@ if (Pstream::master())
   writeRuntimeSwitch("useAuxiliaryPDEWallDistance", useAuxiliaryPDEWallDistance);
   writeRuntimeSwitch("useReactionDiffusionLSMUpdate", useReactionDiffusionLSMUpdate);
   writeRuntimeSwitch("usePureHamiltonJacobiFallback", usePureHamiltonJacobiFallback);
-  writeRuntimeSwitch("useDensityAssistedLSMDebug", useDensityAssistedLSMDebug);
-  writeRuntimeSwitch("useTopologicalNucleation", useTopologicalNucleation);
-  writeRuntimeSwitch("useWENO5ForPhiAdvection", useWENO5ForPhiAdvection);
   writeRuntimeSwitch("useSussmanReinitialization", useSussmanReinitialization);
 
   debugLogFile << "\n--- objectiveSwitches ---\n";

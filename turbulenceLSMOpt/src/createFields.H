@@ -22,11 +22,6 @@ IOdictionary tuneOptParameters
    )
 );
 //optimization parameters
-scalar raa0(readScalar(optProperties.lookup("raa0")));
-scalar mma_init(readScalar(optProperties.lookup("mma_init")));
-scalar mma_dec(readScalar(optProperties.lookup("mma_dec")));
-scalar mma_inc(readScalar(optProperties.lookup("mma_inc")));
-scalar movlim(readScalar(optProperties.lookup("movlim")));
 scalar voluse(readScalar(optProperties.lookup("voluse")));
 scalar GeoDim(readScalar(optProperties.lookup("GeoDim")));
 scalar PowerDiss0(readScalar(optProperties.lookup("PowerDiss0")));
@@ -196,18 +191,6 @@ Switch useReactionDiffusionLSMUpdate
 Switch usePureHamiltonJacobiFallback
 (
   lsmSwitches.lookupOrDefault<Switch>("usePureHamiltonJacobiFallback", false)
-);
-Switch useDensityAssistedLSMDebug
-(
-  lsmSwitches.lookupOrDefault<Switch>("useDensityAssistedLSMDebug", false)
-);
-Switch useTopologicalNucleation
-(
-  lsmSwitches.lookupOrDefault<Switch>("useTopologicalNucleation", false)
-);
-Switch useWENO5ForPhiAdvection
-(
-  lsmSwitches.lookupOrDefault<Switch>("useWENO5ForPhiAdvection", false)
 );
 Switch useSussmanReinitialization
 (

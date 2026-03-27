@@ -15,12 +15,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-raa0                1e-5;
 voluse              0.4;
-mma_init            0.3;
-mma_dec             0.7;
-mma_inc             1.2;
-movlim              0.4;
 filterR             10;
 PowerDiss0          8e-4;
 PowerDissMax        10;
@@ -44,11 +39,13 @@ qSingleMin          0.005;
 qContinuationStartIter 1000;
 qContinuationInterval 10;
 qContinuationFactor 0.9;
+
 beta0               0.5;
 betaMax             100;
 betaIncrement       0.12;
 alphaRampEarlySlope 0.08;
 alphaRampLateFactor 1.0;
+
 dAlphaPorosityEps   1e-3;
 epsilonLSM          1.5;
 epsilonLSMMin       0.5;

@@ -49,7 +49,6 @@ int main(int argc, char *argv[])
         #include "AdjointHeat_Tb.H"
         #include "AdjointHeat_Ub.H"
         #include "AdjointFlow_Ua.H"
-        #include "adjointGuard.H"
         #include "costfunction.H"              
         #include "sensitivity.H"
         runTime.write();

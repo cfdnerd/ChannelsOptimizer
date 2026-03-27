@@ -1,4 +1,125 @@
 
+adjointSoftFreezeAppliedPower = false;
+adjointSoftFreezeAppliedHeat = false;
+adjointSoftFreezeScalePower = 1.0;
+adjointSoftFreezeScaleHeat = 1.0;
+adjointPowerToPrimalRatioPreGuard = 0.0;
+adjointHeatToPrimalRatioPreGuard = 0.0;
+
+scalar primalVelocityScaleGuardLocal(0.0);
+scalar adjointPowerMaxGuardLocal(0.0);
+scalar adjointHeatMaxGuardLocal(0.0);
+
+forAll(U, cellI)
+{
+  primalVelocityScaleGuardLocal =
+    Foam::max(primalVelocityScaleGuardLocal, Foam::mag(U[cellI]));
+  adjointPowerMaxGuardLocal =
+    Foam::max(adjointPowerMaxGuardLocal, Foam::mag(Ua[cellI]));
+  adjointHeatMaxGuardLocal =
+    Foam::max(adjointHeatMaxGuardLocal, Foam::mag(Ub[cellI]));
+}
+
+reduce(primalVelocityScaleGuardLocal, maxOp<scalar>());
+reduce(adjointPowerMaxGuardLocal, maxOp<scalar>());
+reduce(adjointHeatMaxGuardLocal, maxOp<scalar>());
+
+const scalar primalVelocityScaleGuard =
+  Foam::max(primalVelocityScaleGuardLocal, scalar(SMALL));
+adjointPowerToPrimalRatioPreGuard =
+  adjointPowerMaxGuardLocal/primalVelocityScaleGuard;
+adjointHeatToPrimalRatioPreGuard =
+  adjointHeatMaxGuardLocal/primalVelocityScaleGuard;
+
+const scalar adjointPowerGrowthFactorPreGuard =
+  previousAdjointPowerToPrimalRatio > SMALL
+  ? adjointPowerToPrimalRatioPreGuard
+   /Foam::max(previousAdjointPowerToPrimalRatio, scalar(SMALL))
+  : scalar(1.0);
+const scalar adjointHeatGrowthFactorPreGuard =
+  previousAdjointHeatToPrimalRatio > SMALL
+  ? adjointHeatToPrimalRatioPreGuard
+   /Foam::max(previousAdjointHeatToPrimalRatio, scalar(SMALL))
+  : scalar(1.0);
+
+const bool adjointPowerNeedsSoftFreeze =
+  previousAdjointPowerToPrimalRatio > SMALL
+  && adjointSoftFreezeRatio > 0.0
+  && adjointSoftFreezeGrowthFactor > 0.0
+  && adjointPowerToPrimalRatioPreGuard >= adjointSoftFreezeRatio
+  && adjointPowerGrowthFactorPreGuard >= adjointSoftFreezeGrowthFactor;
+const bool adjointHeatNeedsSoftFreeze =
+  previousAdjointHeatToPrimalRatio > SMALL
+  && adjointSoftFreezeRatio > 0.0
+  && adjointSoftFreezeGrowthFactor > 0.0
+  && adjointHeatToPrimalRatioPreGuard >= adjointSoftFreezeRatio
+  && adjointHeatGrowthFactorPreGuard >= adjointSoftFreezeGrowthFactor;
+
+const bool adjointPowerNeedsRunawayClamp =
+  adjointPowerToPrimalRatioPreGuard > adjointRunawayRatioLimit
+  && previousAdjointPowerToPrimalRatio > SMALL;
+const bool adjointHeatNeedsRunawayClamp =
+  adjointHeatToPrimalRatioPreGuard > adjointRunawayRatioLimit
+  && previousAdjointHeatToPrimalRatio > SMALL;
+
+if (adjointPowerNeedsSoftFreeze || adjointPowerNeedsRunawayClamp)
+{
+  const scalar targetRatio =
+    Foam::max(previousAdjointPowerToPrimalRatio, scalar(SMALL));
+  adjointSoftFreezeScalePower =
+    Foam::min
+    (
+      scalar(1.0),
+      targetRatio/Foam::max(adjointPowerToPrimalRatioPreGuard, scalar(SMALL))
+    );
+
+  forAll(Ua, cellI)
+  {
+    Ua[cellI] *= adjointSoftFreezeScalePower;
+  }
+  forAll(pa, cellI)
+  {
+    pa[cellI] *= adjointSoftFreezeScalePower;
+  }
+  forAll(phia, faceI)
+  {
+    phia[faceI] *= adjointSoftFreezeScalePower;
+  }
+  Ua.correctBoundaryConditions();
+  pa.correctBoundaryConditions();
+  phia.correctBoundaryConditions();
+  adjointSoftFreezeAppliedPower = adjointSoftFreezeScalePower < 0.999999;
+}
+
+if (adjointHeatNeedsSoftFreeze || adjointHeatNeedsRunawayClamp)
+{
+  const scalar targetRatio =
+    Foam::max(previousAdjointHeatToPrimalRatio, scalar(SMALL));
+  adjointSoftFreezeScaleHeat =
+    Foam::min
+    (
+      scalar(1.0),
+      targetRatio/Foam::max(adjointHeatToPrimalRatioPreGuard, scalar(SMALL))
+    );
+
+  forAll(Ub, cellI)
+  {
+    Ub[cellI] *= adjointSoftFreezeScaleHeat;
+  }
+  forAll(pb, cellI)
+  {
+    pb[cellI] *= adjointSoftFreezeScaleHeat;
+  }
+  forAll(phib, faceI)
+  {
+    phib[faceI] *= adjointSoftFreezeScaleHeat;
+  }
+  Ub.correctBoundaryConditions();
+  pb.correctBoundaryConditions();
+  phib.correctBoundaryConditions();
+  adjointSoftFreezeAppliedHeat = adjointSoftFreezeScaleHeat < 0.999999;
+}
+
 Info<< "sensitivity analysis" << endl;
 
 std::vector<scalar> xOld(n);

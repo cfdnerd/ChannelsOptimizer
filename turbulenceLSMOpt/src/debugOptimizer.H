@@ -481,6 +481,17 @@ if (debugLateStageRefinementActive)
 const scalar maxConstraintViolation = Foam::max(Foam::max(powerConstraintMargin, volumeConstraintMargin), scalar(0));
 const scalar objectiveToVolumeSensitivityRatio = fsensL2/Foam::max(gsensVolL2, SMALL);
 const scalar powerToVolumeSensitivityRatio = gsensPowerL2/Foam::max(gsensVolL2, SMALL);
+const bool designStepFrozen =
+  maxAbsXChangeLocal <= optStepTol
+  && maxAbsXhChangeLocal <= optStepTol;
+const bool volumeShiftCapped =
+  volumePhiShiftCap > SMALL
+  && Foam::mag(volumePhiShiftRaw) > volumePhiShiftCap + SMALL;
+const bool stalledInfeasibleCandidate =
+  opt >= optMinIterations
+  && maxConstraintViolation > optConstraintTol
+  && designStepFrozen
+  && volumeShiftCapped;
 const bool convergenceCandidate =
   opt >= optMinIterations
   &&
@@ -494,13 +505,22 @@ const bool convergenceCandidate =
   &&
   maxAbsXhChangeLocal <= optStepTol;
 optimizerConvergedStreak = convergenceCandidate ? optimizerConvergedStreak + 1 : 0;
+optimizerStalledInfeasibleStreak =
+  stalledInfeasibleCandidate ? optimizerStalledInfeasibleStreak + 1 : 0;
 stopOptimization = optimizerConvergedStreak >= optStallWindow;
 optimizerStopReason = stopOptimization ? word("converged") : word("running");
 if (adjointRunaway && stopOnAdjointRunaway)
 {
   stopOptimization = true;
   optimizerConvergedStreak = 0;
+  optimizerStalledInfeasibleStreak = 0;
   optimizerStopReason = word("adjointRunaway");
+}
+else if (optimizerStalledInfeasibleStreak >= optStallWindow)
+{
+  stopOptimization = true;
+  optimizerConvergedStreak = 0;
+  optimizerStopReason = word("stalledInfeasible");
 }
 
 if (Pstream::master())
@@ -578,6 +598,7 @@ if (Pstream::master())
   writeRow("Health", std::string("Design=")+designHealth, std::string("Constr=")+constraintHealth, std::string("Sens=")+sensitivityHealth, std::string("Solver=")+solverHealth);
   writeRow("Convergence", "objRel="+fmtScalar(objectiveRelativeDelta), "maxViol="+fmtScalar(maxConstraintViolation), "phiStep="+fmtScalar(maxAbsPhiChangeLocal), "streak="+fmtCount(optimizerConvergedStreak)+"/"+fmtCount(optStallWindow));
   writeRow("Stop", "candidate="+std::string(convergenceCandidate ? "yes" : "no"), "stop="+std::string(stopOptimization ? "yes" : "no"), "reason="+std::string(optimizerStopReason.c_str()));
+  writeRow("Stall Guard", "designFrozen="+std::string(designStepFrozen ? "yes" : "no"), "shiftCapped="+std::string(volumeShiftCapped ? "yes" : "no"), "streak="+fmtCount(optimizerStalledInfeasibleStreak)+"/"+fmtCount(optStallWindow));
 
   writeSectionHeader("Design Diagnostics");
   writeRow("x bounds", "min="+fmtScalar(xLocalMin), "max="+fmtScalar(xLocalMax), "mean="+fmtScalar(xMean));
@@ -703,8 +724,12 @@ if (Pstream::master())
       << ",\"xhStepL2OverSqrtN\":" << normalizedL2XhChange
       << ",\"phiStepL2OverSqrtN\":" << normalizedL2PhiChange
       << ",\"streak\":" << optimizerConvergedStreak
+      << ",\"stalledInfeasibleStreak\":" << optimizerStalledInfeasibleStreak
       << ",\"stallWindow\":" << optStallWindow
       << ",\"candidate\":" << (convergenceCandidate ? 1 : 0)
+      << ",\"designStepFrozen\":" << (designStepFrozen ? 1 : 0)
+      << ",\"volumeShiftCapped\":" << (volumeShiftCapped ? 1 : 0)
+      << ",\"stalledInfeasibleCandidate\":" << (stalledInfeasibleCandidate ? 1 : 0)
       << ",\"stop\":" << (stopOptimization ? 1 : 0)
       << ",\"reason\":\"" << optimizerStopReason << "\""
     << "}"

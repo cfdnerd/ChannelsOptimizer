@@ -350,6 +350,7 @@ scalar previousObjectiveValue(0);
 bool hasPreviousObjectiveValue(false);
 bool stopOptimization(false);
 label optimizerConvergedStreak(0);
+label optimizerStalledInfeasibleStreak(0);
 word optimizerStopReason("running");
 bool continuationHealthOk(true);
 scalar previousGrayVolumeFractionForContinuation(1.0);

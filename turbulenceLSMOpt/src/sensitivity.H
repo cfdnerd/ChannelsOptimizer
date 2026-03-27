@@ -333,14 +333,18 @@ if (lowerFraction <= voluse && upperFraction >= voluse)
 volumePhiShiftRaw = phiVolumeShift;
 const scalar baseVolumePhiShiftCap =
   maxVolumePhiShiftFactor*Foam::max(epsilonLSMActive, scalar(SMALL));
+const scalar aggressiveVolumePhiShiftCap =
+  0.25*Foam::max(epsilonLSMActive, scalar(SMALL));
 volumePhiShiftCap = baseVolumePhiShiftCap;
 
-// When the design has collapsed far away from the requested fluid fraction,
-// use the bisection-computed shift directly instead of freezing on a tiny cap.
+// Large one-shot global phi shifts create the two-state flip-flop seen in the
+// optimizer logs, so keep the correction bounded even when the volume error is
+// large enough to tempt an aggressive reset.
 if (Foam::mag(V) > 0.10)
 {
-  volumePhiShiftCap = Foam::max(volumePhiShiftCap, Foam::mag(volumePhiShiftRaw));
+  volumePhiShiftCap = Foam::max(volumePhiShiftCap, aggressiveVolumePhiShiftCap);
 }
+volumePhiShiftCap = Foam::min(volumePhiShiftCap, aggressiveVolumePhiShiftCap);
 
 volumePhiShiftApplied =
   Foam::max(Foam::min(volumePhiShiftRaw, volumePhiShiftCap), -volumePhiShiftCap);

@@ -84,6 +84,7 @@ if (Pstream::master())
   writeRuntimeOption("lsmVelocityRadius", lsmVelocityRadius);
   writeRuntimeOption("lsmCFL", lsmCFL);
   writeRuntimeOption("maxNormalVelocity", maxNormalVelocity);
+  writeRuntimeOption("maxVolumePhiShiftFactor", maxVolumePhiShiftFactor);
   writeRuntimeOption("maxTurbulentViscosity", maxTurbulentViscosity);
   writeRuntimeOption("reinitInterval", reinitInterval);
   writeRuntimeOption("reinitPseudoSteps", reinitPseudoSteps);
@@ -358,6 +359,9 @@ scalar previousAdjointHeatToPrimalRatio(0.0);
 scalar lsmPseudoTimeStep(0.0);
 scalar phiGradDeviationMax(0.0);
 scalar phiReinitResidual(0.0);
+scalar volumeProjectionMultiplier(0.0);
+scalar volumePhiShiftRaw(0.0);
+scalar volumePhiShiftApplied(0.0);
 const scalar adjointRunawayRatioLimit(1e6);
 word activeObjectiveLabel("MeanT");
 word activeWallDistanceMode(useInterfaceDerivedWallDistance ? "interfacePhi" : (useAuxiliaryPDEWallDistance ? "interfacePDE" : "meshWave"));

@@ -87,6 +87,10 @@ scalar maxNormalVelocity
 (
   optProperties.lookupOrDefault<scalar>("maxNormalVelocity", 0.25)
 );
+scalar maxVolumePhiShiftFactor
+(
+  optProperties.lookupOrDefault<scalar>("maxVolumePhiShiftFactor", 0.10)
+);
 scalar maxTurbulentViscosity
 (
   optProperties.lookupOrDefault<scalar>("maxTurbulentViscosity", 1e-3)

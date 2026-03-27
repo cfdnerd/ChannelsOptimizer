@@ -223,6 +223,10 @@ if (Pstream::master())
     << " l2=" << rawVelL2Grad << "\n"
     << " velocity reg: min=" << regVelMinGradLocal << " max=" << regVelMaxGradLocal
     << " l2=" << regVelL2Grad << "\n"
+    << " volume control: proj=" << volumeProjectionMultiplier
+    << " phiShiftRaw=" << volumePhiShiftRaw
+    << " phiShiftApplied=" << volumePhiShiftApplied
+    << " phiShiftCap=" << maxVolumePhiShiftFactor*epsilonLSMActive << "\n"
     << " drho: min=" << drhoMinGradLocal << " max=" << drhoMaxGradLocal << "\n"
     << " phiLS: min=" << phiMinGradLocal << " max=" << phiMaxGradLocal
     << " phiStepL2/sqrtN=" << normL2PhiChange

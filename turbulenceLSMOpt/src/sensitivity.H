@@ -211,9 +211,15 @@ if (lowerFraction <= voluse && upperFraction >= voluse)
   }
 }
 
+volumePhiShiftRaw = phiVolumeShift;
+const scalar volumePhiShiftCap =
+  maxVolumePhiShiftFactor*Foam::max(epsilonLSMActive, scalar(SMALL));
+volumePhiShiftApplied =
+  Foam::max(Foam::min(volumePhiShiftRaw, volumePhiShiftCap), -volumePhiShiftCap);
+
 forAll(phiLS, cellI)
 {
-  scalar phiValue = phiLS[cellI] + phiVolumeShift;
+  scalar phiValue = phiLS[cellI] + volumePhiShiftApplied;
   if (!std::isfinite(static_cast<double>(phiValue)))
   {
     phiValue = 0.0;

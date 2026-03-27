@@ -600,6 +600,7 @@ if (Pstream::master())
   writeRow("filter", "baseR="+fmtScalar(filterR), "activeR="+fmtScalar(activeFilterR), "capIter="+fmtCount(lateStageFilterRStartIter), "cap="+fmtScalar(lateStageFilterRCap));
   writeRow("bound clamps", "lower="+fmtCount(xLowerBoundCountLocal), "upper="+fmtCount(xUpperBoundCountLocal), "nonFiniteX="+fmtCount(xNonFiniteCountLocal));
   writeRow("lsm", "mode="+std::string(activeLSMUpdateMode.c_str()), "dt="+fmtScalar(lsmPseudoTimeStep), "gradDev="+fmtScalar(phiGradDeviationMax), "reinit="+fmtScalar(phiReinitResidual));
+  writeRow("volume ctl", "proj="+fmtScalar(volumeProjectionMultiplier), "shiftRaw="+fmtScalar(volumePhiShiftRaw), "shiftApply="+fmtScalar(volumePhiShiftApplied), "shiftCap="+fmtScalar(maxVolumePhiShiftFactor*epsilonLSMActive));
 
   writeSectionHeader("Sensitivity Diagnostics");
   writeRow("objective", "min="+fmtScalar(fsensLocalMin), "max="+fmtScalar(fsensLocalMax), "l2="+fmtScalar(fsensL2), "nonFinite="+fmtCount(fsensNonFiniteCountLocal));
@@ -609,6 +610,7 @@ if (Pstream::master())
   writeRow("pow->phi", "min="+fmtScalar(interfacePowMinLocal), "max="+fmtScalar(interfacePowMaxLocal), "l2="+fmtScalar(interfacePowL2), "nonFinite="+fmtCount(interfacePowNonFiniteCountLocal));
   writeRow("vol->phi", "min="+fmtScalar(interfaceVolMinLocal), "max="+fmtScalar(interfaceVolMaxLocal), "l2="+fmtScalar(interfaceVolL2), "nonFinite="+fmtCount(interfaceVolNonFiniteCountLocal));
   writeRow("velocity", "rawL2="+fmtScalar(normalVelocityRawL2), "regL2="+fmtScalar(normalVelocityL2), "rawMax="+fmtScalar(normalVelocityRawMaxLocal), "regMax="+fmtScalar(normalVelocityMaxLocal));
+  writeRow("volume corr", "proj="+fmtScalar(volumeProjectionMultiplier), "shiftRaw="+fmtScalar(volumePhiShiftRaw), "shiftApply="+fmtScalar(volumePhiShiftApplied));
   writeRow("ratios", "obj/vol="+fmtScalar(objectiveToVolumeSensitivityRatio), "power/vol="+fmtScalar(powerToVolumeSensitivityRatio));
 
   writeSectionHeader("Solver Diagnostics");
@@ -757,6 +759,10 @@ if (Pstream::master())
       << ",\"pseudoDt\":" << lsmPseudoTimeStep
       << ",\"phiGradDeviationMax\":" << phiGradDeviationMax
       << ",\"phiReinitResidual\":" << phiReinitResidual
+      << ",\"volumeProjectionMultiplier\":" << volumeProjectionMultiplier
+      << ",\"volumePhiShiftRaw\":" << volumePhiShiftRaw
+      << ",\"volumePhiShiftApplied\":" << volumePhiShiftApplied
+      << ",\"volumePhiShiftCap\":" << maxVolumePhiShiftFactor*epsilonLSMActive
     << "}"
     << ",\"sensitivity\":{"
       << "\"objectiveMin\":" << fsensLocalMin
@@ -782,6 +788,7 @@ if (Pstream::master())
       << ",\"interfaceVolumeL2\":" << interfaceVolL2
       << ",\"normalVelocityRawL2\":" << normalVelocityRawL2
       << ",\"normalVelocityL2\":" << normalVelocityL2
+      << ",\"volumeProjectionMultiplier\":" << volumeProjectionMultiplier
       << ",\"objectiveToVolumeL2Ratio\":" << objectiveToVolumeSensitivityRatio
       << ",\"powerToVolumeL2Ratio\":" << powerToVolumeSensitivityRatio
     << "}"

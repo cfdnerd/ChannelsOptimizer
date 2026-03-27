@@ -15,6 +15,15 @@ scalar grayVolumeLocal = 0;
 scalar solidVolumeLocal = 0;
 scalar fluidVolumeLocal = 0;
 scalar interfaceBandVolumeLocal = 0;
+scalar phiOverEpsNegFarVolumeLocal = 0;
+scalar phiOverEpsNegOuterVolumeLocal = 0;
+scalar phiOverEpsNegShoulderVolumeLocal = 0;
+scalar phiOverEpsNegInnerVolumeLocal = 0;
+scalar phiOverEpsCoreVolumeLocal = 0;
+scalar phiOverEpsPosInnerVolumeLocal = 0;
+scalar phiOverEpsPosShoulderVolumeLocal = 0;
+scalar phiOverEpsPosOuterVolumeLocal = 0;
+scalar phiOverEpsPosFarVolumeLocal = 0;
 scalar maxAbsXChangeLocal = 0;
 scalar l2XChangeLocal = 0;
 scalar maxAbsXhChangeLocal = 0;
@@ -77,6 +86,8 @@ for(i=0;i<n;i++)
   const scalar interfaceVolValue = interfaceVolumeSensitivity[i];
   const scalar normalVelocityRawValue = normalVelocityRaw[i];
   const scalar normalVelocityValue = normalVelocity[i];
+  const scalar phiOverEpsValue =
+    phiValue/Foam::max(epsilonLSMActive, scalar(SMALL));
 
   xLocalMin = Foam::min(xLocalMin, xValue);
   xLocalMax = Foam::max(xLocalMax, xValue);
@@ -116,6 +127,42 @@ for(i=0;i<n;i++)
   if (Foam::mag(phiValue) <= epsilonLSMActive)
   {
     interfaceBandVolumeLocal += cellVolume;
+  }
+  if (phiOverEpsValue <= -4.0)
+  {
+    phiOverEpsNegFarVolumeLocal += cellVolume;
+  }
+  else if (phiOverEpsValue <= -2.0)
+  {
+    phiOverEpsNegOuterVolumeLocal += cellVolume;
+  }
+  else if (phiOverEpsValue <= -1.0)
+  {
+    phiOverEpsNegShoulderVolumeLocal += cellVolume;
+  }
+  else if (phiOverEpsValue <= -0.5)
+  {
+    phiOverEpsNegInnerVolumeLocal += cellVolume;
+  }
+  else if (phiOverEpsValue <= 0.5)
+  {
+    phiOverEpsCoreVolumeLocal += cellVolume;
+  }
+  else if (phiOverEpsValue <= 1.0)
+  {
+    phiOverEpsPosInnerVolumeLocal += cellVolume;
+  }
+  else if (phiOverEpsValue <= 2.0)
+  {
+    phiOverEpsPosShoulderVolumeLocal += cellVolume;
+  }
+  else if (phiOverEpsValue <= 4.0)
+  {
+    phiOverEpsPosOuterVolumeLocal += cellVolume;
+  }
+  else
+  {
+    phiOverEpsPosFarVolumeLocal += cellVolume;
   }
   if (xhValue <= 0.05)
   {
@@ -253,6 +300,15 @@ reduce(grayVolumeLocal, sumOp<scalar>());
 reduce(solidVolumeLocal, sumOp<scalar>());
 reduce(fluidVolumeLocal, sumOp<scalar>());
 reduce(interfaceBandVolumeLocal, sumOp<scalar>());
+reduce(phiOverEpsNegFarVolumeLocal, sumOp<scalar>());
+reduce(phiOverEpsNegOuterVolumeLocal, sumOp<scalar>());
+reduce(phiOverEpsNegShoulderVolumeLocal, sumOp<scalar>());
+reduce(phiOverEpsNegInnerVolumeLocal, sumOp<scalar>());
+reduce(phiOverEpsCoreVolumeLocal, sumOp<scalar>());
+reduce(phiOverEpsPosInnerVolumeLocal, sumOp<scalar>());
+reduce(phiOverEpsPosShoulderVolumeLocal, sumOp<scalar>());
+reduce(phiOverEpsPosOuterVolumeLocal, sumOp<scalar>());
+reduce(phiOverEpsPosFarVolumeLocal, sumOp<scalar>());
 reduce(UMeanMagLocal, sumOp<scalar>());
 reduce(UaMeanMagLocal, sumOp<scalar>());
 reduce(UbMeanMagLocal, sumOp<scalar>());
@@ -309,6 +365,23 @@ const scalar grayVolumeFraction = grayVolumeLocal/area;
 const scalar solidVolumeFraction = solidVolumeLocal/area;
 const scalar fluidVolumeFraction = fluidVolumeLocal/area;
 const scalar interfaceBandVolumeFraction = interfaceBandVolumeLocal/area;
+const scalar phiOverEpsNegFarFraction = phiOverEpsNegFarVolumeLocal/area;
+const scalar phiOverEpsNegOuterFraction = phiOverEpsNegOuterVolumeLocal/area;
+const scalar phiOverEpsNegShoulderFraction = phiOverEpsNegShoulderVolumeLocal/area;
+const scalar phiOverEpsNegInnerFraction = phiOverEpsNegInnerVolumeLocal/area;
+const scalar phiOverEpsCoreFraction = phiOverEpsCoreVolumeLocal/area;
+const scalar phiOverEpsPosInnerFraction = phiOverEpsPosInnerVolumeLocal/area;
+const scalar phiOverEpsPosShoulderFraction = phiOverEpsPosShoulderVolumeLocal/area;
+const scalar phiOverEpsPosOuterFraction = phiOverEpsPosOuterVolumeLocal/area;
+const scalar phiOverEpsPosFarFraction = phiOverEpsPosFarVolumeLocal/area;
+const scalar phiOverEpsShoulderFraction =
+  phiOverEpsNegShoulderFraction + phiOverEpsPosShoulderFraction;
+const scalar phiOverEpsOuterFraction =
+  phiOverEpsNegOuterFraction + phiOverEpsPosOuterFraction;
+const scalar phiOverEpsFarFraction =
+  phiOverEpsNegFarFraction + phiOverEpsPosFarFraction;
+const scalar phiOverEpsAboveTwoFraction =
+  phiOverEpsOuterFraction + phiOverEpsFarFraction;
 const scalar l2XChange = std::sqrt(l2XChangeLocal);
 const scalar l2XhChange = std::sqrt(l2XhChangeLocal);
 const scalar l2PhiChange = std::sqrt(l2PhiChangeLocal);
@@ -607,6 +680,10 @@ if (Pstream::master())
   writeRow("phi bounds", "min="+fmtScalar(phiLocalMin), "max="+fmtScalar(phiLocalMax), "mean="+fmtScalar(phiMean), "eps="+fmtScalar(epsilonLSMActive));
   writeRow("xh phases", "gray="+fmtScalar(grayVolumeFraction), "solid="+fmtScalar(solidVolumeFraction), "fluid="+fmtScalar(fluidVolumeFraction));
   writeRow("phi band", "|phi|<=eps="+fmtScalar(interfaceBandVolumeFraction));
+  writeRow("phi/eps agg", "|r|<=0.5="+fmtScalar(phiOverEpsCoreFraction), "|r|<=1="+fmtScalar(interfaceBandVolumeFraction), "1<|r|<=2="+fmtScalar(phiOverEpsShoulderFraction), "|r|>2="+fmtScalar(phiOverEpsAboveTwoFraction));
+  writeRow("phi/eps bins1", "<=-4="+fmtScalar(phiOverEpsNegFarFraction), "(-4,-2]="+fmtScalar(phiOverEpsNegOuterFraction), "(-2,-1]="+fmtScalar(phiOverEpsNegShoulderFraction), "(-1,-0.5]="+fmtScalar(phiOverEpsNegInnerFraction));
+  writeRow("phi/eps bins2", "(-0.5,0.5]="+fmtScalar(phiOverEpsCoreFraction), "(0.5,1]="+fmtScalar(phiOverEpsPosInnerFraction), "(1,2]="+fmtScalar(phiOverEpsPosShoulderFraction), "(2,4]="+fmtScalar(phiOverEpsPosOuterFraction));
+  writeRow("phi/eps bins3", ">4="+fmtScalar(phiOverEpsPosFarFraction), "|r| in (2,4]="+fmtScalar(phiOverEpsOuterFraction));
   writeRow("x step", "max="+fmtScalar(maxAbsXChangeLocal), "l2="+fmtScalar(l2XChange), "l2/sqrtN="+fmtScalar(normalizedL2XChange));
   writeRow("xh step", "max="+fmtScalar(maxAbsXhChangeLocal), "l2="+fmtScalar(l2XhChange), "l2/sqrtN="+fmtScalar(normalizedL2XhChange));
   writeRow("phi step", "max="+fmtScalar(maxAbsPhiChangeLocal), "l2="+fmtScalar(l2PhiChange), "l2/sqrtN="+fmtScalar(normalizedL2PhiChange));
@@ -750,6 +827,22 @@ if (Pstream::master())
       << ",\"xhSolidVolumeFraction\":" << solidVolumeFraction
       << ",\"xhFluidVolumeFraction\":" << fluidVolumeFraction
       << ",\"interfaceBandVolumeFraction\":" << interfaceBandVolumeFraction
+      << ",\"phiOverEpsCoreFraction\":" << phiOverEpsCoreFraction
+      << ",\"phiOverEpsShoulderFraction\":" << phiOverEpsShoulderFraction
+      << ",\"phiOverEpsOuterFraction\":" << phiOverEpsOuterFraction
+      << ",\"phiOverEpsFarFraction\":" << phiOverEpsFarFraction
+      << ",\"phiOverEpsAboveTwoFraction\":" << phiOverEpsAboveTwoFraction
+      << ",\"phiOverEpsHistogram\":{"
+        << "\"negFar\":" << phiOverEpsNegFarFraction
+        << ",\"negOuter\":" << phiOverEpsNegOuterFraction
+        << ",\"negShoulder\":" << phiOverEpsNegShoulderFraction
+        << ",\"negInner\":" << phiOverEpsNegInnerFraction
+        << ",\"core\":" << phiOverEpsCoreFraction
+        << ",\"posInner\":" << phiOverEpsPosInnerFraction
+        << ",\"posShoulder\":" << phiOverEpsPosShoulderFraction
+        << ",\"posOuter\":" << phiOverEpsPosOuterFraction
+        << ",\"posFar\":" << phiOverEpsPosFarFraction
+      << "}"
       << ",\"xStepMax\":" << maxAbsXChangeLocal
       << ",\"xStepL2\":" << l2XChange
       << ",\"xhStepMax\":" << maxAbsXhChangeLocal

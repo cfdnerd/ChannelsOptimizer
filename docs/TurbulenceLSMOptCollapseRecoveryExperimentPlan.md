@@ -328,7 +328,17 @@ next cycle should add temporary code probes:
 5. temporarily flag large negative `V` as a stall condition in the debug logic,
    since the current optimizer constraint treats low-fluid states too leniently
 
-Those probes should be added only after the runtime ladder has been exhausted.
+Probe 1 is now available in the current branch through:
+
+- `debugOptimizer.log` rows `phi/eps agg`, `phi/eps bins1`, `phi/eps bins2`,
+  and `phi/eps bins3`
+- `debugOptimizer.jsonl` fields `design.phiOverEpsCoreFraction`,
+  `design.phiOverEpsShoulderFraction`,
+  `design.phiOverEpsAboveTwoFraction`, and
+  `design.phiOverEpsHistogram`
+
+The remaining probes should still be added only after the runtime ladder has
+been exhausted.
 
 ## Current Snapshot Reference Values
 

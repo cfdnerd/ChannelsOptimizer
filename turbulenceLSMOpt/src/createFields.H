@@ -572,6 +572,13 @@ if (useRobustMultiCaseObjective)
     << "useRobustMultiCaseObjective=true is not implemented yet for turbulenceLSMOpt."
     << exit(FatalError);
 }
+if (GeoDim <= 0.0)
+{
+  FatalErrorInFunction
+    << "optProperties.GeoDim must be > 0. Found "
+    << GeoDim
+    << exit(FatalError);
+}
 if (epsilonLSM <= 0.0 || epsilonLSMMin <= 0.0 || epsilonLSMMin > epsilonLSM)
 {
   FatalErrorInFunction

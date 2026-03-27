@@ -361,7 +361,7 @@ word activeWallDistanceMode(useInterfaceDerivedWallDistance ? "interfacePhi" : (
 word activeTurbulenceModelMode("kEpsilon");
 word activeLSMUpdateMode(useReactionDiffusionLSMUpdate ? "reactionDiffusion" : "hamiltonJacobi");
 scalar activeFilterR(lsmVelocityRadius);
-double len=std::pow(area/N, 1.0/3);
+double len=std::pow(area/N, 1.0/GeoDim);
 b.value()=1.0/(activeFilterR*len/3.464)/(activeFilterR*len/3.464);
 del=beta0;
 std::vector<double> gx(2, 0.0);

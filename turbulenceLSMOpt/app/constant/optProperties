@@ -55,6 +55,7 @@ epsilonLSMMin       0.5;
 lsmVelocityRadius   10;
 lsmCFL              0.2;
 maxNormalVelocity   0.25;
+maxTurbulentViscosity 1e-3;
 reinitInterval      5;
 reinitPseudoSteps   5;
 reinitTolerance     0.10;

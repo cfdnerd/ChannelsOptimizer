@@ -19,13 +19,27 @@ if (DDHS)
 }
 
 turbulentDT = dimensionedScalar("zero", DT.dimensions(), 0.0);
-if (useTurbulentThermalDiffusivity)
 {
-  turbulentDT = turbulence->nut()/Foam::max(Prt, SMALL);
-}
-DT = (ks + (kf - ks)*xh*(1.0 + qKappaActive)/(qKappaActive + xh))/rhoCp + turbulentDT;
+  volScalarField limitedNut(turbulence->nut());
+  forAll(limitedNut, cellI)
+  {
+    scalar nutValue = limitedNut[cellI];
+    if (!std::isfinite(static_cast<double>(nutValue)))
+    {
+      nutValue = 0.0;
+    }
+    limitedNut[cellI] = Foam::min(Foam::max(nutValue, scalar(0.0)), maxTurbulentViscosity);
+  }
+  limitedNut.correctBoundaryConditions();
 
-nuEffAdjoint = nu + turbulence->nut();
+  if (useTurbulentThermalDiffusivity)
+  {
+    turbulentDT = limitedNut/Foam::max(Prt, SMALL);
+  }
+  DT = (ks + (kf - ks)*xh*(1.0 + qKappaActive)/(qKappaActive + xh))/rhoCp + turbulentDT;
+
+  nuEffAdjoint = nu + limitedNut;
+}
 alpha.correctBoundaryConditions();
 turbulenceSinkCoeff.correctBoundaryConditions();
 thermalSourceField.correctBoundaryConditions();

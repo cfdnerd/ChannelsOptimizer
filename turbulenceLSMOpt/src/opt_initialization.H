@@ -89,6 +89,7 @@ if (Pstream::master())
   writeRuntimeOption("lsmVelocityRadius", lsmVelocityRadius);
   writeRuntimeOption("lsmCFL", lsmCFL);
   writeRuntimeOption("maxNormalVelocity", maxNormalVelocity);
+  writeRuntimeOption("maxTurbulentViscosity", maxTurbulentViscosity);
   writeRuntimeOption("reinitInterval", reinitInterval);
   writeRuntimeOption("reinitPseudoSteps", reinitPseudoSteps);
   writeRuntimeOption("reinitTolerance", reinitTolerance);

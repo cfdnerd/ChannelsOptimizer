@@ -92,6 +92,10 @@ scalar maxNormalVelocity
 (
   optProperties.lookupOrDefault<scalar>("maxNormalVelocity", 0.25)
 );
+scalar maxTurbulentViscosity
+(
+  optProperties.lookupOrDefault<scalar>("maxTurbulentViscosity", 1e-3)
+);
 label reinitInterval
 (
   optProperties.lookupOrDefault<label>("reinitInterval", 5)
@@ -611,6 +615,13 @@ if (maxNormalVelocity <= 0.0)
   FatalErrorInFunction
     << "optProperties.maxNormalVelocity must be > 0. Found "
     << maxNormalVelocity
+    << exit(FatalError);
+}
+if (maxTurbulentViscosity <= 0.0)
+{
+  FatalErrorInFunction
+    << "optProperties.maxTurbulentViscosity must be > 0. Found "
+    << maxTurbulentViscosity
     << exit(FatalError);
 }
 if (reinitInterval < 0 || reinitPseudoSteps <= 0 || reinitTolerance < 0.0)

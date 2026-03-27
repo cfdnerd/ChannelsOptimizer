@@ -362,6 +362,7 @@ scalar phiReinitResidual(0.0);
 scalar volumeProjectionMultiplier(0.0);
 scalar volumePhiShiftRaw(0.0);
 scalar volumePhiShiftApplied(0.0);
+scalar volumePhiShiftCap(0.0);
 const scalar adjointRunawayRatioLimit(1e6);
 word activeObjectiveLabel("MeanT");
 word activeWallDistanceMode(useInterfaceDerivedWallDistance ? "interfacePhi" : (useAuxiliaryPDEWallDistance ? "interfacePDE" : "meshWave"));

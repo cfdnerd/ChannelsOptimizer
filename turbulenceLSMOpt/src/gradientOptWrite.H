@@ -226,7 +226,7 @@ if (Pstream::master())
     << " volume control: proj=" << volumeProjectionMultiplier
     << " phiShiftRaw=" << volumePhiShiftRaw
     << " phiShiftApplied=" << volumePhiShiftApplied
-    << " phiShiftCap=" << maxVolumePhiShiftFactor*epsilonLSMActive << "\n"
+    << " phiShiftCap=" << volumePhiShiftCap << "\n"
     << " drho: min=" << drhoMinGradLocal << " max=" << drhoMaxGradLocal << "\n"
     << " phiLS: min=" << phiMinGradLocal << " max=" << phiMaxGradLocal
     << " phiStepL2/sqrtN=" << normL2PhiChange

@@ -608,7 +608,7 @@ if (Pstream::master())
   writeRow("filter", "baseR="+fmtScalar(filterR), "activeR="+fmtScalar(activeFilterR), "capIter="+fmtCount(lateStageFilterRStartIter), "cap="+fmtScalar(lateStageFilterRCap));
   writeRow("bound clamps", "lower="+fmtCount(xLowerBoundCountLocal), "upper="+fmtCount(xUpperBoundCountLocal), "nonFiniteX="+fmtCount(xNonFiniteCountLocal));
   writeRow("lsm", "mode="+std::string(activeLSMUpdateMode.c_str()), "dt="+fmtScalar(lsmPseudoTimeStep), "gradDev="+fmtScalar(phiGradDeviationMax), "reinit="+fmtScalar(phiReinitResidual));
-  writeRow("volume ctl", "proj="+fmtScalar(volumeProjectionMultiplier), "shiftRaw="+fmtScalar(volumePhiShiftRaw), "shiftApply="+fmtScalar(volumePhiShiftApplied), "shiftCap="+fmtScalar(maxVolumePhiShiftFactor*epsilonLSMActive));
+  writeRow("volume ctl", "proj="+fmtScalar(volumeProjectionMultiplier), "shiftRaw="+fmtScalar(volumePhiShiftRaw), "shiftApply="+fmtScalar(volumePhiShiftApplied), "shiftCap="+fmtScalar(volumePhiShiftCap));
 
   writeSectionHeader("Sensitivity Diagnostics");
   writeRow("objective", "min="+fmtScalar(fsensLocalMin), "max="+fmtScalar(fsensLocalMax), "l2="+fmtScalar(fsensL2), "nonFinite="+fmtCount(fsensNonFiniteCountLocal));
@@ -771,7 +771,7 @@ if (Pstream::master())
       << ",\"volumeProjectionMultiplier\":" << volumeProjectionMultiplier
       << ",\"volumePhiShiftRaw\":" << volumePhiShiftRaw
       << ",\"volumePhiShiftApplied\":" << volumePhiShiftApplied
-      << ",\"volumePhiShiftCap\":" << maxVolumePhiShiftFactor*epsilonLSMActive
+      << ",\"volumePhiShiftCap\":" << volumePhiShiftCap
     << "}"
     << ",\"sensitivity\":{"
       << "\"objectiveMin\":" << fsensLocalMin

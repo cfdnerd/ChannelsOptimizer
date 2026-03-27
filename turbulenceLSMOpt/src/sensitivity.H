@@ -212,8 +212,17 @@ if (lowerFraction <= voluse && upperFraction >= voluse)
 }
 
 volumePhiShiftRaw = phiVolumeShift;
-const scalar volumePhiShiftCap =
+const scalar baseVolumePhiShiftCap =
   maxVolumePhiShiftFactor*Foam::max(epsilonLSMActive, scalar(SMALL));
+volumePhiShiftCap = baseVolumePhiShiftCap;
+
+// When the design has collapsed far away from the requested fluid fraction,
+// use the bisection-computed shift directly instead of freezing on a tiny cap.
+if (Foam::mag(V) > 0.10)
+{
+  volumePhiShiftCap = Foam::max(volumePhiShiftCap, Foam::mag(volumePhiShiftRaw));
+}
+
 volumePhiShiftApplied =
   Foam::max(Foam::min(volumePhiShiftRaw, volumePhiShiftCap), -volumePhiShiftCap);
 

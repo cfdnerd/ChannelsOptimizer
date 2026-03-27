@@ -1,7 +1,6 @@
 scalar xLocalMin = 1e300, xLocalMax = -1e300;
 scalar xpLocalMin = 1e300, xpLocalMax = -1e300;
 scalar xhLocalMin = 1e300, xhLocalMax = -1e300;
-scalar phiLocalMin = 1e300, phiLocalMax = -1e300;
 scalar alphaLocalMin = 1e300, alphaLocalMax = -1e300;
 scalar DTLocalMin = 1e300, DTLocalMax = -1e300;
 scalar TLocalMin = 1e300, TLocalMax = -1e300;
@@ -10,34 +9,17 @@ scalar paLocalMin = 1e300, paLocalMax = -1e300;
 scalar pbLocalMin = 1e300, pbLocalMax = -1e300;
 scalar xVolumeSumLocal = 0;
 scalar xhVolumeSumLocal = 0;
-scalar phiVolumeSumLocal = 0;
 scalar grayVolumeLocal = 0;
 scalar solidVolumeLocal = 0;
 scalar fluidVolumeLocal = 0;
-scalar interfaceBandVolumeLocal = 0;
-scalar diracSupportVolumeLocal = 0;
-scalar meaningfulDiracSupportVolumeLocal = 0;
-scalar phiOverEpsNegFarVolumeLocal = 0;
-scalar phiOverEpsNegOuterVolumeLocal = 0;
-scalar phiOverEpsNegShoulderVolumeLocal = 0;
-scalar phiOverEpsNegInnerVolumeLocal = 0;
-scalar phiOverEpsCoreVolumeLocal = 0;
-scalar phiOverEpsPosInnerVolumeLocal = 0;
-scalar phiOverEpsPosShoulderVolumeLocal = 0;
-scalar phiOverEpsPosOuterVolumeLocal = 0;
-scalar phiOverEpsPosFarVolumeLocal = 0;
 scalar maxAbsXChangeLocal = 0;
 scalar l2XChangeLocal = 0;
 scalar maxAbsXhChangeLocal = 0;
 scalar l2XhChangeLocal = 0;
-scalar maxAbsPhiChangeLocal = 0;
-scalar l2PhiChangeLocal = 0;
 label xLowerBoundCountLocal = 0;
 label xUpperBoundCountLocal = 0;
-label normalVelocityCapHitCountLocal = 0;
+label xMoveLimitHitCountLocal = 0;
 label xNonFiniteCountLocal = 0;
-label diracSupportCellCountLocal = 0;
-label meaningfulDiracSupportCellCountLocal = 0;
 scalar drhoLocalMin = 1e300, drhoLocalMax = -1e300;
 scalar fsensLocalMin = 1e300, fsensLocalMax = -1e300, fsensL2Local = 0;
 scalar gsensPowerLocalMin = 1e300, gsensPowerLocalMax = -1e300, gsensPowerL2Local = 0;
@@ -45,21 +27,9 @@ scalar gsensVolLocalMin = 1e300, gsensVolLocalMax = -1e300, gsensVolL2Local = 0;
 label fsensNonFiniteCountLocal = 0;
 label gsensPowerNonFiniteCountLocal = 0;
 label gsensVolNonFiniteCountLocal = 0;
-scalar interfaceObjMinLocal = 1e300, interfaceObjMaxLocal = -1e300, interfaceObjL2Local = 0;
-scalar interfacePowMinLocal = 1e300, interfacePowMaxLocal = -1e300, interfacePowL2Local = 0;
-scalar interfaceVolMinLocal = 1e300, interfaceVolMaxLocal = -1e300, interfaceVolL2Local = 0;
-label interfaceObjNonFiniteCountLocal = 0;
-label interfacePowNonFiniteCountLocal = 0;
-label interfaceVolNonFiniteCountLocal = 0;
-scalar normalVelocityRawMinLocal = 1e300, normalVelocityRawMaxLocal = -1e300, normalVelocityRawL2Local = 0;
-scalar normalVelocityMinLocal = 1e300, normalVelocityMaxLocal = -1e300, normalVelocityL2Local = 0;
-label normalVelocityRawNonFiniteCountLocal = 0;
-label normalVelocityNonFiniteCountLocal = 0;
 scalar UMaxMagLocal = 0, UaMaxMagLocal = 0, UbMaxMagLocal = 0;
 scalar UMeanMagLocal = 0, UaMeanMagLocal = 0, UbMeanMagLocal = 0;
 scalar objectivePnormSumLocal = 0;
-const scalar diracMeaningfulSupportThreshold =
-  0.1/Foam::max(epsilonLSMActive, scalar(SMALL));
 
 for(i=0;i<n;i++)
 {
@@ -67,7 +37,6 @@ for(i=0;i<n;i++)
   const scalar xValue = x[i];
   const scalar xpValue = xp[i];
   const scalar xhValue = xh[i];
-  const scalar phiValue = phiLS[i];
   const scalar alphaValue = alpha[i];
   const scalar DTValue = DT[i];
   const scalar TValue = T[i];
@@ -76,10 +45,8 @@ for(i=0;i<n;i++)
   const scalar pbValue = pb[i];
   const scalar xChange = xValue - xOld[i];
   const scalar xhChange = xhValue - xhOld[i];
-  const scalar phiChange = phiValue - phiOld[i];
   const scalar absXChange = Foam::mag(xChange);
   const scalar absXhChange = Foam::mag(xhChange);
-  const scalar absPhiChange = Foam::mag(phiChange);
   const scalar UMag = Foam::mag(U[i]);
   const scalar UaMag = Foam::mag(Ua[i]);
   const scalar UbMag = Foam::mag(Ub[i]);
@@ -87,13 +54,6 @@ for(i=0;i<n;i++)
   const scalar fsensValue = fsensMeanT[i];
   const scalar gsensPowerValue = gsensPowerDiss[i];
   const scalar gsensVolValue = gsensVol[i];
-  const scalar interfaceObjValue = interfaceObjectiveSensitivity[i];
-  const scalar interfacePowValue = interfacePowerSensitivity[i];
-  const scalar interfaceVolValue = interfaceVolumeSensitivity[i];
-  const scalar normalVelocityRawValue = normalVelocityRaw[i];
-  const scalar normalVelocityValue = normalVelocity[i];
-  const scalar phiOverEpsValue =
-    phiValue/Foam::max(epsilonLSMActive, scalar(SMALL));
 
   xLocalMin = Foam::min(xLocalMin, xValue);
   xLocalMax = Foam::max(xLocalMax, xValue);
@@ -101,8 +61,6 @@ for(i=0;i<n;i++)
   xpLocalMax = Foam::max(xpLocalMax, xpValue);
   xhLocalMin = Foam::min(xhLocalMin, xhValue);
   xhLocalMax = Foam::max(xhLocalMax, xhValue);
-  phiLocalMin = Foam::min(phiLocalMin, phiValue);
-  phiLocalMax = Foam::max(phiLocalMax, phiValue);
   alphaLocalMin = Foam::min(alphaLocalMin, alphaValue);
   alphaLocalMax = Foam::max(alphaLocalMax, alphaValue);
   DTLocalMin = Foam::min(DTLocalMin, DTValue);
@@ -121,7 +79,6 @@ for(i=0;i<n;i++)
 
   xVolumeSumLocal += xValue*cellVolume;
   xhVolumeSumLocal += xhValue*cellVolume;
-  phiVolumeSumLocal += phiValue*cellVolume;
   UMeanMagLocal += UMag*cellVolume;
   UaMeanMagLocal += UaMag*cellVolume;
   UbMeanMagLocal += UbMag*cellVolume;
@@ -129,56 +86,6 @@ for(i=0;i<n;i++)
   if (xhValue > 0.05 && xhValue < 0.95)
   {
     grayVolumeLocal += cellVolume;
-  }
-  if (Foam::mag(phiValue) <= epsilonLSMActive)
-  {
-    interfaceBandVolumeLocal += cellVolume;
-  }
-  if (drhoValue > SMALL)
-  {
-    diracSupportCellCountLocal++;
-    diracSupportVolumeLocal += cellVolume;
-  }
-  if (drhoValue >= diracMeaningfulSupportThreshold)
-  {
-    meaningfulDiracSupportCellCountLocal++;
-    meaningfulDiracSupportVolumeLocal += cellVolume;
-  }
-  if (phiOverEpsValue <= -4.0)
-  {
-    phiOverEpsNegFarVolumeLocal += cellVolume;
-  }
-  else if (phiOverEpsValue <= -2.0)
-  {
-    phiOverEpsNegOuterVolumeLocal += cellVolume;
-  }
-  else if (phiOverEpsValue <= -1.0)
-  {
-    phiOverEpsNegShoulderVolumeLocal += cellVolume;
-  }
-  else if (phiOverEpsValue <= -0.5)
-  {
-    phiOverEpsNegInnerVolumeLocal += cellVolume;
-  }
-  else if (phiOverEpsValue <= 0.5)
-  {
-    phiOverEpsCoreVolumeLocal += cellVolume;
-  }
-  else if (phiOverEpsValue <= 1.0)
-  {
-    phiOverEpsPosInnerVolumeLocal += cellVolume;
-  }
-  else if (phiOverEpsValue <= 2.0)
-  {
-    phiOverEpsPosShoulderVolumeLocal += cellVolume;
-  }
-  else if (phiOverEpsValue <= 4.0)
-  {
-    phiOverEpsPosOuterVolumeLocal += cellVolume;
-  }
-  else
-  {
-    phiOverEpsPosFarVolumeLocal += cellVolume;
   }
   if (xhValue <= 0.05)
   {
@@ -193,8 +100,6 @@ for(i=0;i<n;i++)
   l2XChangeLocal += xChange*xChange;
   maxAbsXhChangeLocal = Foam::max(maxAbsXhChangeLocal, absXhChange);
   l2XhChangeLocal += xhChange*xhChange;
-  maxAbsPhiChangeLocal = Foam::max(maxAbsPhiChangeLocal, absPhiChange);
-  l2PhiChangeLocal += phiChange*phiChange;
 
   if (xValue <= 1e-8)
   {
@@ -204,9 +109,9 @@ for(i=0;i<n;i++)
   {
     xUpperBoundCountLocal++;
   }
-  if (Foam::mag(normalVelocityRawValue) >= 0.999*maxNormalVelocity)
+  if (absXChange >= 0.999*movlim)
   {
-    normalVelocityCapHitCountLocal++;
+    xMoveLimitHitCountLocal++;
   }
   if (!std::isfinite(static_cast<double>(xValue)))
   {
@@ -240,46 +145,6 @@ for(i=0;i<n;i++)
     gsensVolNonFiniteCountLocal++;
   }
 
-  interfaceObjMinLocal = Foam::min(interfaceObjMinLocal, interfaceObjValue);
-  interfaceObjMaxLocal = Foam::max(interfaceObjMaxLocal, interfaceObjValue);
-  interfaceObjL2Local += interfaceObjValue*interfaceObjValue;
-  if (!std::isfinite(static_cast<double>(interfaceObjValue)))
-  {
-    interfaceObjNonFiniteCountLocal++;
-  }
-
-  interfacePowMinLocal = Foam::min(interfacePowMinLocal, interfacePowValue);
-  interfacePowMaxLocal = Foam::max(interfacePowMaxLocal, interfacePowValue);
-  interfacePowL2Local += interfacePowValue*interfacePowValue;
-  if (!std::isfinite(static_cast<double>(interfacePowValue)))
-  {
-    interfacePowNonFiniteCountLocal++;
-  }
-
-  interfaceVolMinLocal = Foam::min(interfaceVolMinLocal, interfaceVolValue);
-  interfaceVolMaxLocal = Foam::max(interfaceVolMaxLocal, interfaceVolValue);
-  interfaceVolL2Local += interfaceVolValue*interfaceVolValue;
-  if (!std::isfinite(static_cast<double>(interfaceVolValue)))
-  {
-    interfaceVolNonFiniteCountLocal++;
-  }
-
-  normalVelocityRawMinLocal = Foam::min(normalVelocityRawMinLocal, normalVelocityRawValue);
-  normalVelocityRawMaxLocal = Foam::max(normalVelocityRawMaxLocal, normalVelocityRawValue);
-  normalVelocityRawL2Local += normalVelocityRawValue*normalVelocityRawValue;
-  if (!std::isfinite(static_cast<double>(normalVelocityRawValue)))
-  {
-    normalVelocityRawNonFiniteCountLocal++;
-  }
-
-  normalVelocityMinLocal = Foam::min(normalVelocityMinLocal, normalVelocityValue);
-  normalVelocityMaxLocal = Foam::max(normalVelocityMaxLocal, normalVelocityValue);
-  normalVelocityL2Local += normalVelocityValue*normalVelocityValue;
-  if (!std::isfinite(static_cast<double>(normalVelocityValue)))
-  {
-    normalVelocityNonFiniteCountLocal++;
-  }
-
   if (objFunction == 2 && maxT > SMALL)
   {
     objectivePnormSumLocal += std::pow(TValue/maxT, Pnorm);
@@ -292,8 +157,6 @@ reduce(xpLocalMin, minOp<scalar>());
 reduce(xpLocalMax, maxOp<scalar>());
 reduce(xhLocalMin, minOp<scalar>());
 reduce(xhLocalMax, maxOp<scalar>());
-reduce(phiLocalMin, minOp<scalar>());
-reduce(phiLocalMax, maxOp<scalar>());
 reduce(alphaLocalMin, minOp<scalar>());
 reduce(alphaLocalMax, maxOp<scalar>());
 reduce(DTLocalMin, minOp<scalar>());
@@ -311,22 +174,9 @@ reduce(UaMaxMagLocal, maxOp<scalar>());
 reduce(UbMaxMagLocal, maxOp<scalar>());
 reduce(xVolumeSumLocal, sumOp<scalar>());
 reduce(xhVolumeSumLocal, sumOp<scalar>());
-reduce(phiVolumeSumLocal, sumOp<scalar>());
 reduce(grayVolumeLocal, sumOp<scalar>());
 reduce(solidVolumeLocal, sumOp<scalar>());
 reduce(fluidVolumeLocal, sumOp<scalar>());
-reduce(interfaceBandVolumeLocal, sumOp<scalar>());
-reduce(diracSupportVolumeLocal, sumOp<scalar>());
-reduce(meaningfulDiracSupportVolumeLocal, sumOp<scalar>());
-reduce(phiOverEpsNegFarVolumeLocal, sumOp<scalar>());
-reduce(phiOverEpsNegOuterVolumeLocal, sumOp<scalar>());
-reduce(phiOverEpsNegShoulderVolumeLocal, sumOp<scalar>());
-reduce(phiOverEpsNegInnerVolumeLocal, sumOp<scalar>());
-reduce(phiOverEpsCoreVolumeLocal, sumOp<scalar>());
-reduce(phiOverEpsPosInnerVolumeLocal, sumOp<scalar>());
-reduce(phiOverEpsPosShoulderVolumeLocal, sumOp<scalar>());
-reduce(phiOverEpsPosOuterVolumeLocal, sumOp<scalar>());
-reduce(phiOverEpsPosFarVolumeLocal, sumOp<scalar>());
 reduce(UMeanMagLocal, sumOp<scalar>());
 reduce(UaMeanMagLocal, sumOp<scalar>());
 reduce(UbMeanMagLocal, sumOp<scalar>());
@@ -334,14 +184,10 @@ reduce(maxAbsXChangeLocal, maxOp<scalar>());
 reduce(l2XChangeLocal, sumOp<scalar>());
 reduce(maxAbsXhChangeLocal, maxOp<scalar>());
 reduce(l2XhChangeLocal, sumOp<scalar>());
-reduce(maxAbsPhiChangeLocal, maxOp<scalar>());
-reduce(l2PhiChangeLocal, sumOp<scalar>());
 reduce(xLowerBoundCountLocal, sumOp<label>());
 reduce(xUpperBoundCountLocal, sumOp<label>());
-reduce(normalVelocityCapHitCountLocal, sumOp<label>());
+reduce(xMoveLimitHitCountLocal, sumOp<label>());
 reduce(xNonFiniteCountLocal, sumOp<label>());
-reduce(diracSupportCellCountLocal, sumOp<label>());
-reduce(meaningfulDiracSupportCellCountLocal, sumOp<label>());
 reduce(drhoLocalMin, minOp<scalar>());
 reduce(drhoLocalMax, maxOp<scalar>());
 reduce(fsensLocalMin, minOp<scalar>());
@@ -356,103 +202,38 @@ reduce(gsensVolLocalMin, minOp<scalar>());
 reduce(gsensVolLocalMax, maxOp<scalar>());
 reduce(gsensVolL2Local, sumOp<scalar>());
 reduce(gsensVolNonFiniteCountLocal, sumOp<label>());
-reduce(interfaceObjMinLocal, minOp<scalar>());
-reduce(interfaceObjMaxLocal, maxOp<scalar>());
-reduce(interfaceObjL2Local, sumOp<scalar>());
-reduce(interfaceObjNonFiniteCountLocal, sumOp<label>());
-reduce(interfacePowMinLocal, minOp<scalar>());
-reduce(interfacePowMaxLocal, maxOp<scalar>());
-reduce(interfacePowL2Local, sumOp<scalar>());
-reduce(interfacePowNonFiniteCountLocal, sumOp<label>());
-reduce(interfaceVolMinLocal, minOp<scalar>());
-reduce(interfaceVolMaxLocal, maxOp<scalar>());
-reduce(interfaceVolL2Local, sumOp<scalar>());
-reduce(interfaceVolNonFiniteCountLocal, sumOp<label>());
-reduce(normalVelocityRawMinLocal, minOp<scalar>());
-reduce(normalVelocityRawMaxLocal, maxOp<scalar>());
-reduce(normalVelocityRawL2Local, sumOp<scalar>());
-reduce(normalVelocityRawNonFiniteCountLocal, sumOp<label>());
-reduce(normalVelocityMinLocal, minOp<scalar>());
-reduce(normalVelocityMaxLocal, maxOp<scalar>());
-reduce(normalVelocityL2Local, sumOp<scalar>());
-reduce(normalVelocityNonFiniteCountLocal, sumOp<label>());
 reduce(objectivePnormSumLocal, sumOp<scalar>());
 
 const scalar xMean = xVolumeSumLocal/area;
 const scalar xhMean = xhVolumeSumLocal/area;
-const scalar phiMean = phiVolumeSumLocal/area;
 const scalar grayVolumeFraction = grayVolumeLocal/area;
 const scalar solidVolumeFraction = solidVolumeLocal/area;
 const scalar fluidVolumeFraction = fluidVolumeLocal/area;
-const scalar interfaceBandVolumeFraction = interfaceBandVolumeLocal/area;
-const scalar diracSupportVolumeFraction = diracSupportVolumeLocal/area;
-const scalar meaningfulDiracSupportVolumeFraction =
-  meaningfulDiracSupportVolumeLocal/area;
-const scalar phiOverEpsNegFarFraction = phiOverEpsNegFarVolumeLocal/area;
-const scalar phiOverEpsNegOuterFraction = phiOverEpsNegOuterVolumeLocal/area;
-const scalar phiOverEpsNegShoulderFraction = phiOverEpsNegShoulderVolumeLocal/area;
-const scalar phiOverEpsNegInnerFraction = phiOverEpsNegInnerVolumeLocal/area;
-const scalar phiOverEpsCoreFraction = phiOverEpsCoreVolumeLocal/area;
-const scalar phiOverEpsPosInnerFraction = phiOverEpsPosInnerVolumeLocal/area;
-const scalar phiOverEpsPosShoulderFraction = phiOverEpsPosShoulderVolumeLocal/area;
-const scalar phiOverEpsPosOuterFraction = phiOverEpsPosOuterVolumeLocal/area;
-const scalar phiOverEpsPosFarFraction = phiOverEpsPosFarVolumeLocal/area;
-const scalar phiOverEpsShoulderFraction =
-  phiOverEpsNegShoulderFraction + phiOverEpsPosShoulderFraction;
-const scalar phiOverEpsOuterFraction =
-  phiOverEpsNegOuterFraction + phiOverEpsPosOuterFraction;
-const scalar phiOverEpsFarFraction =
-  phiOverEpsNegFarFraction + phiOverEpsPosFarFraction;
-const scalar phiOverEpsAboveTwoFraction =
-  phiOverEpsOuterFraction + phiOverEpsFarFraction;
 const scalar l2XChange = std::sqrt(l2XChangeLocal);
 const scalar l2XhChange = std::sqrt(l2XhChangeLocal);
-const scalar l2PhiChange = std::sqrt(l2PhiChangeLocal);
 const scalar normalizedL2XChange = l2XChange/std::sqrt(Foam::max(N, scalar(1)));
 const scalar normalizedL2XhChange = l2XhChange/std::sqrt(Foam::max(N, scalar(1)));
-const scalar normalizedL2PhiChange = l2PhiChange/std::sqrt(Foam::max(N, scalar(1)));
 const scalar UMeanMag = UMeanMagLocal/area;
 const scalar UaMeanMag = UaMeanMagLocal/area;
 const scalar UbMeanMag = UbMeanMagLocal/area;
 const scalar fsensL2 = std::sqrt(fsensL2Local);
 const scalar gsensPowerL2 = std::sqrt(gsensPowerL2Local);
 const scalar gsensVolL2 = std::sqrt(gsensVolL2Local);
-const scalar interfaceObjL2 = std::sqrt(interfaceObjL2Local);
-const scalar interfacePowL2 = std::sqrt(interfacePowL2Local);
-const scalar interfaceVolL2 = std::sqrt(interfaceVolL2Local);
-const scalar normalVelocityRawL2 = std::sqrt(normalVelocityRawL2Local);
-const scalar normalVelocityL2 = std::sqrt(normalVelocityL2Local);
-const scalar primalVelocityScale = Foam::max(UMaxMagLocal, SMALL);
-const scalar adjointPowerToPrimalRatio = UaMaxMagLocal/primalVelocityScale;
-const scalar adjointHeatToPrimalRatio = UbMaxMagLocal/primalVelocityScale;
-const scalar adjointPowerGrowthFactor =
-  previousAdjointPowerToPrimalRatio > SMALL
-  ? adjointPowerToPrimalRatio/Foam::max(previousAdjointPowerToPrimalRatio, SMALL)
-  : 1.0;
-const scalar adjointHeatGrowthFactor =
-  previousAdjointHeatToPrimalRatio > SMALL
-  ? adjointHeatToPrimalRatio/Foam::max(previousAdjointHeatToPrimalRatio, SMALL)
-  : 1.0;
-const bool adjointPowerSpike =
-  adjointSoftFreezeRatio > 0.0
-  && adjointSoftFreezeGrowthFactor > 0.0
-  && previousAdjointPowerToPrimalRatio > SMALL
-  && adjointPowerToPrimalRatio >= adjointSoftFreezeRatio
-  && adjointPowerGrowthFactor >= adjointSoftFreezeGrowthFactor;
-const bool adjointHeatSpike =
-  adjointSoftFreezeRatio > 0.0
-  && adjointSoftFreezeGrowthFactor > 0.0
-  && previousAdjointHeatToPrimalRatio > SMALL
-  && adjointHeatToPrimalRatio >= adjointSoftFreezeRatio
-  && adjointHeatGrowthFactor >= adjointSoftFreezeGrowthFactor;
-const bool adjointContinuationFreezeRequested =
-  adjointPowerSpike || adjointHeatSpike;
-const bool adjointRunaway =
-  adjointPowerToPrimalRatio > adjointRunawayRatioLimit
-  || adjointHeatToPrimalRatio > adjointRunawayRatioLimit;
 
-scalar objectiveValue = objectiveValueCurrent;
-word objectiveLabel(activeObjectiveLabel);
+scalar objectiveValue = MeanT;
+word objectiveLabel("MeanT");
+if (objFunction == 2)
+{
+  objectiveLabel = "PnormT";
+  if (maxT > SMALL)
+  {
+    objectiveValue = maxT*std::pow(objectivePnormSumLocal, 1.0/Pnorm);
+  }
+  else
+  {
+    objectiveValue = 0;
+  }
+}
 const scalar objectiveDelta = hasPreviousObjectiveValue ? objectiveValue - previousObjectiveValue : 0;
 previousObjectiveValue = objectiveValue;
 hasPreviousObjectiveValue = true;
@@ -466,144 +247,18 @@ solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(UbLinear
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(pbLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(UaLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(paLinearSolveStats));
-solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(dAlphaLinearSolveStats));
-solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(velocityRegularizationLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(xpFilterLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(fsensFilterLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(gsensPowerFilterLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(gsensVolFilterLinearSolveStats));
-if (adjointRunaway)
-{
-  solverSeverity = Foam::max(solverSeverity, label(2));
-}
-else if (adjointContinuationFreezeRequested)
-{
-  solverSeverity = Foam::max(solverSeverity, label(1));
-}
 reduce(solverSeverity, maxOp<label>());
-continuationHealthOk = !(adjointRunaway || adjointContinuationFreezeRequested);
 
 const scalar objectiveRelativeDelta = Foam::mag(objectiveDelta)/Foam::max(Foam::mag(objectiveValue), SMALL);
 const scalar powerConstraintWeightSafe = Foam::max(optPowerConstraintWeight, SMALL);
 const scalar powerConstraintMargin = gx[0]/powerConstraintWeightSafe;
 const scalar volumeConstraintWeightSafe = Foam::max(optVolumeConstraintWeight, SMALL);
 const scalar volumeConstraintMargin = gx[1]/volumeConstraintWeightSafe;
-const scalar debugContinuationPowerLimit =
-  usePowerConstraintRelaxation ? activePowerLimit : PowerDissMax;
-const scalar debugPowerFeasibilityRatio =
-  debugContinuationPowerLimit > SMALL ? PowerDiss/debugContinuationPowerLimit : 0.0;
-scalar debugContinuationFeasibilityTolActive = continuationFeasibilityTol;
-const bool debugLateStageStrictGateActive =
-  lateStageStrictGateBelowGrayFraction >= 0.0
-  && lateStageContinuationFeasibilityTol >= 0.0
-  && grayVolumeFraction <= lateStageStrictGateBelowGrayFraction;
-if (debugLateStageStrictGateActive)
-{
-  debugContinuationFeasibilityTolActive =
-    Foam::min(debugContinuationFeasibilityTolActive, lateStageContinuationFeasibilityTol);
-}
-const bool debugContinuationGateSatisfied =
-  debugPowerFeasibilityRatio <= debugContinuationFeasibilityTolActive
-  && continuationHealthOk;
-const bool debugContinuationFloorActive =
-  opt <= forceContinuationHardeningUntilIter
-  || (forceContinuationHardeningUntilBeta >= 0.0 && del < forceContinuationHardeningUntilBeta);
-const bool debugContinuationCeilingActive =
-  stopContinuationHardeningBelowGrayFraction >= 0.0
-  && grayVolumeFraction <= stopContinuationHardeningBelowGrayFraction;
-const scalar debugGrayVolumeFractionDrop =
-  previousGrayVolumeFractionForContinuation - grayVolumeFraction;
-const bool debugProfileUsesAdaptiveHardeningThrottles =
-  experimentProfile == "betaFloorGrayRamp"
-  || experimentProfile == "branchRefinement400";
-const bool debugLaggingGrayCollapseDetected =
-  debugProfileUsesAdaptiveHardeningThrottles
-  && !debugContinuationFloorActive
-  && laggingGrayCollapseStartIter > 0
-  && opt >= laggingGrayCollapseStartIter
-  && laggingGrayCollapseAboveGrayFraction >= 0.0
-  && laggingGrayCollapseBelowXhStepMax >= 0.0
-  && laggingGrayCollapseMinGrayDrop >= 0.0
-  && grayVolumeFraction >= laggingGrayCollapseAboveGrayFraction
-  && previousXhStepMax <= laggingGrayCollapseBelowXhStepMax
-  && debugGrayVolumeFractionDrop <= laggingGrayCollapseMinGrayDrop;
-const bool debugOveractiveTopologyDetected =
-  debugProfileUsesAdaptiveHardeningThrottles
-  && !debugContinuationFloorActive
-  && overactiveTopologyStartIter > 0
-  && opt >= overactiveTopologyStartIter
-  && overactiveTopologyBelowGrayFraction >= 0.0
-  && overactiveTopologyAboveXhStepMax >= 0.0
-  && grayVolumeFraction <= overactiveTopologyBelowGrayFraction
-  && previousXhStepMax >= overactiveTopologyAboveXhStepMax;
-const bool debugLaggingGrayCollapsePulseIter =
-  laggingGrayCollapsePauseInterval > 0
-  && ((opt - laggingGrayCollapseStartIter) % laggingGrayCollapsePauseInterval == 0);
-const bool debugContinuationThrottleAllowsHardening =
-  !debugLaggingGrayCollapseDetected || debugLaggingGrayCollapsePulseIter;
-const bool debugContinuationHardeningEnabled =
-  !debugContinuationCeilingActive
-  && !debugOveractiveTopologyDetected
-  && debugContinuationThrottleAllowsHardening
-  && (forceContinuationHardening || debugContinuationFloorActive || debugContinuationGateSatisfied);
-const bool debugLateStageFilterRCapActive =
-  lateStageFilterRStartIter > 0
-  && lateStageFilterRCap >= 0.0
-  && opt > lateStageFilterRStartIter;
-const bool debugLateStageRefinementActive =
-  (lateStageRefinementStartIter > 0 && opt >= lateStageRefinementStartIter)
-  || (
-    lateStageRefinementBelowGrayFraction >= 0.0
-    && grayVolumeFraction <= lateStageRefinementBelowGrayFraction
-  );
-scalar debugBetaIncrementActive = betaIncrement;
-scalar debugAlphaRampLateFactorActive = alphaRampLateFactor;
-scalar debugBetaMaxActive = betaMax;
-if (debugLateStageRefinementActive)
-{
-  if (lateStageBetaRampFactor >= 0.0)
-  {
-    debugBetaIncrementActive *= lateStageBetaRampFactor;
-  }
-  if (lateStageAlphaRampFactor >= 0.0)
-  {
-    debugAlphaRampLateFactorActive = lateStageAlphaRampFactor;
-  }
-  if (lateStageMaxBeta >= 0.0)
-  {
-    debugBetaMaxActive = Foam::min(debugBetaMaxActive, lateStageMaxBeta);
-  }
-}
 const scalar maxConstraintViolation = Foam::max(Foam::max(powerConstraintMargin, volumeConstraintMargin), scalar(0));
-const scalar objectiveToVolumeSensitivityRatio = fsensL2/Foam::max(gsensVolL2, SMALL);
-const scalar powerToVolumeSensitivityRatio = gsensPowerL2/Foam::max(gsensVolL2, SMALL);
-const bool designStepFrozen =
-  maxAbsXChangeLocal <= optStepTol
-  && maxAbsXhChangeLocal <= optStepTol;
-const bool volumeShiftCapped =
-  volumePhiShiftCap > SMALL
-  && Foam::mag(volumePhiShiftRaw) > volumePhiShiftCap + SMALL;
-const scalar lowFluidStallThreshold(0.10);
-const scalar lowSupportStallThreshold(1e-2);
-const scalar lowRecoveryStallThreshold(5e-3);
-// In the trapped LSM regime the design can keep taking large capped phi steps,
-// so design-step freezing is a poor stall indicator. Use lost meaningful
-// dirac support plus negligible shift recovery instead.
-const bool stalledLowFluidCandidate =
-  opt >= 5
-  && V <= -lowFluidStallThreshold
-  && meaningfulDiracSupportVolumeFraction <= lowSupportStallThreshold
-  && Foam::mag(fluidFractionRecoveredByShift) <= lowRecoveryStallThreshold
-  && volumeShiftCapped;
-const bool stalledInfeasibleCandidate =
-  stalledLowFluidCandidate
-  ||
-  (
-    opt >= optMinIterations
-    && maxConstraintViolation > optConstraintTol
-    && designStepFrozen
-    && volumeShiftCapped
-  );
 const bool convergenceCandidate =
   opt >= optMinIterations
   &&
@@ -613,30 +268,12 @@ const bool convergenceCandidate =
   &&
   objectiveRelativeDelta <= optObjectiveTol
   &&
-  maxAbsPhiChangeLocal <= optStepTol
+  maxAbsXChangeLocal <= optStepTol
   &&
   maxAbsXhChangeLocal <= optStepTol;
 optimizerConvergedStreak = convergenceCandidate ? optimizerConvergedStreak + 1 : 0;
-optimizerStalledInfeasibleStreak =
-  stalledInfeasibleCandidate ? optimizerStalledInfeasibleStreak + 1 : 0;
 stopOptimization = optimizerConvergedStreak >= optStallWindow;
 optimizerStopReason = stopOptimization ? word("converged") : word("running");
-if (adjointRunaway && stopOnAdjointRunaway)
-{
-  stopOptimization = true;
-  optimizerConvergedStreak = 0;
-  optimizerStalledInfeasibleStreak = 0;
-  optimizerStopReason = word("adjointRunaway");
-}
-else if (optimizerStalledInfeasibleStreak >= optStallWindow)
-{
-  stopOptimization = true;
-  optimizerConvergedStreak = 0;
-  optimizerStopReason =
-    stalledLowFluidCandidate
-    ? word("stalledLowFluidInfeasible")
-    : word("stalledInfeasible");
-}
 
 if (Pstream::master())
 {
@@ -711,27 +348,19 @@ if (Pstream::master())
   writeSectionHeader("Overview");
   writeRow("Run", "Iter="+fmtCount(opt), "Clock[s]="+fmtScalar(clockTime), "ObjMode="+std::string(objectiveLabel.c_str()), "ObjVal="+fmtScalar(objectiveValue));
   writeRow("Health", std::string("Design=")+designHealth, std::string("Constr=")+constraintHealth, std::string("Sens=")+sensitivityHealth, std::string("Solver=")+solverHealth);
-  writeRow("Convergence", "objRel="+fmtScalar(objectiveRelativeDelta), "maxViol="+fmtScalar(maxConstraintViolation), "phiStep="+fmtScalar(maxAbsPhiChangeLocal), "streak="+fmtCount(optimizerConvergedStreak)+"/"+fmtCount(optStallWindow));
+  writeRow("Convergence", "objRel="+fmtScalar(objectiveRelativeDelta), "maxViol="+fmtScalar(maxConstraintViolation), "xhStep="+fmtScalar(maxAbsXhChangeLocal), "streak="+fmtCount(optimizerConvergedStreak)+"/"+fmtCount(optStallWindow));
   writeRow("Stop", "candidate="+std::string(convergenceCandidate ? "yes" : "no"), "stop="+std::string(stopOptimization ? "yes" : "no"), "reason="+std::string(optimizerStopReason.c_str()));
-  writeRow("Stall Guard", "designFrozen="+std::string(designStepFrozen ? "yes" : "no"), "shiftCapped="+std::string(volumeShiftCapped ? "yes" : "no"), "lowFluid="+std::string(stalledLowFluidCandidate ? "yes" : "no"), "streak="+fmtCount(optimizerStalledInfeasibleStreak)+"/"+fmtCount(optStallWindow));
 
   writeSectionHeader("Design Diagnostics");
   writeRow("x bounds", "min="+fmtScalar(xLocalMin), "max="+fmtScalar(xLocalMax), "mean="+fmtScalar(xMean));
   writeRow("xp bounds", "min="+fmtScalar(xpLocalMin), "max="+fmtScalar(xpLocalMax));
   writeRow("xh bounds", "min="+fmtScalar(xhLocalMin), "max="+fmtScalar(xhLocalMax), "mean="+fmtScalar(xhMean));
-  writeRow("phi bounds", "min="+fmtScalar(phiLocalMin), "max="+fmtScalar(phiLocalMax), "mean="+fmtScalar(phiMean), "eps="+fmtScalar(epsilonLSMActive));
   writeRow("xh phases", "gray="+fmtScalar(grayVolumeFraction), "solid="+fmtScalar(solidVolumeFraction), "fluid="+fmtScalar(fluidVolumeFraction));
-  writeRow("phi band", "|phi|<=eps="+fmtScalar(interfaceBandVolumeFraction));
-  writeRow("phi/eps agg", "|r|<=0.5="+fmtScalar(phiOverEpsCoreFraction), "|r|<=1="+fmtScalar(interfaceBandVolumeFraction), "1<|r|<=2="+fmtScalar(phiOverEpsShoulderFraction), "|r|>2="+fmtScalar(phiOverEpsAboveTwoFraction));
-  writeRow("phi/eps bins1", "<=-4="+fmtScalar(phiOverEpsNegFarFraction), "(-4,-2]="+fmtScalar(phiOverEpsNegOuterFraction), "(-2,-1]="+fmtScalar(phiOverEpsNegShoulderFraction), "(-1,-0.5]="+fmtScalar(phiOverEpsNegInnerFraction));
-  writeRow("phi/eps bins2", "(-0.5,0.5]="+fmtScalar(phiOverEpsCoreFraction), "(0.5,1]="+fmtScalar(phiOverEpsPosInnerFraction), "(1,2]="+fmtScalar(phiOverEpsPosShoulderFraction), "(2,4]="+fmtScalar(phiOverEpsPosOuterFraction));
-  writeRow("phi/eps bins3", ">4="+fmtScalar(phiOverEpsPosFarFraction), "|r| in (2,4]="+fmtScalar(phiOverEpsOuterFraction));
   writeRow("x step", "max="+fmtScalar(maxAbsXChangeLocal), "l2="+fmtScalar(l2XChange), "l2/sqrtN="+fmtScalar(normalizedL2XChange));
   writeRow("xh step", "max="+fmtScalar(maxAbsXhChangeLocal), "l2="+fmtScalar(l2XhChange), "l2/sqrtN="+fmtScalar(normalizedL2XhChange));
-  writeRow("phi step", "max="+fmtScalar(maxAbsPhiChangeLocal), "l2="+fmtScalar(l2PhiChange), "l2/sqrtN="+fmtScalar(normalizedL2PhiChange));
 
   writeSectionHeader("Filter Diagnostics");
-  writeRow("projection", "beta="+fmtScalar(del), "eta5="+fmtScalar(eta5));
+  writeRow("projection", "del="+fmtScalar(del), "eta5="+fmtScalar(eta5));
   writeRow("drho bounds", "min="+fmtScalar(drhoLocalMin), "max="+fmtScalar(drhoLocalMax));
   writeRow("obj sens", "min="+fmtScalar(fsensLocalMin), "max="+fmtScalar(fsensLocalMax));
   writeRow("power sens", "min="+fmtScalar(gsensPowerLocalMin), "max="+fmtScalar(gsensPowerLocalMax));
@@ -739,90 +368,29 @@ if (Pstream::master())
 
   writeSectionHeader("Objective And Constraints");
   writeRow("objective", "value="+fmtScalar(objectiveValue), "delta="+fmtScalar(objectiveDelta));
-  writeRow("power diss", "actual="+fmtScalar(PowerDissActual), "act/base="+fmtScalar(PowerDissActualOverBase), "constraint="+fmtScalar(PowerDiss), "limit="+fmtScalar(activePowerLimit));
+  writeRow("power diss", "actual="+fmtScalar(PowerDissActual), "act/base="+fmtScalar(PowerDissActualOverBase), "constraint="+fmtScalar(PowerDiss), "margin="+fmtScalar(powerConstraintMargin));
   writeRow("volume", "value="+fmtScalar(V), "margin="+fmtScalar(volumeConstraintMargin));
   writeRow("thermal", "meanT="+fmtScalar(MeanT), "maxT="+fmtScalar(maxT));
 
-  writeSectionHeader("LSM Diagnostics");
-  writeRow("controls", "velocityCap="+fmtScalar(maxNormalVelocity), "velCapHits="+fmtCount(normalVelocityCapHitCountLocal));
-  writeRow("filter", "baseR="+fmtScalar(filterR), "activeR="+fmtScalar(activeFilterR), "capIter="+fmtCount(lateStageFilterRStartIter), "cap="+fmtScalar(lateStageFilterRCap));
+  writeSectionHeader("MMA Diagnostics");
+  writeRow("controls", "moveLimit="+fmtScalar(movlim), "moveHits="+fmtCount(xMoveLimitHitCountLocal));
   writeRow("bound clamps", "lower="+fmtCount(xLowerBoundCountLocal), "upper="+fmtCount(xUpperBoundCountLocal), "nonFiniteX="+fmtCount(xNonFiniteCountLocal));
-  writeRow("lsm", "mode="+std::string(activeLSMUpdateMode.c_str()), "dt="+fmtScalar(lsmPseudoTimeStep), "gradDev="+fmtScalar(phiGradDeviationMax), "reinit="+fmtScalar(phiReinitResidual));
-  writeRow("support", "cells>0="+fmtCount(diracSupportCellCountLocal), "vol>0="+fmtScalar(diracSupportVolumeFraction), "cells>0.1/eps="+fmtCount(meaningfulDiracSupportCellCountLocal), "vol>0.1/eps="+fmtScalar(meaningfulDiracSupportVolumeFraction));
-  writeRow("power reopen", "floor="+fmtScalar(powerSupportFloorValue), "reach="+fmtScalar(powerSupportFloorNegativeReach), "floorCells="+fmtCount(powerSupportFloorCellCount), "floorVol="+fmtScalar(powerSupportFloorVolumeFraction));
-  writeRow("volume ctl", "proj="+fmtScalar(volumeProjectionMultiplier), "shiftRaw="+fmtScalar(volumePhiShiftRaw), "shiftApply="+fmtScalar(volumePhiShiftApplied), "shiftCap="+fmtScalar(volumePhiShiftCap));
-  writeRow("power ctl", "raw="+fmtScalar(powerProjectionMultiplierAnalytical), "floor="+fmtScalar(powerProjectionMultiplierFloor), "apply="+fmtScalar(powerProjectionMultiplier), "fluidDelta="+fmtScalar(fluidFractionRecoveredByShift));
-  writeRow("fluid reopen", "fluidPre="+fmtScalar(fluidFractionBeforeVolumeShift), "fluidPost="+fmtScalar(fluidFractionAfterVolumeShift), "fluidDelta="+fmtScalar(fluidFractionRecoveredByShift));
 
   writeSectionHeader("Sensitivity Diagnostics");
   writeRow("objective", "min="+fmtScalar(fsensLocalMin), "max="+fmtScalar(fsensLocalMax), "l2="+fmtScalar(fsensL2), "nonFinite="+fmtCount(fsensNonFiniteCountLocal));
   writeRow("power", "min="+fmtScalar(gsensPowerLocalMin), "max="+fmtScalar(gsensPowerLocalMax), "l2="+fmtScalar(gsensPowerL2), "nonFinite="+fmtCount(gsensPowerNonFiniteCountLocal));
   writeRow("volume", "min="+fmtScalar(gsensVolLocalMin), "max="+fmtScalar(gsensVolLocalMax), "l2="+fmtScalar(gsensVolL2), "nonFinite="+fmtCount(gsensVolNonFiniteCountLocal));
-  writeRow("obj->phi", "min="+fmtScalar(interfaceObjMinLocal), "max="+fmtScalar(interfaceObjMaxLocal), "l2="+fmtScalar(interfaceObjL2), "nonFinite="+fmtCount(interfaceObjNonFiniteCountLocal));
-  writeRow("pow->phi", "min="+fmtScalar(interfacePowMinLocal), "max="+fmtScalar(interfacePowMaxLocal), "l2="+fmtScalar(interfacePowL2), "nonFinite="+fmtCount(interfacePowNonFiniteCountLocal));
-  writeRow("vol->phi", "min="+fmtScalar(interfaceVolMinLocal), "max="+fmtScalar(interfaceVolMaxLocal), "l2="+fmtScalar(interfaceVolL2), "nonFinite="+fmtCount(interfaceVolNonFiniteCountLocal));
-  writeRow("velocity", "rawL2="+fmtScalar(normalVelocityRawL2), "regL2="+fmtScalar(normalVelocityL2), "rawMax="+fmtScalar(normalVelocityRawMaxLocal), "regMax="+fmtScalar(normalVelocityMaxLocal));
-  writeRow("volume corr", "proj="+fmtScalar(volumeProjectionMultiplier), "shiftRaw="+fmtScalar(volumePhiShiftRaw), "shiftApply="+fmtScalar(volumePhiShiftApplied));
-  writeRow("ratios", "obj/vol="+fmtScalar(objectiveToVolumeSensitivityRatio), "power/vol="+fmtScalar(powerToVolumeSensitivityRatio));
 
   writeSectionHeader("Solver Diagnostics");
-  writeRow("config", "primal=60", "adjPower="+fmtCount(adjointMomentumSweeps), "adjHeat="+fmtCount(adjointMomentumSweeps));
+  writeRow("config", "primal=60", "adjPower=40", "adjHeat=40");
   writeRow("primal flow", "|U|max="+fmtScalar(UMaxMagLocal), "|U|mean="+fmtScalar(UMeanMag), "pMin="+fmtScalar(pLocalMin), "pMax="+fmtScalar(pLocalMax));
   writeRow("thermal field", "TMin="+fmtScalar(TLocalMin), "TMax="+fmtScalar(TLocalMax));
   writeRow("adjoint power", "|Ua|max="+fmtScalar(UaMaxMagLocal), "|Ua|mean="+fmtScalar(UaMeanMag), "paMin="+fmtScalar(paLocalMin), "paMax="+fmtScalar(paLocalMax));
   writeRow("adjoint heat", "|Ub|max="+fmtScalar(UbMaxMagLocal), "|Ub|mean="+fmtScalar(UbMeanMag), "pbMin="+fmtScalar(pbLocalMin), "pbMax="+fmtScalar(pbLocalMax));
-  writeRow("adjoint ratios", "Ua/U="+fmtScalar(adjointPowerToPrimalRatio), "Ub/U="+fmtScalar(adjointHeatToPrimalRatio), "limit="+fmtScalar(adjointRunawayRatioLimit), "hardening="+std::string(continuationHealthOk ? "on" : "frozen"));
-  writeRow("adjoint guard", "freeze="+std::string(adjointContinuationFreezeRequested ? "yes" : "no"), std::string("Ua x")+fmtScalar(adjointPowerGrowthFactor), std::string("Ub x")+fmtScalar(adjointHeatGrowthFactor), "soft>="+fmtScalar(adjointSoftFreezeRatio));
-  writeRow("adjoint clamp", "preUa/U="+fmtScalar(adjointPowerToPrimalRatioPreGuard), "preUb/U="+fmtScalar(adjointHeatToPrimalRatioPreGuard), "UaScale="+fmtScalar(adjointSoftFreezeScalePower), "UbScale="+fmtScalar(adjointSoftFreezeScaleHeat));
 
   writeSectionHeader("Interpolation Diagnostics");
   writeRow("interp bounds", "alphaMin="+fmtScalar(alphaLocalMin), "alphaMax="+fmtScalar(alphaLocalMax), "DTMin="+fmtScalar(DTLocalMin), "DTMax="+fmtScalar(DTLocalMax));
-  writeRow("continuation", "alphaMax="+fmtScalar(alphaMax.value()), "qAlpha="+fmtScalar(qAlpha), "qKappa="+fmtScalar(qKappa), "qHeat="+fmtScalar(qHeat));
-  writeRow("hardening", "profile="+std::string(experimentProfile.c_str()), "gate="+std::string(debugContinuationGateSatisfied ? "open" : "closed"), "force="+std::string(forceContinuationHardening ? "yes" : "no"), "floor="+std::string(debugContinuationFloorActive ? "yes" : "no"));
-  writeRow("hardening ctl", "PD/limit="+fmtScalar(debugPowerFeasibilityRatio), "tol<="+fmtScalar(debugContinuationFeasibilityTolActive), "iter<="+fmtCount(forceContinuationHardeningUntilIter), "beta<="+fmtScalar(forceContinuationHardeningUntilBeta));
-  if (stopContinuationHardeningBelowGrayFraction >= 0.0)
-  {
-    writeRow("hardening stop", "gray<="+fmtScalar(stopContinuationHardeningBelowGrayFraction), "gray="+fmtScalar(grayVolumeFraction), "ceiling="+std::string(debugContinuationCeilingActive ? "yes" : "no"), "strict="+std::string(debugLateStageStrictGateActive ? "yes" : "no"));
-  }
-  if
-  (
-    lateStageRefinementStartIter > 0
-    || lateStageRefinementBelowGrayFraction >= 0.0
-    || lateStageMaxBeta >= 0.0
-  )
-  {
-    writeRow
-    (
-      "late refine",
-      "active="+std::string(debugLateStageRefinementActive ? "yes" : "no"),
-      "betaInc="+fmtScalar(debugBetaIncrementActive),
-      "alphaFac="+fmtScalar(debugAlphaRampLateFactorActive),
-      "betaMax="+fmtScalar(debugBetaMaxActive)
-    );
-  }
-  if (debugProfileUsesAdaptiveHardeningThrottles && laggingGrayCollapseStartIter > 0)
-  {
-    writeRow
-    (
-      "lag throttle",
-      "active="+std::string(debugLaggingGrayCollapseDetected ? "yes" : "no"),
-      "grayDrop="+fmtScalar(debugGrayVolumeFractionDrop),
-      "prevXhStep="+fmtScalar(previousXhStepMax),
-      "pulse="+std::string(debugLaggingGrayCollapsePulseIter ? "yes" : "no")
-    );
-  }
-  if (debugProfileUsesAdaptiveHardeningThrottles && overactiveTopologyStartIter > 0)
-  {
-    writeRow
-    (
-      "step throttle",
-      "active="+std::string(debugOveractiveTopologyDetected ? "yes" : "no"),
-      "prevXhStep="+fmtScalar(previousXhStepMax),
-      "gray<="+fmtScalar(overactiveTopologyBelowGrayFraction),
-      "xhStep>="+fmtScalar(overactiveTopologyAboveXhStepMax)
-    );
-  }
-  writeRow("modes", "objective="+std::string(activeObjectiveLabel.c_str()), "wallDist="+std::string(activeWallDistanceMode.c_str()), "turbulence="+std::string(activeTurbulenceModelMode.c_str()), "lsm="+std::string(activeLSMUpdateMode.c_str()));
+  writeRow("continuation", "alphaMax="+fmtScalar(alphaMax.value()), "qu="+fmtScalar(qu));
   writeRow("thermal props", "heatSource="+fmtScalar(heatSource.value()), "thermalSrc="+fmtScalar(thermalSource.value()), "rhoCp="+fmtScalar(rhoCp.value()));
 
   std::ofstream debugJsonFile(debugOptimizerJsonFile, std::ios::app);
@@ -842,18 +410,11 @@ if (Pstream::master())
       << ",\"maxConstraintViolation\":" << maxConstraintViolation
       << ",\"xStepMax\":" << maxAbsXChangeLocal
       << ",\"xhStepMax\":" << maxAbsXhChangeLocal
-      << ",\"phiStepMax\":" << maxAbsPhiChangeLocal
       << ",\"xStepL2OverSqrtN\":" << normalizedL2XChange
       << ",\"xhStepL2OverSqrtN\":" << normalizedL2XhChange
-      << ",\"phiStepL2OverSqrtN\":" << normalizedL2PhiChange
       << ",\"streak\":" << optimizerConvergedStreak
-      << ",\"stalledInfeasibleStreak\":" << optimizerStalledInfeasibleStreak
       << ",\"stallWindow\":" << optStallWindow
       << ",\"candidate\":" << (convergenceCandidate ? 1 : 0)
-      << ",\"designStepFrozen\":" << (designStepFrozen ? 1 : 0)
-      << ",\"volumeShiftCapped\":" << (volumeShiftCapped ? 1 : 0)
-      << ",\"stalledLowFluidCandidate\":" << (stalledLowFluidCandidate ? 1 : 0)
-      << ",\"stalledInfeasibleCandidate\":" << (stalledInfeasibleCandidate ? 1 : 0)
       << ",\"stop\":" << (stopOptimization ? 1 : 0)
       << ",\"reason\":\"" << optimizerStopReason << "\""
     << "}"
@@ -866,39 +427,16 @@ if (Pstream::master())
       << ",\"xhMin\":" << xhLocalMin
       << ",\"xhMax\":" << xhLocalMax
       << ",\"xhMean\":" << xhMean
-      << ",\"phiMin\":" << phiLocalMin
-      << ",\"phiMax\":" << phiLocalMax
-      << ",\"phiMean\":" << phiMean
-      << ",\"epsilonLSMActive\":" << epsilonLSMActive
       << ",\"xhGrayVolumeFraction\":" << grayVolumeFraction
       << ",\"xhSolidVolumeFraction\":" << solidVolumeFraction
       << ",\"xhFluidVolumeFraction\":" << fluidVolumeFraction
-      << ",\"interfaceBandVolumeFraction\":" << interfaceBandVolumeFraction
-      << ",\"phiOverEpsCoreFraction\":" << phiOverEpsCoreFraction
-      << ",\"phiOverEpsShoulderFraction\":" << phiOverEpsShoulderFraction
-      << ",\"phiOverEpsOuterFraction\":" << phiOverEpsOuterFraction
-      << ",\"phiOverEpsFarFraction\":" << phiOverEpsFarFraction
-      << ",\"phiOverEpsAboveTwoFraction\":" << phiOverEpsAboveTwoFraction
-      << ",\"phiOverEpsHistogram\":{"
-        << "\"negFar\":" << phiOverEpsNegFarFraction
-        << ",\"negOuter\":" << phiOverEpsNegOuterFraction
-        << ",\"negShoulder\":" << phiOverEpsNegShoulderFraction
-        << ",\"negInner\":" << phiOverEpsNegInnerFraction
-        << ",\"core\":" << phiOverEpsCoreFraction
-        << ",\"posInner\":" << phiOverEpsPosInnerFraction
-        << ",\"posShoulder\":" << phiOverEpsPosShoulderFraction
-        << ",\"posOuter\":" << phiOverEpsPosOuterFraction
-        << ",\"posFar\":" << phiOverEpsPosFarFraction
-      << "}"
       << ",\"xStepMax\":" << maxAbsXChangeLocal
       << ",\"xStepL2\":" << l2XChange
       << ",\"xhStepMax\":" << maxAbsXhChangeLocal
       << ",\"xhStepL2\":" << l2XhChange
-      << ",\"phiStepMax\":" << maxAbsPhiChangeLocal
-      << ",\"phiStepL2\":" << l2PhiChange
     << "}"
-      << ",\"filter\":{"
-      << "\"beta\":" << del
+    << ",\"filter\":{"
+      << "\"del\":" << del
       << ",\"eta5\":" << eta5
       << ",\"drhoMin\":" << drhoLocalMin
       << ",\"drhoMax\":" << drhoLocalMax
@@ -909,7 +447,7 @@ if (Pstream::master())
       << ",\"volumeConstraintSensitivityFilteredMin\":" << gsensVolLocalMin
       << ",\"volumeConstraintSensitivityFilteredMax\":" << gsensVolLocalMax
     << "}"
-      << ",\"objective\":{"
+    << ",\"objective\":{"
       << "\"name\":\"" << objectiveLabel << "\""
       << ",\"value\":" << objectiveValue
       << ",\"delta\":" << objectiveDelta
@@ -919,40 +457,16 @@ if (Pstream::master())
       << ",\"powerDissipationConstraintMargin\":" << powerConstraintMargin
       << ",\"volumeConstraintValue\":" << V
       << ",\"volumeConstraintMargin\":" << volumeConstraintMargin
-      << ",\"powerDissipationLimit\":" << debugContinuationPowerLimit
       << ",\"meanT\":" << MeanT
       << ",\"maxT\":" << maxT
     << "}"
-    << ",\"lsm\":{"
+    << ",\"mma\":{"
       << "\"iteration\":" << opt
-      << ",\"normalVelocityCap\":" << maxNormalVelocity
-      << ",\"normalVelocityCapHitCount\":" << normalVelocityCapHitCountLocal
+      << ",\"moveLimit\":" << movlim
+      << ",\"moveLimitHitCount\":" << xMoveLimitHitCountLocal
       << ",\"lowerBoundCount\":" << xLowerBoundCountLocal
       << ",\"upperBoundCount\":" << xUpperBoundCountLocal
       << ",\"designNonFiniteCount\":" << xNonFiniteCountLocal
-      << ",\"mode\":\"" << activeLSMUpdateMode << "\""
-      << ",\"pseudoDt\":" << lsmPseudoTimeStep
-      << ",\"phiGradDeviationMax\":" << phiGradDeviationMax
-      << ",\"phiReinitResidual\":" << phiReinitResidual
-      << ",\"diracSupportCellCount\":" << diracSupportCellCountLocal
-      << ",\"diracSupportVolumeFraction\":" << diracSupportVolumeFraction
-      << ",\"meaningfulDiracSupportThreshold\":" << diracMeaningfulSupportThreshold
-      << ",\"meaningfulDiracSupportCellCount\":" << meaningfulDiracSupportCellCountLocal
-      << ",\"meaningfulDiracSupportVolumeFraction\":" << meaningfulDiracSupportVolumeFraction
-      << ",\"powerSupportFloorValue\":" << powerSupportFloorValue
-      << ",\"powerSupportFloorNegativeReach\":" << powerSupportFloorNegativeReach
-      << ",\"powerSupportFloorCellCount\":" << powerSupportFloorCellCount
-      << ",\"powerSupportFloorVolumeFraction\":" << powerSupportFloorVolumeFraction
-      << ",\"powerProjectionMultiplierAnalytical\":" << powerProjectionMultiplierAnalytical
-      << ",\"powerProjectionMultiplierFloor\":" << powerProjectionMultiplierFloor
-      << ",\"powerProjectionMultiplier\":" << powerProjectionMultiplier
-      << ",\"fluidFractionPreShift\":" << fluidFractionBeforeVolumeShift
-      << ",\"fluidFractionPostShift\":" << fluidFractionAfterVolumeShift
-      << ",\"fluidFractionRecoveredByShift\":" << fluidFractionRecoveredByShift
-      << ",\"volumeProjectionMultiplier\":" << volumeProjectionMultiplier
-      << ",\"volumePhiShiftRaw\":" << volumePhiShiftRaw
-      << ",\"volumePhiShiftApplied\":" << volumePhiShiftApplied
-      << ",\"volumePhiShiftCap\":" << volumePhiShiftCap
     << "}"
     << ",\"sensitivity\":{"
       << "\"objectiveMin\":" << fsensLocalMin
@@ -967,25 +481,11 @@ if (Pstream::master())
       << ",\"volumeConstraintMax\":" << gsensVolLocalMax
       << ",\"volumeConstraintL2\":" << gsensVolL2
       << ",\"volumeConstraintNonFiniteCount\":" << gsensVolNonFiniteCountLocal
-      << ",\"interfaceObjectiveMin\":" << interfaceObjMinLocal
-      << ",\"interfaceObjectiveMax\":" << interfaceObjMaxLocal
-      << ",\"interfaceObjectiveL2\":" << interfaceObjL2
-      << ",\"interfacePowerMin\":" << interfacePowMinLocal
-      << ",\"interfacePowerMax\":" << interfacePowMaxLocal
-      << ",\"interfacePowerL2\":" << interfacePowL2
-      << ",\"interfaceVolumeMin\":" << interfaceVolMinLocal
-      << ",\"interfaceVolumeMax\":" << interfaceVolMaxLocal
-      << ",\"interfaceVolumeL2\":" << interfaceVolL2
-      << ",\"normalVelocityRawL2\":" << normalVelocityRawL2
-      << ",\"normalVelocityL2\":" << normalVelocityL2
-      << ",\"volumeProjectionMultiplier\":" << volumeProjectionMultiplier
-      << ",\"objectiveToVolumeL2Ratio\":" << objectiveToVolumeSensitivityRatio
-      << ",\"powerToVolumeL2Ratio\":" << powerToVolumeSensitivityRatio
     << "}"
     << ",\"solver\":{"
       << "\"primalFlowSweeps\":" << 60
-      << ",\"adjointFlowPowerSweeps\":" << adjointMomentumSweeps
-      << ",\"adjointFlowHeatSweeps\":" << adjointMomentumSweeps
+      << ",\"adjointFlowPowerSweeps\":" << 40
+      << ",\"adjointFlowHeatSweeps\":" << 40
       << ",\"uMaxMag\":" << UMaxMagLocal
       << ",\"uMeanMag\":" << UMeanMag
       << ",\"pMin\":" << pLocalMin
@@ -1000,75 +500,17 @@ if (Pstream::master())
       << ",\"ubMeanMag\":" << UbMeanMag
       << ",\"pbMin\":" << pbLocalMin
       << ",\"pbMax\":" << pbLocalMax
-      << ",\"uaToUMaxRatio\":" << adjointPowerToPrimalRatio
-      << ",\"ubToUMaxRatio\":" << adjointHeatToPrimalRatio
-      << ",\"uaGrowthFactor\":" << adjointPowerGrowthFactor
-      << ",\"ubGrowthFactor\":" << adjointHeatGrowthFactor
-      << ",\"uaToUMaxRatioPreGuard\":" << adjointPowerToPrimalRatioPreGuard
-      << ",\"ubToUMaxRatioPreGuard\":" << adjointHeatToPrimalRatioPreGuard
-      << ",\"adjointSoftFreezeAppliedPower\":" << (adjointSoftFreezeAppliedPower ? 1 : 0)
-      << ",\"adjointSoftFreezeAppliedHeat\":" << (adjointSoftFreezeAppliedHeat ? 1 : 0)
-      << ",\"adjointSoftFreezeScalePower\":" << adjointSoftFreezeScalePower
-      << ",\"adjointSoftFreezeScaleHeat\":" << adjointSoftFreezeScaleHeat
-      << ",\"adjointContinuationFreezeRequested\":" << (adjointContinuationFreezeRequested ? 1 : 0)
-      << ",\"adjointRunaway\":" << (adjointRunaway ? 1 : 0)
     << "}"
-      << ",\"interpolation\":{"
+    << ",\"interpolation\":{"
       << "\"alphaMin\":" << alphaLocalMin
       << ",\"alphaMax\":" << alphaLocalMax
       << ",\"dtMin\":" << DTLocalMin
       << ",\"dtMax\":" << DTLocalMax
       << ",\"alphaMaxSchedule\":" << alphaMax.value()
-      << ",\"qAlpha\":" << qAlpha
-      << ",\"qKappa\":" << qKappa
-      << ",\"qHeat\":" << qHeat
-      << ",\"beta\":" << del
-      << ",\"experimentProfile\":\"" << experimentProfile << "\""
-      << ",\"powerFeasibilityRatio\":" << debugPowerFeasibilityRatio
-      << ",\"continuationFeasibilityTolActive\":" << debugContinuationFeasibilityTolActive
-      << ",\"continuationGateSatisfied\":" << (debugContinuationGateSatisfied ? 1 : 0)
-      << ",\"continuationFloorActive\":" << (debugContinuationFloorActive ? 1 : 0)
-      << ",\"continuationCeilingActive\":" << (debugContinuationCeilingActive ? 1 : 0)
-      << ",\"lateStageStrictGateActive\":" << (debugLateStageStrictGateActive ? 1 : 0)
-      << ",\"lateStageFilterRCapActive\":" << (debugLateStageFilterRCapActive ? 1 : 0)
-      << ",\"filterRActive\":" << activeFilterR
-      << ",\"lateStageRefinementActive\":" << (debugLateStageRefinementActive ? 1 : 0)
-      << ",\"betaIncrementActive\":" << debugBetaIncrementActive
-      << ",\"alphaRampLateFactorActive\":" << debugAlphaRampLateFactorActive
-      << ",\"betaMaxActive\":" << debugBetaMaxActive
-      << ",\"laggingGrayCollapseDetected\":" << (debugLaggingGrayCollapseDetected ? 1 : 0)
-      << ",\"laggingGrayCollapsePulseIter\":" << (debugLaggingGrayCollapsePulseIter ? 1 : 0)
-      << ",\"overactiveTopologyDetected\":" << (debugOveractiveTopologyDetected ? 1 : 0)
-      << ",\"grayVolumeFractionDrop\":" << debugGrayVolumeFractionDrop
-      << ",\"previousXhStepMax\":" << previousXhStepMax
-      << ",\"forceContinuationHardening\":" << (forceContinuationHardening ? 1 : 0)
-      << ",\"forceContinuationHardeningUntilIter\":" << forceContinuationHardeningUntilIter
-      << ",\"forceContinuationHardeningUntilBeta\":" << forceContinuationHardeningUntilBeta
-      << ",\"stopContinuationHardeningBelowGrayFraction\":" << stopContinuationHardeningBelowGrayFraction
-      << ",\"lateStageStrictGateBelowGrayFraction\":" << lateStageStrictGateBelowGrayFraction
-      << ",\"lateStageContinuationFeasibilityTol\":" << lateStageContinuationFeasibilityTol
-      << ",\"lateStageRefinementStartIter\":" << lateStageRefinementStartIter
-      << ",\"lateStageRefinementBelowGrayFraction\":" << lateStageRefinementBelowGrayFraction
-      << ",\"lateStageBetaRampFactor\":" << lateStageBetaRampFactor
-      << ",\"lateStageAlphaRampFactor\":" << lateStageAlphaRampFactor
-      << ",\"lateStageMaxBeta\":" << lateStageMaxBeta
-      << ",\"lateStageFilterRStartIter\":" << lateStageFilterRStartIter
-      << ",\"lateStageFilterRCap\":" << lateStageFilterRCap
-      << ",\"overactiveTopologyStartIter\":" << overactiveTopologyStartIter
-      << ",\"overactiveTopologyBelowGrayFraction\":" << overactiveTopologyBelowGrayFraction
-      << ",\"overactiveTopologyAboveXhStepMax\":" << overactiveTopologyAboveXhStepMax
-      << ",\"hardeningEnabled\":" << (debugContinuationHardeningEnabled ? 1 : 0)
-      << ",\"wallDistanceMode\":\"" << activeWallDistanceMode << "\""
-      << ",\"turbulenceModelMode\":\"" << activeTurbulenceModelMode << "\""
-      << ",\"lsmUpdateMode\":\"" << activeLSMUpdateMode << "\""
-      << ",\"epsilonLSMActive\":" << epsilonLSMActive
+      << ",\"qu\":" << qu
       << ",\"heatSource\":" << heatSource.value()
       << ",\"thermalSource\":" << thermalSource.value()
       << ",\"rhoCp\":" << rhoCp.value()
     << "}"
     << "}\n";
 }
-
-previousXhStepMax = maxAbsXhChangeLocal;
-previousAdjointPowerToPrimalRatio = adjointPowerToPrimalRatio;
-previousAdjointHeatToPrimalRatio = adjointHeatToPrimalRatio;

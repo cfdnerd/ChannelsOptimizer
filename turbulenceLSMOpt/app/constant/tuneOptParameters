@@ -15,88 +15,13 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-frameworkSwitches
-{
-    useFrozenTurbulenceAdjoint      true;
-    useKEpsilonModel                true;
-    useWrayAgarwalFallback          false;
-    useMeshWaveWallDistanceFallback false;
-    useBrinkmanSinkInKEpsilon       true;
-    useSplitRAMPControls            false;
-    useSingleQFallback              true;
-    useTurbulentThermalDiffusivity  true;
-    usePowerConstraintRelaxation    true;
-    useFullAdjointSymmetricStress   true;
-}
-
-lsmSwitches
-{
-    useInterfaceDerivedWallDistance false;
-    useAuxiliaryPDEWallDistance     true;
-    useReactionDiffusionLSMUpdate   false;
-    usePureHamiltonJacobiFallback   true;
-    useSussmanReinitialization      true;
-}
-
-objectiveSwitches
-{
-    useLogMeanTObjective            false;
-    useKSHotspotObjective           false;
-    useVarianceObjective            false;
-    useRobustMultiCaseObjective     false;
-}
-
-continuationSwitches
-{
-    useStagnationTriggeredBeta      false;
-}
-
-experimentControl
-{
-    profile                         adjointSensitivityProbe;
-    forceContinuationHardening      false;
-    forceContinuationHardeningUntilIter 0;
-    forceContinuationHardeningUntilBeta -1;
-    stopContinuationHardeningBelowGrayFraction 0.10;
-    lateStageStrictGateBelowGrayFraction 0.55;
-    lateStageContinuationFeasibilityTol 0.98;
-    lateStageRefinementStartIter   150;
-    lateStageRefinementBelowGrayFraction 0.55;
-    lateStageBetaRampFactor        0.20;
-    lateStageAlphaRampFactor       1.0;
-    lateStageMaxBeta               40;
-    lateStageFilterRStartIter      120;
-    lateStageFilterRCap            6.0;
-    laggingGrayCollapseStartIter   140;
-    laggingGrayCollapseAboveGrayFraction 0.30;
-    laggingGrayCollapseBelowXhStepMax 0.06;
-    laggingGrayCollapseMinGrayDrop 5e-3;
-    laggingGrayCollapsePauseInterval 4;
-    overactiveTopologyStartIter    120;
-    overactiveTopologyBelowGrayFraction 0.75;
-    overactiveTopologyAboveXhStepMax 0.25;
-}
-
-adjointControl
-{
-    adjointMomentumSweeps           30;
-    adjointExplicitStressScale      0.30;
-    adjointSoftFreezeRatio          1000;
-    adjointSoftFreezeGrowthFactor   1.5;
-    resetAdjointsEachIteration      true;
-    stopOnAdjointRunaway            true;
-}
-
+// Optimizer stopping controls.
+// The optimizer exits early only after the design step, objective drift,
+// and constraint violation all remain small for several consecutive loops.
 convergenceControl
 {
-    optMinIterations                50;
-    optStallWindow                  5;
-    optObjectiveTol                 1e-3;
-    optConstraintTol                1e-3;
-    optStepTol                      5e-3;
-    optPowerConstraintWeight        5.0;
-    optPowerViolationScaleExponent  2.0;
-    optVolumeConstraintWeight       1.0;
+    // Intentionally empty: use solver defaults from createFields.H.
+    // Add only non-default overrides here when tuning is needed.
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

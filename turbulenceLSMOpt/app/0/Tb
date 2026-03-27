@@ -28,7 +28,7 @@ boundaryField
     outlet
     {
        type             groovyBC;
-       variables "DTloc=DT;h=U&normal();Tinf=0;h_stable=max(mag(h), 1e-12);f=1/(1+DTloc/(h_stable*mag(delta())));";
+       variables "k=DT;h=U&normal();Tinf=0;h_stable=max(mag(h), 1e-12);f=1/(1+k/(h_stable*mag(delta())));";
        valueExpression  "Tinf";
        gradientExpression "0";
        fractionExpression "f";

@@ -79,10 +79,8 @@ if (Pstream::master())
 
   solverConvergenceLogFile
     << "\n"
-    << "[Geometry And Auxiliary Equations]\n";
+    << "[Filter And Projection Equations]\n";
   writeTableHeader();
-  writeSolveStats("dAlpha wallDist", dAlphaLinearSolveStats);
-  writeSolveStats("Vn regularize", velocityRegularizationLinearSolveStats);
   writeSolveStats("xp filter", xpFilterLinearSolveStats);
   writeSolveStats("fsens filter", fsensFilterLinearSolveStats);
   writeSolveStats("gsensPower filter", gsensPowerFilterLinearSolveStats);

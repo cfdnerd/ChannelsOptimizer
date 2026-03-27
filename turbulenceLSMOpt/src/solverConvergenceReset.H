@@ -6,8 +6,6 @@ resetLinearSolveStats(UbLinearSolveStats);
 resetLinearSolveStats(pbLinearSolveStats);
 resetLinearSolveStats(UaLinearSolveStats);
 resetLinearSolveStats(paLinearSolveStats);
-resetLinearSolveStats(dAlphaLinearSolveStats);
-resetLinearSolveStats(velocityRegularizationLinearSolveStats);
 resetLinearSolveStats(xpFilterLinearSolveStats);
 resetLinearSolveStats(fsensFilterLinearSolveStats);
 resetLinearSolveStats(gsensPowerFilterLinearSolveStats);

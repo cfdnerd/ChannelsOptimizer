@@ -103,8 +103,12 @@ void Foam::adjointOutletVelocityPowerFvPatchVectorField::updateCoeffs()
     const fvsPatchField<scalar>& phip =
     	patch().lookupPatchField<surfaceScalarField, scalar>("phi");
     	
-    const fvPatchField<scalar>& nuEffPatch =
-        patch().lookupPatchField<volScalarField, scalar>("nuEffAdjoint");
+    const dictionary& transportProperties = db().lookupObject<IOdictionary>("transportProperties");
+     dimensionedScalar nu(transportProperties.lookup("nu"));
+   //const incompressible::RASModel& rasModel =
+   // 	db().lookupObject<incompressible::RASModel>("RASProperties");
+
+   // scalarField nueff = rasModel.nuEff()().boundaryField()[patch().index()];
 
     const scalarField& deltainv = 
     	patch().deltaCoeffs(); // dist^(-1) 
@@ -119,34 +123,9 @@ void Foam::adjointOutletVelocityPowerFvPatchVectorField::updateCoeffs()
     vectorField Uaneigh_n = (Uaneigh & patch().nf())*patch().nf();
     vectorField Uaneigh_t = Uaneigh - Uaneigh_n;
 
-    scalarField safeDenom(patch().size(), 0.0);
-    forAll(safeDenom, faceI)
-    {
-        const scalar diffusiveScale = nuEffPatch[faceI]*deltainv[faceI];
-        const scalar rawDenom = Up_ns[faceI] + diffusiveScale;
-        const scalar minAbsDenom = 0.1*diffusiveScale + SMALL;
-        safeDenom[faceI] =
-            rawDenom >= 0.0
-          ? Foam::max(rawDenom, minAbsDenom)
-          : Foam::min(rawDenom, -minAbsDenom);
-    }
-
-    vectorField Uap_t =
-      ((Up_ns*Up_t) + nuEffPatch*deltainv*Uaneigh_t) / safeDenom;
+    vectorField Uap_t = ((Up_ns*Up_t) + nu.value()*deltainv*Uaneigh_t) / (Up_ns+nu.value()*deltainv) ;
 
     vectorField Uap_n = (phiap * patch().Sf())/(patch().magSf()*patch().magSf());
-
-    forAll(Uap_t, faceI)
-    {
-        if (!std::isfinite(static_cast<double>(mag(Uap_t[faceI]))))
-        {
-            Uap_t[faceI] = vector::zero;
-        }
-        if (!std::isfinite(static_cast<double>(mag(Uap_n[faceI]))))
-        {
-            Uap_n[faceI] = vector::zero;
-        }
-    }
 
     operator==(Uap_t+Uap_n);
 

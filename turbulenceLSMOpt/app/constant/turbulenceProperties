@@ -11,20 +11,19 @@ FoamFile
     format      ascii;
     class       dictionary;
     location    "constant";
-    object      turbulenceProperties;
+    object      RASProperties;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-simulationType RAS;
-// The case is modeled as a symmetric half-domain.
-// The inlet patch width is 4 mm in the mesh, corresponding to an 8 mm physical inlet.
+simulationType laminar;
+//simulationType RAS;
 
 RAS
 {
-    RASModel        kEpsilon;
+    RASModel        laminar;
 
-    turbulence      on;
+    turbulence      off;
 
-    printCoeffs     on;
+    printCoeffs     off;
 }
 
 

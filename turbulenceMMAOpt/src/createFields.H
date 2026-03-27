@@ -171,14 +171,6 @@ scalar adjointExplicitStressScale
 (
   adjointControl.lookupOrDefault<scalar>("adjointExplicitStressScale", -1.0)
 );
-scalar adjointSoftFreezeRatio
-(
-  adjointControl.lookupOrDefault<scalar>("adjointSoftFreezeRatio", 1e3)
-);
-scalar adjointSoftFreezeGrowthFactor
-(
-  adjointControl.lookupOrDefault<scalar>("adjointSoftFreezeGrowthFactor", 1.5)
-);
 Switch resetAdjointsEachIteration
 (
   adjointControl.lookupOrDefault<Switch>("resetAdjointsEachIteration", true)
@@ -408,10 +400,8 @@ else if (experimentProfile == "branchRefinement400")
   }
   laggingGrayCollapsePauseInterval =
     Foam::max(laggingGrayCollapsePauseInterval, label(4));
-  if (overactiveTopologyStartIter <= 0)
-  {
-    overactiveTopologyStartIter = 180;
-  }
+  overactiveTopologyStartIter =
+    Foam::max(overactiveTopologyStartIter, label(180));
   if (overactiveTopologyBelowGrayFraction < 0.0)
   {
     overactiveTopologyBelowGrayFraction = 0.16;

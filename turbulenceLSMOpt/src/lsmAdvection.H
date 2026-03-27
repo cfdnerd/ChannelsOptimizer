@@ -7,6 +7,7 @@ reduce(maxVelocityMagnitudeLocal, maxOp<scalar>());
 lsmPseudoTimeStep =
   lsmCFL*epsilonLSMActive/Foam::max(maxVelocityMagnitudeLocal, scalar(1.0));
 const scalar advectionPhiMagnitudeCap = 4.0*Foam::max(epsilonLSMActive, scalar(SMALL));
+const scalar advectionPhiStepCap = 0.5*Foam::max(epsilonLSMActive, scalar(SMALL));
 
 volVectorField gradPhiField
 (
@@ -26,8 +27,10 @@ forAll(phiLS, cellI)
   // gradient back to a signed-distance gradient in those units before using it
   // in the CFL update.
   const scalar gradMag = len*Foam::mag(gradPhiField[cellI]);
-  scalar phiValue =
-    phiLS[cellI] - lsmPseudoTimeStep*normalVelocity[cellI]*Foam::max(gradMag, scalar(1.0));
+  scalar phiStep =
+    lsmPseudoTimeStep*normalVelocity[cellI]*Foam::max(gradMag, scalar(SMALL));
+  phiStep = Foam::max(Foam::min(phiStep, advectionPhiStepCap), -advectionPhiStepCap);
+  scalar phiValue = phiLS[cellI] - phiStep;
   if (!std::isfinite(static_cast<double>(phiValue)))
   {
     phiValue = 0.0;

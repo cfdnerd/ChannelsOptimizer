@@ -23,28 +23,30 @@ The goal is to separate six candidate causes:
 As of the current debugging cycle:
 
 - the latest analyzed `optimizerlogs/` snapshot is now the
-  `case-respected baseline` rerun
+  `profile baseline` rerun
 - the profile-fallback bug in
   [createFields.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/createFields.H)
-  has been fixed and validated by the rerun
-- the early runtime dump now respects the case dictionaries:
+  has been fixed and validated by both post-fix reruns
+- both reruns respected the explicit case dictionaries:
   `betaIncrement = 0.12`,
   `continuationFeasibilityTol = 1.15`,
   `forceContinuationHardeningUntilIter = 0`, and
   `forceContinuationHardeningUntilBeta = -1`
-- despite that fix, the rerun still collapses between `Iter 5` and `Iter 6`
+- the `profile baseline` rerun still collapses between `Iter 5` and `Iter 6`
   and remains trapped afterward
+- `profile baseline` softened the late trapped regime only mildly relative to
+  `branchRefinement400`, so the profile itself is not the primary blocker
 
-Therefore Experiment 1 is complete and the ladder is now positioned at
-Experiment 2 in practice.
+Therefore Experiments 1 and 2 are complete and the ladder is now positioned at
+Experiment 3 in practice.
 
 Immediate next runs:
 
-1. `profile baseline`
-2. `reduced volume-shift cap`
+1. `reduced volume-shift cap`
+2. `wider interface band`
 
-Do not jump ahead to later experiments until the `profile baseline` run is
-archived and reviewed.
+Do not jump ahead to later experiments until the `reduced volume-shift cap`
+run is archived and reviewed.
 
 ## Run Order
 
@@ -193,9 +195,27 @@ Key signals to inspect:
 
 Current status:
 
-- this is now the active next run
-- its purpose is to tell us whether the adaptive profile is still a major
-  destabilizer once the explicit case values are respected
+- completed
+- the early runtime dump still matched the intended case values with
+  `experimentProfile = baseline`
+- collapse timing did not improve:
+  `xhGrayVolumeFraction` stayed near `0.923` through `Iter 4`, then still
+  dropped to `9.624e-04` at `Iter 5`
+- `PowerDiss` still jumped `10.63 -> 20.21 -> 79.91 -> 382.04` across
+  `Iter 4 -> 8`
+- `volumePhiShiftRaw` still climbed `0.861 -> 1.149 -> 1.618 -> 3.118` across
+  `Iter 4 -> 8`, while the applied shift stayed capped near `0.355`
+- the late trapped regime was only modestly softer than Experiment 1:
+  `PowerDiss` settled around `335-349` instead of `366-371`, and
+  `xhFluidVolumeFraction` rose only to about `0.088`
+
+Interpretation:
+
+- `baseline` is slightly better than `branchRefinement400` in the late trapped
+  regime, so it is the sensible profile to retain
+- but because collapse still happens on the same `Iter 5 -> 6` window and the
+  reopening sensitivities still die, the main blocker is deeper than the
+  profile choice itself
 
 ### 3. `reduced volume-shift cap`
 
@@ -206,7 +226,7 @@ Purpose:
 
 Change:
 
-- keep the previous best profile choice
+- keep `experimentControl.profile baseline;`
 - reduce `maxVolumePhiShiftFactor` from `0.10` to `0.02`
 
 Interpretation:
@@ -227,6 +247,13 @@ Optional follow-up if this experiment is strongly positive:
 
 - run one pure diagnostic case with `maxVolumePhiShiftFactor = 0.0`
 - treat that case as debugging-only, not a production candidate
+
+Current status:
+
+- this is now the active next run
+- the active case has already been staged with
+  `experimentControl.profile baseline;`
+  and `maxVolumePhiShiftFactor = 0.02`
 
 ### 4. `wider interface band`
 
@@ -367,6 +394,17 @@ First probe result from the `case-respected baseline` rerun:
 That makes the current collapse look more like projection-shoulder saturation
 and narrow-band loss than an immediate blowout to very large `|phi| / epsilon`
 values.
+
+Second probe result from the `profile baseline` rerun:
+
+- the early collapse geometry stayed effectively the same through
+  `Iter 5 -> 6`
+- by the late trapped regime, `phiOverEpsAboveTwoFraction` was still about
+  `0.919`, while `phiOverEpsFarFraction` was only about `9e-03`
+- this remains more consistent with a capped-shift, shoulder/outer-band trap
+  than with a wholesale blowout to the far tail
+
+That keeps the reduced-cap experiment as the most justified next rung.
 
 ## Current Snapshot Reference Values
 

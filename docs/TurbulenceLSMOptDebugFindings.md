@@ -50,16 +50,17 @@ Completed in the current cycle:
 
 Still pending:
 
-- the next discriminator run is now `profile baseline`
-- after that, move to `reduced volume-shift cap` only if the baseline-profile
-  run behaves almost the same
+- the next discriminator run is now `reduced volume-shift cap`
+- after that, move to `wider interface band` only if the reduced-cap run does
+  not materially delay collapse or preserve reopening support
 
 Practical meaning:
 
-- the current logs are now a valid post-fix `case-respected baseline`
-  reference
+- the current logs now include valid post-fix references for both
+  `case-respected baseline` and `profile baseline`
 - they show that fixing the profile override was necessary, but not sufficient,
-  to prevent the early LSM collapse
+  and that changing from `branchRefinement400` to `baseline` is also not
+  sufficient, to prevent the early LSM collapse
 
 ## First Ladder Result
 
@@ -87,8 +88,8 @@ However, the behavioral outcome did not materially improve:
 Practical conclusion:
 
 - Experiment 1 is complete
-- the next required discriminator is `profile baseline`
-- if that run still collapses on nearly the same schedule, the dominant
+- the next required discriminator at that point was `profile baseline`
+- if that run still collapsed on nearly the same schedule, the dominant
   blocker is deeper than the `branchRefinement400` profile alone
 
 ### The new `phi/eps` probe points to shoulder saturation, not immediate far-tail blowout
@@ -111,9 +112,68 @@ Implication:
 - the current failure looks more like projection-shoulder saturation and loss
   of usable narrow-band support than an immediate explosion to very large
   `|phi| / epsilon` values
-- this keeps Experiments 2 through 4 in the same order, but it increases the
-  value of comparing `baseline` against `branchRefinement400` before moving
-  on to cap or band-width changes
+- this kept Experiments 2 through 4 in the same order and increased the value
+  of comparing `baseline` against `branchRefinement400` before moving on to cap
+  or band-width changes
+
+## Second Ladder Result
+
+### `profile baseline` did not move the collapse window
+
+The `profile baseline` rerun confirms that the profile switch was genuinely
+applied:
+
+- `experimentProfile = baseline`
+- `betaIncrementActive = 0.12`
+- `continuationFeasibilityTolActive = 1.15`
+- `forceContinuationHardeningUntilIter = 0`
+- `forceContinuationHardeningUntilBeta = -1`
+
+But the key failure timing stayed the same:
+
+- `xhGrayVolumeFraction` stayed near `0.923` through `Iter 4`
+- `xhGrayVolumeFraction` still collapsed to `9.624e-04` at `Iter 5`
+- `PowerDiss` still jumped `10.63 -> 20.21 -> 79.91 -> 382.04` across
+  `Iter 4 -> 8`
+- `volumePhiShiftRaw` still climbed `0.861 -> 1.149 -> 1.618 -> 3.118` across
+  `Iter 4 -> 8` while the applied shift remained capped near `0.355`
+
+That means `branchRefinement400` is not the dominant reason the optimizer
+falls into the trapped regime.
+
+### `profile baseline` only softened the late trapped regime modestly
+
+Relative to the earlier `branchRefinement400` trapped reference, the late
+baseline-profile state is somewhat less blocked, but not enough to count as a
+clear recovery:
+
+- late `PowerDiss` fell only to about `335-349`, not to anything near the
+  feasible regime
+- `xhFluidVolumeFraction` improved only to about `0.088`
+- `interfaceBandVolumeFraction` remained only about `2.18e-03`
+- `interfacePowerL2` remained around `1.3e-03`
+- `normalVelocityL2` remained around `8e-04`
+- `volumePhiShiftRaw` still sat near `5.46` while the applied shift stayed
+  capped at about `0.355`
+
+Practical conclusion:
+
+- `baseline` is the slightly better profile and should be retained
+- but the next useful discriminator is no longer another profile tweak
+- the strongest remaining runtime suspect is still the capped global
+  post-update `phiLS` shift
+
+### The late `phi/eps` histogram still supports the shift-cap hypothesis
+
+By the late trapped regime in the baseline-profile run:
+
+- `phiOverEpsAboveTwoFraction` was still about `0.919`
+- `phiOverEpsFarFraction` was only about `9e-03`
+
+So even after many trapped iterations, the state still looks more like a
+shoulder/outer-band trap than a far-tail blowout. That strengthens the case
+for moving next to the reduced-cap experiment rather than skipping straight to
+interface-band or wall-distance surgery.
 
 ## Latest-Run Failure Sequence
 
@@ -355,8 +415,10 @@ The current ladder position is:
 
 1. code-level profile-fallback bug fixed
 2. `case-respected baseline` rerun captured and characterized
-3. `profile baseline` is the active next discriminator run
+3. `profile baseline` rerun captured and characterized
+4. `reduced volume-shift cap` is the active next discriminator run
 
 Do not skip directly to deeper LSM code surgery before capturing that
-`profile baseline` run. It is the cleanest remaining check for whether
-`branchRefinement400` itself is still a major destabilizer.
+`reduced volume-shift cap` run. It is now the cleanest remaining check for
+whether the capped global post-update shift is the main trigger behind the
+early LSM collapse.

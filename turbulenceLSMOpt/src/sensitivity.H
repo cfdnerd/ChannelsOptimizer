@@ -87,7 +87,6 @@ if (adjointPowerNeedsSoftFreeze || adjointPowerNeedsRunawayClamp)
   }
   Ua.correctBoundaryConditions();
   pa.correctBoundaryConditions();
-  phia.correctBoundaryConditions();
   adjointSoftFreezeAppliedPower = adjointSoftFreezeScalePower < 0.999999;
 }
 
@@ -116,7 +115,6 @@ if (adjointHeatNeedsSoftFreeze || adjointHeatNeedsRunawayClamp)
   }
   Ub.correctBoundaryConditions();
   pb.correctBoundaryConditions();
-  phib.correctBoundaryConditions();
   adjointSoftFreezeAppliedHeat = adjointSoftFreezeScaleHeat < 0.999999;
 }
 

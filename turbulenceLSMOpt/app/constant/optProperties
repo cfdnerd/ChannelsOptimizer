@@ -18,8 +18,8 @@ FoamFile
 voluse              0.4;
 filterR             10;
 PowerDiss0          8e-4;
-PowerDissMax        50;
-PowerDissRelax      52;
+PowerDissMax        10;
+PowerDissRelax      15;
 powerConstraintRelaxationRate 0.02;
 continuationFeasibilityTol 1.15;
 GeoDim              2;

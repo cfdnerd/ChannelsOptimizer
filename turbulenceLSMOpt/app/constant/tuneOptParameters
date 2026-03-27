@@ -53,7 +53,7 @@ continuationSwitches
 
 experimentControl
 {
-    profile                         baseline;
+    profile                         adjointSensitivityProbe;
     forceContinuationHardening      false;
     forceContinuationHardeningUntilIter 0;
     forceContinuationHardeningUntilBeta -1;
@@ -94,8 +94,8 @@ convergenceControl
     optObjectiveTol                 1e-3;
     optConstraintTol                1e-3;
     optStepTol                      5e-3;
-    optPowerConstraintWeight        2.0;
-    optPowerViolationScaleExponent  1.0;
+    optPowerConstraintWeight        5.0;
+    optPowerViolationScaleExponent  2.0;
     optVolumeConstraintWeight       1.0;
 }
 

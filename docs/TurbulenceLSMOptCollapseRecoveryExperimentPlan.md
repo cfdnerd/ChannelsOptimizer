@@ -23,7 +23,7 @@ The goal is to separate six candidate causes:
 As of the current debugging cycle:
 
 - the latest analyzed `optimizerlogs/` snapshot is now the
-  `wider interface band` rerun
+  `Hamilton-Jacobi fallback` rerun
 - the profile-fallback bug in
   [createFields.H](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/turbulenceLSMOpt/src/createFields.H)
   has been fixed and validated by the post-fix reruns
@@ -32,25 +32,26 @@ As of the current debugging cycle:
   `continuationFeasibilityTol = 1.15`,
   `forceContinuationHardeningUntilIter = 0`, and
   `forceContinuationHardeningUntilBeta = -1`
-- the wider-band rerun respected the intended controls
+- the Hamilton-Jacobi rerun respected the intended controls
+  `lsmUpdateMode = hamiltonJacobi`,
   `experimentProfile = baseline`,
   `maxVolumePhiShiftFactor = 0.10`,
   `epsilonLSM = 2.5`, and `epsilonLSMMin = 1.0`
-- the wider band delayed `xhGrayVolumeFraction` collapse from `Iter 5` to
-  `Iter 6` and delayed `interfaceBandVolumeFraction` collapse to `Iter 8`
-- that delay was only modest, and the run still fell into the same trapped
-  high-power regime by `Iter 8`
+- the fallback path skipped the `Vn regularize` solve as intended, but the
+  collapse window still stayed at `Iter 6 -> 8`
+- the Hamilton-Jacobi rerun therefore looks effectively neutral relative to the
+  wider-band reference and does not materially improve reopening support
 
-Therefore Experiments 1 through 4 are complete and the ladder is now
-positioned at Experiment 5 in practice.
+Therefore Experiments 1 through 5 are complete and the ladder is now
+positioned at Experiment 6 in practice.
 
 Immediate next runs:
 
-1. `Hamilton-Jacobi fallback`
-2. `power-reopen probe`
+1. `power-reopen probe`
+2. deeper code probes only if Experiment 6 is also negative
 
-Do not jump ahead to later experiments until the `Hamilton-Jacobi fallback`
-run is archived and reviewed.
+Do not jump ahead to deeper code probes until the `power-reopen probe` run is
+archived and reviewed.
 
 ## Run Order
 
@@ -361,15 +362,30 @@ Key signals to inspect:
 
 Current status:
 
-- this is now the active next run
-- the active case has been staged with the wider-band settings retained:
+- completed
+- the runtime dump confirmed the intended fallback controls were active:
   `experimentControl.profile baseline;`
   `maxVolumePhiShiftFactor = 0.10;`
   `epsilonLSM = 2.5;`
   `epsilonLSMMin = 1.0;`
-- in `lsmSwitches`, the next run now uses
+- in `lsmSwitches`, the run used
   `useReactionDiffusionLSMUpdate false;` and
   `usePureHamiltonJacobiFallback true;`
+- `xhGrayVolumeFraction` still stayed near `0.923` through `Iter 5`, then
+  collapsed to `9.624e-04` at `Iter 6`
+- `interfaceBandVolumeFraction` still stayed near `0.923` through `Iter 7`,
+  then collapsed to `9.624e-04` at `Iter 8`
+- `PowerDiss` still climbed `7.54 -> 9.79 -> 15.93 -> 41.61 -> 334.63` across
+  `Iter 4 -> 8`
+- by `Iter 22 -> 24`, `interfacePowerL2` remained only about
+  `1.6e-04 -> 6.9e-04` and `normalVelocityL2` only about
+  `1.1e-04 -> 5.3e-04`
+
+Interpretation:
+
+- removing the regularization solve did not materially delay collapse
+- the fallback changed the bookkeeping, not the trapped outcome
+- this pushes the ladder onward to the reopening-strength probe
 
 ### 6. `power-reopen probe`
 
@@ -398,13 +414,27 @@ Key signals to inspect:
 - `sensitivity.normalVelocityL2`
 - `objective.powerDissipationConstraintValue`
 
+Current status:
+
+- this is now the active next run
+- the active case retains the wider-band plus Hamilton-Jacobi settings:
+  `useReactionDiffusionLSMUpdate false;`
+  `usePureHamiltonJacobiFallback true;`
+  `maxVolumePhiShiftFactor = 0.10;`
+  `epsilonLSM = 2.5;`
+  `epsilonLSMMin = 1.0;`
+- in the current staged case:
+  `experimentControl.profile adjointSensitivityProbe;`
+  `optPowerConstraintWeight = 5.0;`
+  `optPowerViolationScaleExponent = 2.0;`
+
 ## Practical Pass/Fail Heuristics
 
 An experiment is promising if, relative to the current failing run, it shows at
 least two of the following:
 
 - the runtime dump exactly matches the intended controls
-- gray collapse is delayed well beyond the old `Iter 5` event
+- gray collapse is delayed well beyond the current `Iter 6` event
 - `interfaceBandVolumeFraction` stays clearly above `O(1e-2)` after the first
   power violation
 - `interfacePowerL2` remains well above the near-zero values seen after the old
@@ -496,6 +526,22 @@ That means the wider band does preserve support a bit longer, but not enough to
 avoid the same shoulder/outer-band trap. The next rung should therefore
 interrogate the update path itself rather than tuning the band width further.
 
+Fifth probe result from the `Hamilton-Jacobi fallback` rerun:
+
+- the runtime dump switched to `lsmUpdateMode = hamiltonJacobi`
+- `solverConvergences.log` shows `Vn regularize` as `SKIP`, so the fallback was
+  genuinely active
+- despite that, `xhGrayVolumeFraction` still collapsed at `Iter 6` and
+  `interfaceBandVolumeFraction` still caught up only at `Iter 8`
+- `interfacePowerL2` still fell to `0.124` at `Iter 8`, then to only
+  `O(1e-04 to 1e-03)` by `Iter 22 -> 24`
+- `normalVelocityRawL2` and `normalVelocityL2` became identical, as expected,
+  but they still decayed to only `O(1e-04 to 1e-03)` in the trapped regime
+
+That makes the Hamilton-Jacobi fallback effectively neutral. The next rung
+should therefore test whether the reopening signal itself is too weak, rather
+than continuing to tune the update path.
+
 ## Current Snapshot Reference Values
 
 These are the trapped-run values that later experiments should compare against:
@@ -509,7 +555,7 @@ These are the trapped-run values that later experiments should compare against:
   - `15.93` at `Iter 6`
   - `41.61` at `Iter 7`
   - `334.63` at `Iter 8`
-  - `~382` in the late trapped regime
+  - `~387-403` in the late trapped regime covered by the current snapshot
 - `xhGrayVolumeFraction`:
   - `0.923` before collapse
   - `9.624e-04` at `Iter 6`
@@ -529,11 +575,13 @@ These are the trapped-run values that later experiments should compare against:
   - `8.51` at `Iter 6`
   - `3.55` at `Iter 7`
   - `0.124` at `Iter 8`
-  - `O(1e-04 to 1e-03)` late in the trapped regime
-- `normalVelocity L2`:
+  - `~1.6e-04 -> 6.9e-04` by `Iter 22 -> 24`
+- `normalVelocityRaw L2`:
   - `22.78` at `Iter 4`
   - `22.37` at `Iter 5`
   - `18.35` at `Iter 6`
   - `6.55` at `Iter 7`
   - `0.202` at `Iter 8`
-  - `O(1e-04 to 1e-03)` late in the trapped regime
+  - `~1.1e-04 -> 5.3e-04` by `Iter 22 -> 24`
+- `normalVelocity L2`:
+  - identical to `normalVelocityRaw L2` throughout the Hamilton-Jacobi run

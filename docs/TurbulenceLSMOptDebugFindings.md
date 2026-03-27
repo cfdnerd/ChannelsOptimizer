@@ -2,7 +2,7 @@
 
 This note records the current debugging position for `turbulenceLSMOpt` and
 summarizes the failure mechanisms visible in the latest `optimizerlogs/`
-snapshot.
+snapshot, which is now the `Hamilton-Jacobi fallback` rerun.
 
 Reference sources:
 
@@ -21,16 +21,16 @@ Current diagnosis:
   failure mechanism.
 - The dominant failure is an early level-set collapse followed by an inability
   to reopen blocked channels under severe power violation.
-- The `wider interface band` rerun delayed that collapse only modestly, so band
-  width is contributory but not dominant in the current branch.
+- The `Hamilton-Jacobi fallback` rerun does not materially change the collapse
+  timing or trapped-regime behavior relative to the wider-band reference.
 - The turbulence physics backbone is probably not the primary blocker, because
   `turbulenceMMAOpt` already works with the same low-`q` turbulent baseline.
 - The main suspects are LSM-specific:
-  - the reaction-diffusion update path or its regularization may be damping
-    reopening motion too aggressively
   - global post-update `phiLS` shifts that stay permanently capped once the
     design starts collapsing
   - loss of usable interface support for the power sensitivity after collapse
+  - the power-reopening sensitivity itself may still be too weak even after the
+    update-path fallback is simplified
   - continuation logic that becomes irrelevant once the design has already
     solidified too far
 
@@ -39,7 +39,7 @@ Current diagnosis:
 Completed in the current cycle:
 
 - examined the latest `optimizerlogs/` snapshot and confirmed that it is the
-  `wider interface band` rerun
+  `Hamilton-Jacobi fallback` rerun
 - confirmed from `solverConvergences.log` that the LSM branch is not failing by
   linear-solver blow-up
 - identified a code-level control issue where `branchRefinement400` was
@@ -49,36 +49,44 @@ Completed in the current cycle:
 - captured a clean `case-respected baseline` rerun and verified from
   `optimizerlogs/` that the intended case values were active in the early
   iterations
-- verified from the current runtime dump that the wider-band controls were
-  genuinely active:
+- verified from the current runtime dump that the Hamilton-Jacobi fallback was
+  genuinely active from the start:
+  `lsmUpdateMode = hamiltonJacobi`,
+  `useReactionDiffusionLSMUpdate = false`,
+  `usePureHamiltonJacobiFallback = true`,
   `experimentProfile = baseline`,
-  `maxVolumePhiShiftFactor = 0.10`,
   `epsilonLSM = 2.5`, and
   `epsilonLSMMin = 1.0`
-- confirmed that the wider band delayed `xh` collapse from `Iter 5` to
-  `Iter 6` and delayed `interfaceBandVolumeFraction` collapse to `Iter 8`, but
-  did not prevent the same trapped high-power regime
+- confirmed from `solverConvergences.log` that the fallback path skipped the
+  `Vn regularize` solve entirely, while the primary and adjoint systems stayed
+  healthy
+- confirmed that the Hamilton-Jacobi fallback did not materially move the
+  collapse window or the trapped-regime sensitivity decay relative to the
+  wider-band reference
 - documented the first LSM-specific runtime experiment ladder in
   [TurbulenceLSMOptCollapseRecoveryExperimentPlan.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceLSMOptCollapseRecoveryExperimentPlan.md)
 
 Still pending:
 
-- the next discriminator run is now `Hamilton-Jacobi fallback`
-- after that, move to `power-reopen probe` only if the Hamilton-Jacobi fallback
-  does not materially extend reopening support or delay the trapped regime
+- the next discriminator run is now `power-reopen probe`
+- after that, move to deeper code probes only if the power-reopen probe still
+  does not materially extend reopening support
 
 Practical meaning:
 
 - the current logs now include valid post-fix references for
   `case-respected baseline`, `profile baseline`,
-  `reduced volume-shift cap`, and `wider interface band`
+  `reduced volume-shift cap`, `wider interface band`, and
+  `Hamilton-Jacobi fallback`
 - they show that fixing the profile override was necessary, but not sufficient,
   and that changing from `branchRefinement400` to `baseline` is also not
   sufficient, to prevent the early LSM collapse
 - they also show that reducing the shift cap makes the collapse earlier,
-  while widening the interface band only delays collapse modestly
-- that shifts the strongest remaining runtime discriminator toward the LSM
-  update path itself rather than toward more band-width or shift-cap tuning
+  widening the interface band only delays collapse modestly, and switching to
+  Hamilton-Jacobi does not materially improve reopening
+- that shifts the strongest remaining runtime discriminator toward the strength
+  of the reopening sensitivity itself rather than toward more update-path or
+  band-width tuning
 
 ## First Ladder Result
 
@@ -295,20 +303,76 @@ Implication:
 - the extra band width delays the loss of usable support, but the run still
   falls into the same nearly motionless over-solid trap
 
-### The next clean discriminator is `Hamilton-Jacobi fallback`
+## Fifth Ladder Result
 
-Because the wider-band test only helped modestly, the next experiment should
-keep the wider-band settings and isolate the LSM update path itself:
+### `Hamilton-Jacobi fallback` did not move the collapse window
 
-- keep `experimentControl.profile baseline;`
-- keep `maxVolumePhiShiftFactor = 0.10;`
-- keep `epsilonLSM = 2.5;`
-- keep `epsilonLSMMin = 1.0;`
-- set `useReactionDiffusionLSMUpdate false;`
-- set `usePureHamiltonJacobiFallback true;`
+The Hamilton-Jacobi rerun confirmed that the fallback path was genuinely
+active:
 
-This isolates whether the current reopening loss is mainly coming from the
-reaction-diffusion regularization/update path.
+- `lsmUpdateMode = hamiltonJacobi`
+- `useReactionDiffusionLSMUpdate = false`
+- `usePureHamiltonJacobiFallback = true`
+- `experimentProfile = baseline`
+- `epsilonLSM = 2.5`
+- `epsilonLSMMin = 1.0`
+
+But the key failure timing stayed effectively the same as the wider-band run:
+
+- `xhGrayVolumeFraction` stayed near `0.923` through `Iter 5`, then dropped to
+  `9.624e-04` at `Iter 6`
+- `interfaceBandVolumeFraction` stayed near `0.923` through `Iter 7`, then
+  dropped to `9.624e-04` at `Iter 8`
+- `PowerDiss` still rose `7.54 -> 9.79 -> 15.93 -> 41.61 -> 334.63` across
+  `Iter 4 -> 8`
+- `volumePhiShiftRaw` still rose `1.087 -> 1.298 -> 1.681 -> 2.328 -> 3.307`
+  across `Iter 4 -> 8`, while the applied shift stayed capped near `0.589`
+
+Practical conclusion:
+
+- removing the reaction-diffusion regularization solve does not delay the snap
+  to an over-solid state
+- the dominant blocker is therefore earlier than the regularized update path
+  itself
+
+### `Hamilton-Jacobi fallback` only changed the bookkeeping, not the trapped regime
+
+The fallback path did change one expected implementation detail:
+
+- `normalVelocityRawL2` and `normalVelocityL2` became identical
+- `solverConvergences.log` shows `Vn regularize` as `SKIP` throughout the run
+
+But the trapped regime itself did not improve materially:
+
+- by `Iter 8`, `interfacePowerL2` had still fallen to `0.124`
+- by `Iter 9`, `interfacePowerL2` was already down near `2.7e-04`
+- by `Iter 22 -> 24`, `interfacePowerL2` remained only about
+  `1.6e-04 -> 6.9e-04`
+- by `Iter 22 -> 24`, `normalVelocityL2` remained only about
+  `1.1e-04 -> 5.3e-04`
+- `PowerDiss` still sat around `387-403` in the late trapped state covered by
+  the current snapshot
+
+Implication:
+
+- the simplified advection fallback is not what restores reopening
+- the remaining runtime discriminator should now target whether the power
+  constraint signal is simply too weak
+
+### The next clean discriminator is `power-reopen probe`
+
+Because the Hamilton-Jacobi fallback was effectively neutral, the next
+experiment should retain the wider-band plus Hamilton-Jacobi settings and
+strengthen the reopening signal itself:
+
+- set `experimentControl.profile adjointSensitivityProbe;`
+- keep `useReactionDiffusionLSMUpdate false;`
+- keep `usePureHamiltonJacobiFallback true;`
+- increase `optPowerConstraintWeight` from `2.0` to `5.0`
+- increase `optPowerViolationScaleExponent` from `1.0` to `2.0`
+
+This isolates whether the remaining failure is mainly an underpowered
+reopening sensitivity rather than an update-path defect.
 
 ## Latest-Run Failure Sequence
 
@@ -346,14 +410,14 @@ Interpretation:
 - the run has not crashed, but it has already left the viable
   channel-evolution path
 
-### 3. Iterations 7-34: band support briefly lingers, then reopening dies
+### 3. Iterations 7-24: band support briefly lingers, then reopening dies
 
 After collapse:
 
 - `interfaceBandVolumeFraction` stays high for `Iter 7`, then collapses to
   `9.624e-04` at `Iter 8`
 - `PowerDiss` jumps to `41.61` at `Iter 7`, then `334.63` at `Iter 8`, then
-  stays near `382`
+  stays around `387-403` in the trapped regime covered by the current snapshot
 - `interfacePowerSensitivity L2` falls from `3.55` at `Iter 7` to `0.124` at
   `Iter 8`, then to `O(1e-04 to 1e-03)` late in the run
 - `normalVelocity L2` falls from `6.55` at `Iter 7` to `0.202` at `Iter 8`,
@@ -413,7 +477,7 @@ Unlike the original MMA failure, the current LSM run is already using:
 Therefore the dominant LSM failure is not the same startup-interpolation
 problem that dominated `turbulenceMMAOpt`.
 
-### 2. The LSM branch is failing in its update path, not mainly in its physics solves
+### 2. The LSM branch is failing in its reopening path, not mainly in its physics solves
 
 Evidence:
 
@@ -424,8 +488,7 @@ Evidence:
 This points the investigation toward:
 
 - interface sensitivity mapping
-- velocity regularization
-- advection and reinitialization
+- power-weighting and reopening strength
 - global `phiLS` shift correction
 - continuation and stall logic after collapse
 
@@ -560,9 +623,10 @@ The current ladder position is:
 3. `profile baseline` rerun captured and characterized
 4. `reduced volume-shift cap` rerun captured and characterized
 5. `wider interface band` rerun captured and characterized
-6. `Hamilton-Jacobi fallback` is the active next discriminator run
+6. `Hamilton-Jacobi fallback` rerun captured and characterized
+7. `power-reopen probe` is the active next discriminator run
 
 Do not skip directly to deeper LSM code surgery before capturing the
-`Hamilton-Jacobi fallback` run. After the wider-band result, it is now the
-cleanest remaining runtime check for whether the regularized LSM update path is
-what is killing reopening motion.
+`power-reopen probe` run. After the neutral Hamilton-Jacobi result, it is now
+the cleanest remaining runtime check for whether the reopening signal is simply
+too weak to reverse the trapped over-solid state.

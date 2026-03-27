@@ -22,7 +22,10 @@ volVectorField gradPhiField
 );
 forAll(phiLS, cellI)
 {
-  const scalar gradMag = Foam::mag(gradPhiField[cellI]);
+  // phiLS is stored in local cell-width units, so convert the physical-space
+  // gradient back to a signed-distance gradient in those units before using it
+  // in the CFL update.
+  const scalar gradMag = len*Foam::mag(gradPhiField[cellI]);
   scalar phiValue =
     phiLS[cellI] - lsmPseudoTimeStep*normalVelocity[cellI]*Foam::max(gradMag, scalar(1.0));
   if (!std::isfinite(static_cast<double>(phiValue)))

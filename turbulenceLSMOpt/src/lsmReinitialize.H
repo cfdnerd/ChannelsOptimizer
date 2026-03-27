@@ -26,8 +26,9 @@ phiGradDeviationMax = 0.0;
   );
   forAll(phiLS, cellI)
   {
+    const scalar gradMag = len*Foam::mag(gradPhiField[cellI]);
     phiGradDeviationMax =
-      Foam::max(phiGradDeviationMax, Foam::mag(Foam::mag(gradPhiField[cellI]) - 1.0));
+      Foam::max(phiGradDeviationMax, Foam::mag(gradMag - 1.0));
   }
   reduce(phiGradDeviationMax, maxOp<scalar>());
 }
@@ -71,7 +72,7 @@ if (triggerReinitialization)
         safeDenom = epsAbs*Foam::sqrt(1.0 + ratio*ratio);
       }
       const scalar signValue = phiRef/Foam::max(safeDenom, scalar(SMALL));
-      const scalar gradMag = Foam::mag(gradPhiField[cellI]);
+      const scalar gradMag = len*Foam::mag(gradPhiField[cellI]);
       scalar phiValue = phiLS[cellI] - reinitStepSize*signValue*(gradMag - 1.0);
       if (!std::isfinite(static_cast<double>(phiValue)))
       {

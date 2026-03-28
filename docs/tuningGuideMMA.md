@@ -15,7 +15,7 @@ The goal is quick tuning, not solver internals.
 - `laminarGrayRamp`: faster laminar-style beta/alpha hardening.
 - `relaxedGateGrayRamp`: laminar-style hardening with looser power-feasibility gating.
 - `betaFloorGrayRamp`: relaxed gate plus forced hardening until a beta/iteration floor.
-- `branchRefinement400`: keep strong early topology birth, then taper late hardening for Iter 220-400 refinement.
+- `branchRefinement400`: keep strong early topology birth, then switch into earlier late-stage carving to trim oversized ribs without over-hardening the design.
 - `ungatedGrayRamp`: bypass the continuation gate and always harden.
 - `adjointSensitivityProbe`: increase adjoint fidelity to test weak-sensitivity hypotheses.
 
@@ -131,7 +131,7 @@ Usage patterns:
 
 - Raise hardening aggressiveness with `forceContinuationHardening*`, higher `lateStageContinuationFeasibilityTol`, or more aggressive profiles.
 - Protect fine sub-branching with `lateStageRefinement*`, lower `lateStageMaxBeta`, and earlier `overactiveTopology*`.
-- Keep large smooth trunks early and finer carving late with `useLateStageFilterRCap=true` plus `lateStageFilterRStartIter` and `lateStageFilterRCap`.
+- Keep large smooth trunks early and finer carving late with `useLateStageFilterRCap=true` plus an earlier `lateStageFilterRStartIter` and a smaller `lateStageFilterRCap`.
 - Stop late speckle/noise by lowering `stopContinuationHardeningBelowGrayFraction` only if gray collapse is already achieved.
 
 ### `adjointControl`
@@ -159,6 +159,7 @@ Usage patterns:
 ## Quick Tuning Heuristics
 
 - If channels are too thick and small branches never appear: lower `filterR`, reduce late `beta` growth, or start `lateStageRefinement*` earlier.
+- If solid blocks or ribs stay too large after the main topology has formed: enable `useLateStageFilterRCap`, start the cap earlier, and pair it with a lower `lateStageMaxBeta`.
 - If the design stays gray too long: increase `betaIncrement`, use a more aggressive profile, or relax the continuation gate.
 - If late iterations become speckled or noisy: lower `lateStageMaxBeta`, reduce `lateStageBetaRampFactor`, or tighten `lateStageStrictGate*`.
 - If topology motion dies too early while gray is still high: loosen `laggingGrayCollapse*` or allow stronger early hardening.

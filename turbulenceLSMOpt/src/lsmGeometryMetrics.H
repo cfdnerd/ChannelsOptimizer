@@ -51,6 +51,7 @@ forAll(phiLS, cellI)
 lsmCurvature = fvc::div(phiUnitNormal);
 
 const scalar supportTol = Foam::max(0.10*len, scalar(1e-9));
+const scalar supportPeakTol = Foam::max(1e-4*len, scalar(1e-12));
 label widthSupportCountLocal(0);
 label ribSupportCountLocal(0);
 scalar widthMinObservedLocal(GREAT);
@@ -74,11 +75,19 @@ forAll(phiLS, cellI)
     forAll(neighbours, neighbourI)
     {
         const label neighbourCell = neighbours[neighbourI];
-        if (fluidSupport && phiFluidDistance[neighbourCell] > phiFluidDistance[cellI] + supportTol)
+        if
+        (
+            fluidSupport
+         && phiFluidDistance[neighbourCell] > phiFluidDistance[cellI] + supportPeakTol
+        )
         {
             fluidSupport = false;
         }
-        if (solidSupport && phiSolidDistance[neighbourCell] > phiSolidDistance[cellI] + supportTol)
+        if
+        (
+            solidSupport
+         && phiSolidDistance[neighbourCell] > phiSolidDistance[cellI] + supportPeakTol
+        )
         {
             solidSupport = false;
         }

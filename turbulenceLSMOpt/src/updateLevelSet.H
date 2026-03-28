@@ -139,14 +139,14 @@ lsmLastConnectivitySatisfied =
 
 const bool widthCollapseDetected =
     useChannelWidthControl
- && channelWidthMin > SMALL
+ && channelWidthMinPhysical > SMALL
  && lsmLastChannelWidthMin > SMALL
- && lsmLastChannelWidthMin < 0.5*channelWidthMin;
+ && lsmLastChannelWidthMin < 0.5*channelWidthMinPhysical;
 const bool ribCollapseDetected =
     useRibThicknessControl
- && ribThicknessMin > SMALL
+ && ribThicknessMinPhysical > SMALL
  && lsmLastRibThicknessMin > SMALL
- && lsmLastRibThicknessMin < 0.5*ribThicknessMin;
+ && lsmLastRibThicknessMin < 0.5*ribThicknessMinPhysical;
 
 lsmLastStepAccepted =
     allowTopologyChangeInLSM

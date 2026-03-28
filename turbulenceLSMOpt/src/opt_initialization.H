@@ -453,6 +453,21 @@ scalar lsmLastVelocityMax(0.0);
 scalar lsmLastPhiStepMax(0.0);
 
 double len=std::pow(area/N, 1.0/3);
+const scalar channelWidthMinPhysical = channelWidthMin*len;
+const scalar ribThicknessMinPhysical = ribThicknessMin*len;
+
+// Geometry-control inputs are configured in mesh-length units, so convert the
+// runtime target fields to physical lengths once the representative cell size
+// is known.
+channelWidthMinTargetField *= len;
+channelWidthMaxTargetField *= len;
+ribThicknessMinTargetField *= len;
+ribThicknessMaxTargetField *= len;
+channelWidthMinTargetField.correctBoundaryConditions();
+channelWidthMaxTargetField.correctBoundaryConditions();
+ribThicknessMinTargetField.correctBoundaryConditions();
+ribThicknessMaxTargetField.correctBoundaryConditions();
+
 b.value()=1.0/(activeFilterR*len/3.464)/(activeFilterR*len/3.464);
 del=beta0;
 

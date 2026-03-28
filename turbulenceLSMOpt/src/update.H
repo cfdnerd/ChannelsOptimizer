@@ -91,42 +91,17 @@ if (lsmSwitchGateSatisfied)
     const bool initializedLevelSetConnectivity =
         !lsmSwitchRequireConnectivity
      || hasThresholdedFluidConnectivity(xhLevelSet, 0.5);
-    const bool initializedWidthCollapseDetected =
-        useChannelWidthControl
-     && channelWidthMinPhysical > SMALL
-     && lsmLastChannelWidthMin > SMALL
-     && lsmLastChannelWidthMin < 0.5*channelWidthMinPhysical;
-    const bool initializedRibCollapseDetected =
-        useRibThicknessControl
-     && ribThicknessMinPhysical > SMALL
-     && lsmLastRibThicknessMin > SMALL
-     && lsmLastRibThicknessMin < 0.5*ribThicknessMinPhysical;
     const bool initializedLevelSetAcceptable =
         allowTopologyChangeInLSM
-     || (
-            initializedLevelSetConnectivity
-         && !initializedWidthCollapseDetected
-         && !initializedRibCollapseDetected
-        );
+     || initializedLevelSetConnectivity;
 
     if (!initializedLevelSetAcceptable)
     {
-        const word initRejectReason
-        (
-            !initializedLevelSetConnectivity
-          ? "handoverInitConnectivity"
-          : initializedWidthCollapseDetected
-          ? "handoverInitWidth"
-          : "handoverInitRib"
-        );
+        const word initRejectReason("handoverInitConnectivity");
 
         Info<< "Rejecting LSM handover initialization before Stage 2 commit: "
             << initRejectReason
             << " gray=" << grayVolumeFractionForContinuation
-            << " wMin=" << lsmLastChannelWidthMin
-            << " wMinAccept>=" << 0.5*channelWidthMinPhysical
-            << " ribMin=" << lsmLastRibThicknessMin
-            << " ribMinAccept>=" << 0.5*ribThicknessMinPhysical
             << " len=" << len
             << endl;
 

@@ -170,7 +170,8 @@ These are the main handover controls from density Stage 1 into LSM Stage 2.
 Notes:
 
 - The switch gate also requires solver health to be acceptable.
-- With `allowTopologyChangeInLSM=false`, Stage 2 rejects steps that break connectivity or collapse width or rib metrics below `50%` of the corresponding minimum target.
+- Handover initialization no longer rejects purely on width or rib metrics; it only requires the initialized level-set field to satisfy the configured connectivity policy.
+- With `allowTopologyChangeInLSM=false`, Stage 2 rejects accepted LSM steps that break connectivity or collapse width or rib metrics below `50%` of the corresponding minimum target.
 - Two rejected LSM steps in a row trigger rollback when `lsmRollbackEnabled=true`.
 - A rejected handover waits for a short retry cooldown, but it now keeps the configured `lsmSwitchGrayFraction` instead of tightening it automatically.
 

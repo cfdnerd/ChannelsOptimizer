@@ -246,6 +246,12 @@ solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(xpFilter
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(fsensFilterLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(gsensPowerFilterLinearSolveStats));
 solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(gsensVolFilterLinearSolveStats));
+solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(gsensSolidMinFilterLinearSolveStats));
+solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(gsensSolidMaxFilterLinearSolveStats));
+solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(solidMinGeomFilterLinearSolveStats));
+solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(solidMaxGeomFilterLinearSolveStats));
+solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(solidMinGeomAdjointLinearSolveStats));
+solverSeverity = Foam::max(solverSeverity, linearSolveSeverityFromStats(solidMaxGeomAdjointLinearSolveStats));
 if (adjointRunaway)
 {
   solverSeverity = Foam::max(solverSeverity, label(2));
@@ -255,9 +261,15 @@ continuationHealthOk = !adjointRunaway;
 
 const scalar objectiveRelativeDelta = Foam::mag(objectiveDelta)/Foam::max(Foam::mag(objectiveValue), SMALL);
 const scalar powerConstraintWeightSafe = Foam::max(optPowerConstraintWeight, SMALL);
-const scalar powerConstraintMargin = gx[0]/powerConstraintWeightSafe;
+const scalar powerConstraintMargin = gx[powerConstraintIndex]/powerConstraintWeightSafe;
 const scalar volumeConstraintWeightSafe = Foam::max(optVolumeConstraintWeight, SMALL);
-const scalar volumeConstraintMargin = gx[1]/volumeConstraintWeightSafe;
+const scalar volumeConstraintMargin = gx[volumeConstraintIndex]/volumeConstraintWeightSafe;
+const scalar minSolidConstraintWeightSafe = Foam::max(minSolidGeometryConstraintWeight, SMALL);
+const scalar maxSolidConstraintWeightSafe = Foam::max(maxSolidGeometryConstraintWeight, SMALL);
+const scalar minSolidConstraintMargin =
+  useMinSolidGeometryControl ? gx[minSolidConstraintIndex]/minSolidConstraintWeightSafe : 0.0;
+const scalar maxSolidConstraintMargin =
+  useMaxSolidGeometryControl ? gx[maxSolidConstraintIndex]/maxSolidConstraintWeightSafe : 0.0;
 const scalar debugContinuationPowerLimit =
   usePowerConstraintRelaxation ? activePowerLimit : PowerDissMax;
 const scalar debugPowerFeasibilityRatio =
@@ -345,7 +357,16 @@ if (debugLateStageRefinementActive)
     debugBetaMaxActive = Foam::min(debugBetaMaxActive, lateStageMaxBeta);
   }
 }
-const scalar maxConstraintViolation = Foam::max(Foam::max(powerConstraintMargin, volumeConstraintMargin), scalar(0));
+scalar maxConstraintViolation =
+  Foam::max(Foam::max(powerConstraintMargin, volumeConstraintMargin), scalar(0));
+if (useMinSolidGeometryControl)
+{
+  maxConstraintViolation = Foam::max(maxConstraintViolation, minSolidConstraintMargin);
+}
+if (useMaxSolidGeometryControl)
+{
+  maxConstraintViolation = Foam::max(maxConstraintViolation, maxSolidConstraintMargin);
+}
 const scalar objectiveToVolumeSensitivityRatio = fsensL2/Foam::max(gsensVolL2, SMALL);
 const scalar powerToVolumeSensitivityRatio = gsensPowerL2/Foam::max(gsensVolL2, SMALL);
 const bool convergenceCandidate =
@@ -377,7 +398,11 @@ if (Pstream::master())
     (xNonFiniteCountLocal > 0 || xLocalMin < -1e-8 || xLocalMax > 1.0 + 1e-8 || xhLocalMin < -1e-8 || xhLocalMax > 1.0 + 1e-8)
     ? "WARN"
     : (grayVolumeFraction > 0.50 ? "OBS" : "OK");
-  const char* constraintHealth = (powerConstraintMargin > 0 || volumeConstraintMargin > 0) ? "WARN" : "OK";
+  const bool geometryConstraintViolated =
+    (useMinSolidGeometryControl && minSolidConstraintMargin > 0)
+    || (useMaxSolidGeometryControl && maxSolidConstraintMargin > 0);
+  const char* constraintHealth =
+    (powerConstraintMargin > 0 || volumeConstraintMargin > 0 || geometryConstraintViolated) ? "WARN" : "OK";
   const char* sensitivityHealth =
     (fsensNonFiniteCountLocal > 0 || gsensPowerNonFiniteCountLocal > 0 || gsensVolNonFiniteCountLocal > 0)
     ? "WARN"
@@ -465,6 +490,28 @@ if (Pstream::master())
   writeRow("objective", "value="+fmtScalar(objectiveValue), "delta="+fmtScalar(objectiveDelta));
   writeRow("power diss", "actual="+fmtScalar(PowerDissActual), "act/base="+fmtScalar(PowerDissActualOverBase), "constraint="+fmtScalar(PowerDiss), "limit="+fmtScalar(activePowerLimit));
   writeRow("volume", "value="+fmtScalar(V), "margin="+fmtScalar(volumeConstraintMargin));
+  if (useMinSolidGeometryControl)
+  {
+    writeRow
+    (
+      "solid min",
+      "value="+fmtScalar(solidMinConstraintValue),
+      "margin="+fmtScalar(minSolidConstraintMargin),
+      "size="+fmtScalar(minSolidGeometryFeatureSize),
+      "fill>="+fmtScalar(minSolidGeometryFillFraction)
+    );
+  }
+  if (useMaxSolidGeometryControl)
+  {
+    writeRow
+    (
+      "solid max",
+      "value="+fmtScalar(solidMaxConstraintValue),
+      "margin="+fmtScalar(maxSolidConstraintMargin),
+      "size="+fmtScalar(maxSolidGeometryFeatureSize),
+      "fill<="+fmtScalar(maxSolidGeometryFillFraction)
+    );
+  }
   writeRow("thermal", "meanT="+fmtScalar(MeanT), "maxT="+fmtScalar(maxT));
 
   writeSectionHeader("MMA Diagnostics");
@@ -603,6 +650,18 @@ if (Pstream::master())
       << ",\"powerDissipationLimit\":" << debugContinuationPowerLimit
       << ",\"meanT\":" << MeanT
       << ",\"maxT\":" << maxT
+    << "}"
+    << ",\"geometryControl\":{"
+      << "\"useMinSolid\":" << (useMinSolidGeometryControl ? 1 : 0)
+      << ",\"useMaxSolid\":" << (useMaxSolidGeometryControl ? 1 : 0)
+      << ",\"minSolidFeatureSize\":" << minSolidGeometryFeatureSize
+      << ",\"maxSolidFeatureSize\":" << maxSolidGeometryFeatureSize
+      << ",\"minSolidFillFraction\":" << minSolidGeometryFillFraction
+      << ",\"maxSolidFillFraction\":" << maxSolidGeometryFillFraction
+      << ",\"minSolidConstraintValue\":" << solidMinConstraintValue
+      << ",\"maxSolidConstraintValue\":" << solidMaxConstraintValue
+      << ",\"minSolidConstraintMargin\":" << minSolidConstraintMargin
+      << ",\"maxSolidConstraintMargin\":" << maxSolidConstraintMargin
     << "}"
     << ",\"mma\":{"
       << "\"iteration\":" << opt

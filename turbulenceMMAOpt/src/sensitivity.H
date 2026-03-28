@@ -95,6 +95,7 @@ gsensVolRaw = dimensionedScalar("one", dimless, 1.0);
 fsensMeanTRaw = fsenshMeanT;
 gsensPowerDissRaw = gsenshPowerDiss;
 
+#include "geometricSizeControlEvaluation.H"
 
 #include "filter_chainrule.H"
 
@@ -114,15 +115,35 @@ const scalar effectivePowerConstraintWeight =
 const scalar weightedPowerConstraint =
   effectivePowerConstraintWeight*(PowerDiss/powerLimit-1.0);
 const scalar weightedVolumeConstraint = optVolumeConstraintWeight*V;
-gx[0]=weightedPowerConstraint;
-gx[1]=weightedVolumeConstraint;
+gx[powerConstraintIndex]=weightedPowerConstraint;
+gx[volumeConstraintIndex]=weightedVolumeConstraint;
+if (useMinSolidGeometryControl)
+{
+  gx[minSolidConstraintIndex] =
+    minSolidGeometryConstraintWeight*solidMinConstraintValue;
+}
+if (useMaxSolidGeometryControl)
+{
+  gx[maxSolidConstraintIndex] =
+    maxSolidGeometryConstraintWeight*solidMaxConstraintValue;
+}
 
 for(i=0;i<n;i++)
 {
  xmma[i] = x[i];
  dfdx[i]=fsensMeanT[i]/N;//sensitivities of objective function
- dgdx[0][i]=effectivePowerConstraintWeight*(gsensPowerDiss[i]/N);//sensitivities of constraint function
- dgdx[1][i]=optVolumeConstraintWeight*(gsensVol[i]/N);//sensitivities of constraint function
+ dgdx[powerConstraintIndex][i]=effectivePowerConstraintWeight*(gsensPowerDiss[i]/N);//sensitivities of constraint function
+ dgdx[volumeConstraintIndex][i]=optVolumeConstraintWeight*(gsensVol[i]/N);//sensitivities of constraint function
+ if (useMinSolidGeometryControl)
+ {
+   dgdx[minSolidConstraintIndex][i] =
+     minSolidGeometryConstraintWeight*(gsensSolidMin[i]/N);
+ }
+ if (useMaxSolidGeometryControl)
+ {
+   dgdx[maxSolidConstraintIndex][i] =
+     maxSolidGeometryConstraintWeight*(gsensSolidMax[i]/N);
+ }
 }
 
 

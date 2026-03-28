@@ -1,0 +1,43 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  5                                     |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      geometricSizeControlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+general
+{
+    aggregationKSFactor      40;      // KS sharpness used to aggregate local solid-size violations.
+    smoothPositiveEps        1e-4;    // Smooth positive-part epsilon used in the local violation functions.
+    writeDiagnosticFields    false;   // Write solid-indicator/filter/violation fields for debugging.
+}
+
+path2SolidMin
+{
+    active                   false;   // Solid-only minimum-size control. Penalizes thin unsupported solid ligaments.
+    featureSize              3.0;     // Feature-size radius in the same effective units as optProperties.filterR.
+    fillFraction             0.55;    // Require at least this local solid occupancy around nominal solid cells.
+    tolerance                1e-4;    // Allow this much aggregated violation before the MMA constraint activates.
+    constraintWeight         1.0;     // Relative weight applied to the MMA min-solid constraint.
+}
+
+path3SolidMax
+{
+    active                   false;   // Solid-only maximum-size control. Penalizes overly large solid neighborhoods.
+    featureSize              9.0;     // Feature-size radius in the same effective units as optProperties.filterR.
+    fillFraction             0.85;    // Local solid occupancy ceiling used to trigger block/rib breakup.
+    tolerance                1e-4;    // Allow this much aggregated violation before the MMA constraint activates.
+    constraintWeight         1.0;     // Relative weight applied to the MMA max-solid constraint.
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

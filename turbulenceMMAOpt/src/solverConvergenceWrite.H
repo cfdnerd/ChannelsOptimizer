@@ -86,4 +86,10 @@ if (Pstream::master())
   writeSolveStats("fsens filter", fsensFilterLinearSolveStats);
   writeSolveStats("gsensPower filter", gsensPowerFilterLinearSolveStats);
   writeSolveStats("gsensVol filter", gsensVolFilterLinearSolveStats);
+  writeSolveStats("gsensSolidMin filter", gsensSolidMinFilterLinearSolveStats);
+  writeSolveStats("gsensSolidMax filter", gsensSolidMaxFilterLinearSolveStats);
+  writeSolveStats("solidMin filter", solidMinGeomFilterLinearSolveStats);
+  writeSolveStats("solidMax filter", solidMaxGeomFilterLinearSolveStats);
+  writeSolveStats("solidMin adjoint", solidMinGeomAdjointLinearSolveStats);
+  writeSolveStats("solidMax adjoint", solidMaxGeomAdjointLinearSolveStats);
 }

@@ -128,14 +128,27 @@ const scalar filtPowVolCos = filtPowDotVolLocal/(Foam::max(filtPowL2*filtVolL2, 
 
 if (Pstream::master())
 {
+  std::ostringstream constraintStream;
+  constraintStream
+    << " constraints: power=" << gx[powerConstraintIndex]
+    << " volume=" << gx[volumeConstraintIndex];
+  if (useMinSolidGeometryControl)
+  {
+    constraintStream << " solidMin=" << gx[minSolidConstraintIndex];
+  }
+  if (useMaxSolidGeometryControl)
+  {
+    constraintStream << " solidMax=" << gx[maxSolidConstraintIndex];
+  }
+  constraintStream << "  weightedLimit=" << activePowerLimit;
+
   std::ofstream gradientLogFile(gradientOptFile, std::ios::app);
   gradientLogFile
     << "\n================================================================================\n"
     << " Iteration " << opt << " gradient diagnostics\n"
     << "--------------------------------------------------------------------------------\n"
     << " objective: " << activeObjectiveLabel << "  value=" << objectiveValueCurrent << "\n"
-    << " constraints: power=" << gx[0] << " volume=" << gx[1]
-    << "  weightedLimit=" << activePowerLimit << "\n"
+    << constraintStream.str() << "\n"
     << " controls: qAlpha=" << qAlpha << " qKappa=" << qKappa << " qHeat=" << qHeat
     << " alphaMax=" << alphaMax.value() << " beta=" << del << "\n"
     << " modes: wallDistance=" << activeWallDistanceMode

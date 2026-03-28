@@ -115,6 +115,25 @@ if (Pstream::master())
   writeRuntimeSwitch("useStagnationTriggeredBeta", useStagnationTriggeredBeta);
   writeRuntimeSwitch("useLateStageFilterRCap", useLateStageFilterRCap);
 
+  debugLogFile << "\n--- geometricSizeControlDict.general ---\n";
+  writeRuntimeOption("aggregationKSFactor", geometricSizeAggregationKSFactor);
+  writeRuntimeOption("smoothPositiveEps", geometricSizeSmoothPositiveEps);
+  writeRuntimeSwitch("writeDiagnosticFields", writeGeometricSizeDiagnosticFields);
+
+  debugLogFile << "\n--- geometricSizeControlDict.path2SolidMin ---\n";
+  writeRuntimeSwitch("active", useMinSolidGeometryControl);
+  writeRuntimeOption("featureSize", minSolidGeometryFeatureSize);
+  writeRuntimeOption("fillFraction", minSolidGeometryFillFraction);
+  writeRuntimeOption("tolerance", minSolidGeometryConstraintTolerance);
+  writeRuntimeOption("constraintWeight", minSolidGeometryConstraintWeight);
+
+  debugLogFile << "\n--- geometricSizeControlDict.path3SolidMax ---\n";
+  writeRuntimeSwitch("active", useMaxSolidGeometryControl);
+  writeRuntimeOption("featureSize", maxSolidGeometryFeatureSize);
+  writeRuntimeOption("fillFraction", maxSolidGeometryFillFraction);
+  writeRuntimeOption("tolerance", maxSolidGeometryConstraintTolerance);
+  writeRuntimeOption("constraintWeight", maxSolidGeometryConstraintWeight);
+
   debugLogFile << "\n--- experimentControl ---\n";
   writeRuntimeWord("experimentProfile", experimentProfile);
   writeRuntimeSwitch("forceContinuationHardening", forceContinuationHardening);
@@ -305,6 +324,12 @@ LinearSolveStats xpFilterLinearSolveStats;
 LinearSolveStats fsensFilterLinearSolveStats;
 LinearSolveStats gsensPowerFilterLinearSolveStats;
 LinearSolveStats gsensVolFilterLinearSolveStats;
+LinearSolveStats gsensSolidMinFilterLinearSolveStats;
+LinearSolveStats gsensSolidMaxFilterLinearSolveStats;
+LinearSolveStats solidMinGeomFilterLinearSolveStats;
+LinearSolveStats solidMaxGeomFilterLinearSolveStats;
+LinearSolveStats solidMinGeomAdjointLinearSolveStats;
+LinearSolveStats solidMaxGeomAdjointLinearSolveStats;
 
 auto optimizationHistorySolverStatus =
 [&]() -> const char*
@@ -318,6 +343,12 @@ auto optimizationHistorySolverStatus =
     && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(pbLinearSolveStats))
     && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(UaLinearSolveStats))
     && optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(paLinearSolveStats))
+    && (!useMinSolidGeometryControl || optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(gsensSolidMinFilterLinearSolveStats)))
+    && (!useMaxSolidGeometryControl || optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(gsensSolidMaxFilterLinearSolveStats)))
+    && (!useMinSolidGeometryControl || optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(solidMinGeomFilterLinearSolveStats)))
+    && (!useMinSolidGeometryControl || optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(solidMinGeomAdjointLinearSolveStats)))
+    && (!useMaxSolidGeometryControl || optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(solidMaxGeomFilterLinearSolveStats)))
+    && (!useMaxSolidGeometryControl || optimizationHistoryStatusIsAcceptable(classifyLinearSolveStatus(solidMaxGeomAdjointLinearSolveStats)))
     ? "OK"
     : "WARN";
 };
@@ -342,16 +373,44 @@ word optimizerStopReason("running");
 bool continuationHealthOk(true);
 scalar previousGrayVolumeFractionForContinuation(1.0);
 scalar previousXhStepMax(0.0);
+scalar solidMinConstraintValue(0.0);
+scalar solidMaxConstraintValue(0.0);
 const scalar adjointRunawayRatioLimit(1e6);
 word activeObjectiveLabel("MeanT");
 word activeWallDistanceMode("meshWave");
 word activeTurbulenceModelMode("kEpsilon");
 scalar activeFilterR(filterR);
+dimensionedScalar bSolidMinGeom("bSolidMinGeom", dimensionSet(0,-2,0,0,0,0,0), 0.0);
+dimensionedScalar bSolidMaxGeom("bSolidMaxGeom", dimensionSet(0,-2,0,0,0,0,0), 0.0);
 double len=std::pow(area/N, 1.0/3);
 b.value()=1.0/(activeFilterR*len/3.464)/(activeFilterR*len/3.464);
+if (useMinSolidGeometryControl)
+{
+  bSolidMinGeom.value() =
+    1.0/(minSolidGeometryFeatureSize*len/3.464)/(minSolidGeometryFeatureSize*len/3.464);
+}
+if (useMaxSolidGeometryControl)
+{
+  bSolidMaxGeom.value() =
+    1.0/(maxSolidGeometryFeatureSize*len/3.464)/(maxSolidGeometryFeatureSize*len/3.464);
+}
 del=beta0;
 //***********************************//MMA
+label powerConstraintIndex(0);
+label volumeConstraintIndex(1);
+label minSolidConstraintIndex(-1);
+label maxSolidConstraintIndex(-1);
 int m=2;//number of constraint
+if (useMinSolidGeometryControl)
+{
+  minSolidConstraintIndex = m;
+  m++;
+}
+if (useMaxSolidGeometryControl)
+{
+  maxSolidConstraintIndex = m;
+  m++;
+}
 MMA mma(n,m);
 mma.asyminit = mma_init;
 mma.asymdec = mma_dec;

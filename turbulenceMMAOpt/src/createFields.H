@@ -21,6 +21,17 @@ IOdictionary tuneOptParameters
        IOobject::NO_WRITE
    )
 );
+IOdictionary geometricSizeControlDict
+(
+   IOobject
+   (
+       "geometricSizeControlDict",
+       runTime.constant(),
+       mesh,
+       IOobject::MUST_READ_IF_MODIFIED,
+       IOobject::NO_WRITE
+   )
+);
 //optimization parameters
 scalar raa0(readScalar(optProperties.lookup("raa0")));
 scalar mma_init(readScalar(optProperties.lookup("mma_init")));
@@ -94,6 +105,21 @@ if (tuneOptParameters.found("experimentControl"))
 {
   experimentControl = tuneOptParameters.subDict("experimentControl");
 }
+dictionary geometricSizeGeneral;
+if (geometricSizeControlDict.found("general"))
+{
+  geometricSizeGeneral = geometricSizeControlDict.subDict("general");
+}
+dictionary path2SolidMin;
+if (geometricSizeControlDict.found("path2SolidMin"))
+{
+  path2SolidMin = geometricSizeControlDict.subDict("path2SolidMin");
+}
+dictionary path3SolidMax;
+if (geometricSizeControlDict.found("path3SolidMax"))
+{
+  path3SolidMax = geometricSizeControlDict.subDict("path3SolidMax");
+}
 
 Switch useFrozenTurbulenceAdjoint
 (
@@ -166,6 +192,58 @@ Switch useStagnationTriggeredBeta
 Switch useLateStageFilterRCap
 (
   continuationSwitches.lookupOrDefault<Switch>("useLateStageFilterRCap", true)
+);
+Switch useMinSolidGeometryControl
+(
+  path2SolidMin.lookupOrDefault<Switch>("active", false)
+);
+Switch useMaxSolidGeometryControl
+(
+  path3SolidMax.lookupOrDefault<Switch>("active", false)
+);
+scalar minSolidGeometryFeatureSize
+(
+  path2SolidMin.lookupOrDefault<scalar>("featureSize", -1.0)
+);
+scalar minSolidGeometryFillFraction
+(
+  path2SolidMin.lookupOrDefault<scalar>("fillFraction", 0.55)
+);
+scalar minSolidGeometryConstraintTolerance
+(
+  path2SolidMin.lookupOrDefault<scalar>("tolerance", 1e-4)
+);
+scalar minSolidGeometryConstraintWeight
+(
+  path2SolidMin.lookupOrDefault<scalar>("constraintWeight", 1.0)
+);
+scalar maxSolidGeometryFeatureSize
+(
+  path3SolidMax.lookupOrDefault<scalar>("featureSize", -1.0)
+);
+scalar maxSolidGeometryFillFraction
+(
+  path3SolidMax.lookupOrDefault<scalar>("fillFraction", 0.85)
+);
+scalar maxSolidGeometryConstraintTolerance
+(
+  path3SolidMax.lookupOrDefault<scalar>("tolerance", 1e-4)
+);
+scalar maxSolidGeometryConstraintWeight
+(
+  path3SolidMax.lookupOrDefault<scalar>("constraintWeight", 1.0)
+);
+scalar geometricSizeAggregationKSFactor
+(
+  geometricSizeGeneral.lookupOrDefault<scalar>("aggregationKSFactor", 40.0)
+);
+scalar geometricSizeSmoothPositiveEps
+(
+  geometricSizeGeneral.lookupOrDefault<scalar>("smoothPositiveEps", 1e-4)
+);
+Switch writeGeometricSizeDiagnosticFields
+(
+  geometricSizeGeneral.lookupOrDefault<Switch>("writeDiagnosticFields", false)
 );
 label adjointMomentumSweeps
 (
@@ -787,6 +865,97 @@ if (optVolumeConstraintWeight <= 0.0)
     << optVolumeConstraintWeight
     << exit(FatalError);
 }
+if (geometricSizeAggregationKSFactor <= 0.0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.general.aggregationKSFactor must be > 0. Found "
+    << geometricSizeAggregationKSFactor
+    << exit(FatalError);
+}
+if (geometricSizeSmoothPositiveEps <= 0.0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.general.smoothPositiveEps must be > 0. Found "
+    << geometricSizeSmoothPositiveEps
+    << exit(FatalError);
+}
+if (useMinSolidGeometryControl && minSolidGeometryFeatureSize <= 0.0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.path2SolidMin.featureSize must be > 0 when active=true. Found "
+    << minSolidGeometryFeatureSize
+    << exit(FatalError);
+}
+if (useMaxSolidGeometryControl && maxSolidGeometryFeatureSize <= 0.0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.path3SolidMax.featureSize must be > 0 when active=true. Found "
+    << maxSolidGeometryFeatureSize
+    << exit(FatalError);
+}
+if
+(
+  minSolidGeometryFillFraction < 0.0
+  || minSolidGeometryFillFraction > 1.0
+)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.path2SolidMin.fillFraction must lie in [0,1]. Found "
+    << minSolidGeometryFillFraction
+    << exit(FatalError);
+}
+if
+(
+  maxSolidGeometryFillFraction < 0.0
+  || maxSolidGeometryFillFraction > 1.0
+)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.path3SolidMax.fillFraction must lie in [0,1]. Found "
+    << maxSolidGeometryFillFraction
+    << exit(FatalError);
+}
+if (minSolidGeometryConstraintTolerance < 0.0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.path2SolidMin.tolerance must be >= 0. Found "
+    << minSolidGeometryConstraintTolerance
+    << exit(FatalError);
+}
+if (maxSolidGeometryConstraintTolerance < 0.0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.path3SolidMax.tolerance must be >= 0. Found "
+    << maxSolidGeometryConstraintTolerance
+    << exit(FatalError);
+}
+if (minSolidGeometryConstraintWeight <= 0.0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.path2SolidMin.constraintWeight must be > 0. Found "
+    << minSolidGeometryConstraintWeight
+    << exit(FatalError);
+}
+if (maxSolidGeometryConstraintWeight <= 0.0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.path3SolidMax.constraintWeight must be > 0. Found "
+    << maxSolidGeometryConstraintWeight
+    << exit(FatalError);
+}
+if
+(
+  useMinSolidGeometryControl
+  && useMaxSolidGeometryControl
+  && maxSolidGeometryFeatureSize <= minSolidGeometryFeatureSize
+)
+{
+  FatalErrorInFunction
+    << "The solid max-size featureSize must exceed the solid min-size featureSize. Found max="
+    << maxSolidGeometryFeatureSize
+    << " min=" << minSolidGeometryFeatureSize
+    << exit(FatalError);
+}
 Info<< "Reading pseudo-density field\n" << endl;
 volScalarField xp
 (
@@ -880,6 +1049,136 @@ volScalarField gsensVolRaw
     dimensionedScalar("zero", dimless, 0.0),
     zeroGradientFvPatchScalarField::typeName
 );
+const IOobject::writeOption geometricDiagnosticWriteOption =
+  writeGeometricSizeDiagnosticFields ? IOobject::AUTO_WRITE : IOobject::NO_WRITE;
+volScalarField solidIndicator
+(
+    IOobject
+    (
+        "solidIndicator",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        geometricDiagnosticWriteOption
+    ),
+    mesh,
+    dimensionedScalar("zero", dimless, 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField solidMinFiltered
+(
+    IOobject
+    (
+        "solidMinFiltered",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        geometricDiagnosticWriteOption
+    ),
+    mesh,
+    dimensionedScalar("zero", dimless, 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField solidMaxFiltered
+(
+    IOobject
+    (
+        "solidMaxFiltered",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        geometricDiagnosticWriteOption
+    ),
+    mesh,
+    dimensionedScalar("zero", dimless, 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField solidMinViolation
+(
+    IOobject
+    (
+        "solidMinViolation",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        geometricDiagnosticWriteOption
+    ),
+    mesh,
+    dimensionedScalar("zero", dimless, 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField solidMaxViolation
+(
+    IOobject
+    (
+        "solidMaxViolation",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        geometricDiagnosticWriteOption
+    ),
+    mesh,
+    dimensionedScalar("zero", dimless, 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField gsensSolidMinGeom
+(
+    IOobject
+    (
+        "gsensSolidMinGeom",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", dimless, 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField gsensSolidMaxGeom
+(
+    IOobject
+    (
+        "gsensSolidMaxGeom",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", dimless, 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField gsensSolidMin
+(
+    IOobject
+    (
+        "gsensSolidMin",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", dimless, 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField gsenshSolidMin(gsensSolidMin);
+volScalarField gsensSolidMax
+(
+    IOobject
+    (
+        "gsensSolidMax",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", dimless, 0.0),
+    zeroGradientFvPatchScalarField::typeName
+);
+volScalarField gsenshSolidMax(gsensSolidMax);
 
 // find the cells on the boundary
 dictionary conFunc = mesh.solutionDict().subDict("constraintFunctionDict_flow");

@@ -1,6 +1,8 @@
 Info<< "filter chainrule: sanitize sensitivities" << endl;
 label fsenshNonFiniteLocal(0);
 label gsenshPowerNonFiniteLocal(0);
+label gsenshSolidMinNonFiniteLocal(0);
+label gsenshSolidMaxNonFiniteLocal(0);
 forAll(fsenshMeanT, i)
 {
   if (!std::isfinite(static_cast<double>(fsenshMeanT[i])))
@@ -14,15 +16,40 @@ forAll(fsenshMeanT, i)
     gsenshPowerDiss[i] = 0.0;
     gsenshPowerNonFiniteLocal++;
   }
+
+  if (useMinSolidGeometryControl && !std::isfinite(static_cast<double>(gsenshSolidMin[i])))
+  {
+    gsenshSolidMin[i] = 0.0;
+    gsenshSolidMinNonFiniteLocal++;
+  }
+
+  if (useMaxSolidGeometryControl && !std::isfinite(static_cast<double>(gsenshSolidMax[i])))
+  {
+    gsenshSolidMax[i] = 0.0;
+    gsenshSolidMaxNonFiniteLocal++;
+  }
 }
 reduce(fsenshNonFiniteLocal, sumOp<label>());
 reduce(gsenshPowerNonFiniteLocal, sumOp<label>());
+reduce(gsenshSolidMinNonFiniteLocal, sumOp<label>());
+reduce(gsenshSolidMaxNonFiniteLocal, sumOp<label>());
 
-if (Pstream::master() && (fsenshNonFiniteLocal > 0 || gsenshPowerNonFiniteLocal > 0))
+if
+(
+  Pstream::master()
+  && (
+    fsenshNonFiniteLocal > 0
+    || gsenshPowerNonFiniteLocal > 0
+    || gsenshSolidMinNonFiniteLocal > 0
+    || gsenshSolidMaxNonFiniteLocal > 0
+  )
+)
 {
   Info<< "filter chainrule: clamped non-finite sensitivities"
-      << " objective=" << fsenshNonFiniteLocal
-      << " power=" << gsenshPowerNonFiniteLocal << endl;
+  << " objective=" << fsenshNonFiniteLocal
+      << " power=" << gsenshPowerNonFiniteLocal
+      << " solidMin=" << gsenshSolidMinNonFiniteLocal
+      << " solidMax=" << gsenshSolidMaxNonFiniteLocal << endl;
 }
 
 Info<< "filter chainrule: normalize sensitivities" << endl;
@@ -64,6 +91,14 @@ if(opt>1)
   fsenshMeanT=fsenshMeanT*drho;
   gsenshPowerDiss=gsenshPowerDiss*drho;
   gsenshVol=gsenshVol*drho;
+  if (useMinSolidGeometryControl)
+  {
+    gsenshSolidMin=gsenshSolidMin*drho;
+  }
+  if (useMaxSolidGeometryControl)
+  {
+    gsenshSolidMax=gsenshSolidMax*drho;
+  }
 }
 //***********************************//PDE filter
 const auto fsensFilterLinearSolvePerformance =
@@ -98,7 +133,43 @@ recordLinearSolve
   gsensVolFilterLinearSolvePerformance.nIterations()
 );
 
+if (useMinSolidGeometryControl)
+{
+  Info<< "filter chainrule: solid-min filter solve" << endl;
+  const auto gsensSolidMinFilterLinearSolvePerformance =
+    solve(fvm::laplacian(gsensSolidMin)-fvm::Sp(b,gsensSolidMin)+gsenshSolidMin*b);
+  recordLinearSolve
+  (
+    gsensSolidMinFilterLinearSolveStats,
+    gsensSolidMinFilterLinearSolvePerformance.initialResidual(),
+    gsensSolidMinFilterLinearSolvePerformance.finalResidual(),
+    gsensSolidMinFilterLinearSolvePerformance.nIterations()
+  );
+}
+
+if (useMaxSolidGeometryControl)
+{
+  Info<< "filter chainrule: solid-max filter solve" << endl;
+  const auto gsensSolidMaxFilterLinearSolvePerformance =
+    solve(fvm::laplacian(gsensSolidMax)-fvm::Sp(b,gsensSolidMax)+gsenshSolidMax*b);
+  recordLinearSolve
+  (
+    gsensSolidMaxFilterLinearSolveStats,
+    gsensSolidMaxFilterLinearSolvePerformance.initialResidual(),
+    gsensSolidMaxFilterLinearSolvePerformance.finalResidual(),
+    gsensSolidMaxFilterLinearSolvePerformance.nIterations()
+  );
+}
+
 Info<< "filter chainrule: scale filtered sensitivities" << endl;
 fsensMeanT.primitiveFieldRef()=fsensMeanT.primitiveFieldRef()*mesh.V()/gMax(mesh.V());
 gsensPowerDiss.primitiveFieldRef()=gsensPowerDiss.primitiveFieldRef()*mesh.V()/gMax(mesh.V());
 gsensVol.primitiveFieldRef()=gsensVol.primitiveFieldRef()*mesh.V()/gMax(mesh.V());
+if (useMinSolidGeometryControl)
+{
+  gsensSolidMin.primitiveFieldRef()=gsensSolidMin.primitiveFieldRef()*mesh.V()/gMax(mesh.V());
+}
+if (useMaxSolidGeometryControl)
+{
+  gsensSolidMax.primitiveFieldRef()=gsensSolidMax.primitiveFieldRef()*mesh.V()/gMax(mesh.V());
+}

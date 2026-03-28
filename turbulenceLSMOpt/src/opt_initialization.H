@@ -740,7 +740,7 @@ auto restoreLSMCheckpoint =
 };
 
 auto scheduleLSMRetry =
-[&](const word& reason, const scalar grayTarget)
+[&](const word& reason)
 {
   const label retryCooldown = lsmBlendIterations > 5 ? lsmBlendIterations : 5;
   lsmNextSwitchAllowedIter =
@@ -749,17 +749,9 @@ auto scheduleLSMRetry =
     : opt + retryCooldown;
   lsmSwitchLockedOut = opt < lsmNextSwitchAllowedIter;
 
-  if (grayTarget > SMALL)
-  {
-    const scalar tightenedGrayGate =
-      Foam::max(scalar(0.75)*grayTarget, scalar(0.02));
-    lsmSwitchGrayFraction =
-      Foam::min(lsmSwitchGrayFraction, tightenedGrayGate);
-  }
-
   Info<< "Delaying the next LSM handover attempt after " << reason
       << " until iteration " << lsmNextSwitchAllowedIter
-      << " with gray<=" << lsmSwitchGrayFraction
+      << " while keeping gray<=" << lsmSwitchGrayFraction
       << endl;
 };
 //***********************************//MMA

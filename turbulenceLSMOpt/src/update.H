@@ -17,8 +17,7 @@ if (lsmRollbackRequested && lsmRollbackEnabled && lsmCheckpointAvailable)
     lsmRollbackReason = rollbackReason;
     scheduleLSMRetry
     (
-        rollbackReason,
-        previousGrayVolumeFractionForContinuation
+        rollbackReason
     );
 }
 
@@ -144,8 +143,7 @@ if (lsmSwitchGateSatisfied)
         lsmRollbackReason = initRejectReason;
         scheduleLSMRetry
         (
-            initRejectReason,
-            grayVolumeFractionForContinuation
+            initRejectReason
         );
         switchedToLSMThisIteration = false;
     }

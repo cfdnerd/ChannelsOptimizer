@@ -42,7 +42,7 @@ objectiveSwitches
 continuationSwitches
 {
     useStagnationTriggeredBeta      false; // Only harden beta after stagnation instead of every allowed step.
-    useLateStageFilterRCap          true;  // Allow the late-stage filter-radius cap to override filterR after its trigger.
+    useLateStageFilterRCap          false; // Allow the late-stage filter-radius cap to override filterR after its trigger.
 }
 
 experimentControl

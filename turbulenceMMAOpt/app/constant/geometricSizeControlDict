@@ -20,6 +20,16 @@ general
     aggregationKSFactor      40;      // KS sharpness used to aggregate local solid-size violations.
     smoothPositiveEps        1e-4;    // Smooth positive-part epsilon used in the local violation functions.
     writeDiagnosticFields    false;   // Write solid-indicator/filter/violation fields for debugging.
+    projectionBeta           4.0;     // Mild projection used only by the geometry-control channel xg.
+    projectionEta            -1;      // Geometry-channel threshold. Negative reuses the current physics eta5.
+    activationMinIter        60;      // Earliest optimization iteration where geometry control may activate.
+    activationGrayEnter      0.30;    // Open the gray gate once the gray fraction drops below this value.
+    activationGrayExit       0.35;    // Keep the gray gate latched until the gray fraction rises above this value.
+    activationXhStepMax      0.03;    // Activate only once the projected design step has settled below this value.
+    activationHoldIters      5;       // Require this many consecutive satisfied gating iterations before activation.
+    rampIters                20;      // Ramp the geometry-constraint MMA weight over this many iterations.
+    freezeHardeningWhileInfeasible true; // Freeze further alpha/beta hardening while an active geometry constraint is violated.
+    constraintScaleTarget    0.05;    // MMA normalization floor used for geometric constraints after stage activation.
 }
 
 minSolidGeometryControl

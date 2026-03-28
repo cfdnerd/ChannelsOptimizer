@@ -94,6 +94,14 @@ if (Pstream::master() && (fsensRawNonFiniteLocal > 0 || gsensRawNonFiniteLocal >
 gsensVolRaw = dimensionedScalar("one", dimless, 1.0);
 fsensMeanTRaw = fsenshMeanT;
 gsensPowerDissRaw = gsenshPowerDiss;
+minSolidGeometryConstraintWeightApplied = 0.0;
+maxSolidGeometryConstraintWeightApplied = 0.0;
+minSolidGeometryConstraintScaleApplied = 1.0;
+maxSolidGeometryConstraintScaleApplied = 1.0;
+const bool applyMinSolidGeometryControl =
+  useMinSolidGeometryControl && geometryControlStageWeight > SMALL;
+const bool applyMaxSolidGeometryControl =
+  useMaxSolidGeometryControl && geometryControlStageWeight > SMALL;
 
 #include "geometricSizeControlEvaluation.H"
 
@@ -119,13 +127,39 @@ gx[powerConstraintIndex]=weightedPowerConstraint;
 gx[volumeConstraintIndex]=weightedVolumeConstraint;
 if (useMinSolidGeometryControl)
 {
-  gx[minSolidConstraintIndex] =
-    minSolidGeometryConstraintWeight*solidMinConstraintValue;
+  gx[minSolidConstraintIndex] = 0.0;
 }
 if (useMaxSolidGeometryControl)
 {
+  gx[maxSolidConstraintIndex] = 0.0;
+}
+if (applyMinSolidGeometryControl)
+{
+  minSolidGeometryConstraintScaleApplied =
+    Foam::max
+    (
+      geometricSizeConstraintScaleTarget,
+      minSolidGeometryConstraintTolerance
+    );
+  minSolidGeometryConstraintWeightApplied =
+    geometryControlStageWeight*minSolidGeometryConstraintWeight;
+  gx[minSolidConstraintIndex] =
+    minSolidGeometryConstraintWeightApplied
+    *(solidMinConstraintValue/minSolidGeometryConstraintScaleApplied);
+}
+if (applyMaxSolidGeometryControl)
+{
+  maxSolidGeometryConstraintScaleApplied =
+    Foam::max
+    (
+      geometricSizeConstraintScaleTarget,
+      maxSolidGeometryConstraintTolerance
+    );
+  maxSolidGeometryConstraintWeightApplied =
+    geometryControlStageWeight*maxSolidGeometryConstraintWeight;
   gx[maxSolidConstraintIndex] =
-    maxSolidGeometryConstraintWeight*solidMaxConstraintValue;
+    maxSolidGeometryConstraintWeightApplied
+    *(solidMaxConstraintValue/maxSolidGeometryConstraintScaleApplied);
 }
 
 for(i=0;i<n;i++)
@@ -136,13 +170,25 @@ for(i=0;i<n;i++)
  dgdx[volumeConstraintIndex][i]=optVolumeConstraintWeight*(gsensVol[i]/N);//sensitivities of constraint function
  if (useMinSolidGeometryControl)
  {
-   dgdx[minSolidConstraintIndex][i] =
-     minSolidGeometryConstraintWeight*(gsensSolidMin[i]/N);
+   dgdx[minSolidConstraintIndex][i] = 0.0;
  }
  if (useMaxSolidGeometryControl)
  {
+   dgdx[maxSolidConstraintIndex][i] = 0.0;
+ }
+ if (applyMinSolidGeometryControl)
+ {
+   dgdx[minSolidConstraintIndex][i] =
+     minSolidGeometryConstraintWeightApplied
+     *(gsensSolidMin[i]/N)
+     /minSolidGeometryConstraintScaleApplied;
+ }
+ if (applyMaxSolidGeometryControl)
+ {
    dgdx[maxSolidConstraintIndex][i] =
-     maxSolidGeometryConstraintWeight*(gsensSolidMax[i]/N);
+     maxSolidGeometryConstraintWeightApplied
+     *(gsensSolidMax[i]/N)
+     /maxSolidGeometryConstraintScaleApplied;
  }
 }
 

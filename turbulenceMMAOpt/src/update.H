@@ -5,6 +5,7 @@ if(solid_area)
    forAll(cells_solid, i)
    {
       xh[cells_solid[i]]=0;
+      xg[cells_solid[i]]=0;
    }
 }
 if(fluid_area)
@@ -12,9 +13,19 @@ if(fluid_area)
    forAll(cells_fluid, i)
    {
       xh[cells_fluid[i]]=1.0;
+      xg[cells_fluid[i]]=1.0;
+   }
+}
+if(test_area)
+{
+   forAll(cells_test, i)
+   {
+      xh[cells_test[i]]=1.0;
+      xg[cells_test[i]]=1.0;
    }
 }
 xh.correctBoundaryConditions();
+xg.correctBoundaryConditions();
 
 scalar grayVolumeContinuationLocal = 0.0;
 forAll(xh, i)
@@ -28,6 +39,64 @@ forAll(xh, i)
 reduce(grayVolumeContinuationLocal, sumOp<scalar>());
 const scalar grayVolumeFractionForContinuation =
   area > SMALL ? grayVolumeContinuationLocal/area : 0.0;
+if (!geometryControlConfigured || geometricSizeActivationGrayEnter < 0.0)
+{
+  geometryControlGrayGateSatisfied = true;
+}
+else if (geometryControlGrayGateSatisfied)
+{
+  geometryControlGrayGateSatisfied =
+    grayVolumeFractionForContinuation <= geometricSizeActivationGrayExit;
+}
+else
+{
+  geometryControlGrayGateSatisfied =
+    grayVolumeFractionForContinuation <= geometricSizeActivationGrayEnter;
+}
+geometryControlStepGateSatisfied =
+  !geometryControlConfigured
+  || geometricSizeActivationXhStepMax < 0.0
+  || previousXhStepMax <= geometricSizeActivationXhStepMax;
+geometryControlGateSatisfied =
+  geometryControlConfigured
+  && opt >= geometricSizeActivationMinIter
+  && geometryControlGrayGateSatisfied
+  && geometryControlStepGateSatisfied;
+if (!geometryControlStageActivated)
+{
+  if (geometryControlGateSatisfied)
+  {
+    geometryControlActivationStreak++;
+  }
+  else
+  {
+    geometryControlActivationStreak = 0;
+  }
+
+  if (geometryControlActivationStreak >= geometricSizeActivationHoldIters)
+  {
+    geometryControlStageActivated = true;
+    geometryControlActivationIter = opt;
+  }
+}
+geometryControlStageWeight = 0.0;
+if (geometryControlStageActivated)
+{
+  if (geometricSizeRampIters <= 1)
+  {
+    geometryControlStageWeight = 1.0;
+  }
+  else
+  {
+    geometryControlStageWeight =
+      Foam::min
+      (
+        scalar(1.0),
+        scalar(opt - geometryControlActivationIter + 1)
+        /scalar(geometricSizeRampIters)
+      );
+  }
+}
 scalar continuationFeasibilityTolActive = continuationFeasibilityTol;
 const bool lateStageStrictGateActive =
   lateStageStrictGateBelowGrayFraction >= 0.0
@@ -82,9 +151,17 @@ const bool laggingGrayCollapsePulseIter =
   && ((opt - laggingGrayCollapseStartIter) % laggingGrayCollapsePauseInterval == 0);
 const bool continuationThrottleAllowsHardening =
   !laggingGrayCollapseDetected || laggingGrayCollapsePulseIter;
+geometryControlHardeningFrozen =
+  freezeGeometricSizeHardeningWhileInfeasible
+  && geometryControlStageActivated
+  && (
+    (useMinSolidGeometryControl && solidMinConstraintValue > 0.0)
+    || (useMaxSolidGeometryControl && solidMaxConstraintValue > 0.0)
+  );
 const bool allowContinuationHardening =
   !continuationCeilingActive
   && !overactiveTopologyDetected
+  && !geometryControlHardeningFrozen
   && continuationThrottleAllowsHardening
   && (forceContinuationHardening || continuationFloorActive || continuationGateSatisfied);
 const bool lateStageFilterRCapActive =

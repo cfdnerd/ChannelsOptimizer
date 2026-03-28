@@ -183,11 +183,15 @@ if (Pstream::master())
     << " volume=" << gx[volumeConstraintIndex];
   if (useMinSolidGeometryControl)
   {
-    constraintStream << " solidMin=" << gx[minSolidConstraintIndex];
+    constraintStream
+      << " solidMinRaw=" << solidMinConstraintValue
+      << " solidMinMMA=" << gx[minSolidConstraintIndex];
   }
   if (useMaxSolidGeometryControl)
   {
-    constraintStream << " solidMax=" << gx[maxSolidConstraintIndex];
+    constraintStream
+      << " solidMaxRaw=" << solidMaxConstraintValue
+      << " solidMaxMMA=" << gx[maxSolidConstraintIndex];
   }
   constraintStream << "  weightedLimit=" << activePowerLimit;
 
@@ -200,6 +204,11 @@ if (Pstream::master())
     << constraintStream.str() << "\n"
     << " controls: qAlpha=" << qAlpha << " qKappa=" << qKappa << " qHeat=" << qHeat
     << " alphaMax=" << alphaMax.value() << " beta=" << del << "\n"
+    << " geom stage: active=" << (geometryControlStageActivated ? "yes" : "no")
+    << " weight=" << geometryControlStageWeight
+    << " frozen=" << (geometryControlHardeningFrozen ? "yes" : "no")
+    << " betaGeom=" << geometricSizeProjectionBeta
+    << " etaGeom=" << geometryProjectionEtaActive << "\n"
     << " modes: wallDistance=" << activeWallDistanceMode
     << " turbulence=" << activeTurbulenceModelMode << "\n"
     << " raw objective: min=" << rawObjMinLocal << " max=" << rawObjMaxLocal

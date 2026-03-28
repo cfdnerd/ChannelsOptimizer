@@ -257,6 +257,62 @@ Switch writeGeometricSizeDiagnosticFields
 (
   geometricSizeGeneral.lookupOrDefault<Switch>("writeDiagnosticFields", false)
 );
+scalar geometricSizeProjectionBeta
+(
+  geometricSizeGeneral.lookupOrDefault<scalar>
+  (
+    "betaGeom",
+    geometricSizeGeneral.lookupOrDefault<scalar>("projectionBeta", 4.0)
+  )
+);
+scalar geometricSizeProjectionEta
+(
+  geometricSizeGeneral.lookupOrDefault<scalar>
+  (
+    "etaGeom",
+    geometricSizeGeneral.lookupOrDefault<scalar>("projectionEta", -1.0)
+  )
+);
+label geometricSizeActivationMinIter
+(
+  geometricSizeGeneral.lookupOrDefault<label>("activationMinIter", 60)
+);
+scalar geometricSizeActivationGrayEnter
+(
+  geometricSizeGeneral.lookupOrDefault<scalar>
+  (
+    "activationGrayEnter",
+    geometricSizeGeneral.lookupOrDefault<scalar>("activationGrayFraction", 0.30)
+  )
+);
+scalar geometricSizeActivationGrayExit
+(
+  geometricSizeGeneral.lookupOrDefault<scalar>
+  (
+    "activationGrayExit",
+    geometricSizeActivationGrayEnter
+  )
+);
+scalar geometricSizeActivationXhStepMax
+(
+  geometricSizeGeneral.lookupOrDefault<scalar>("activationXhStepMax", 0.03)
+);
+label geometricSizeActivationHoldIters
+(
+  geometricSizeGeneral.lookupOrDefault<label>("activationHoldIters", 5)
+);
+label geometricSizeRampIters
+(
+  geometricSizeGeneral.lookupOrDefault<label>("rampIters", 20)
+);
+Switch freezeGeometricSizeHardeningWhileInfeasible
+(
+  geometricSizeGeneral.lookupOrDefault<Switch>("freezeHardeningWhileInfeasible", true)
+);
+scalar geometricSizeConstraintScaleTarget
+(
+  geometricSizeGeneral.lookupOrDefault<scalar>("constraintScaleTarget", 0.05)
+);
 label adjointMomentumSweeps
 (
   adjointControl.lookupOrDefault<label>("adjointMomentumSweeps", 20)
@@ -891,6 +947,100 @@ if (geometricSizeSmoothPositiveEps <= 0.0)
     << geometricSizeSmoothPositiveEps
     << exit(FatalError);
 }
+if (geometricSizeProjectionBeta <= 0.0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.general.projectionBeta must be > 0. Found "
+    << geometricSizeProjectionBeta
+    << exit(FatalError);
+}
+if
+(
+  geometricSizeProjectionEta >= 0.0
+  && (geometricSizeProjectionEta <= 0.0 || geometricSizeProjectionEta >= 1.0)
+)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.general.projectionEta must lie in (0,1) when specified. Found "
+    << geometricSizeProjectionEta
+    << exit(FatalError);
+}
+if (geometricSizeActivationMinIter < 0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.general.activationMinIter must be >= 0. Found "
+    << geometricSizeActivationMinIter
+    << exit(FatalError);
+}
+if
+(
+  geometricSizeActivationGrayEnter >= 0.0
+  && (
+    geometricSizeActivationGrayEnter < 0.0
+    || geometricSizeActivationGrayEnter > 1.0
+  )
+)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.general.activationGrayEnter must lie in [0,1] or be < 0 to disable. Found "
+    << geometricSizeActivationGrayEnter
+    << exit(FatalError);
+}
+if
+(
+  geometricSizeActivationGrayExit >= 0.0
+  && (
+    geometricSizeActivationGrayExit < 0.0
+    || geometricSizeActivationGrayExit > 1.0
+  )
+)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.general.activationGrayExit must lie in [0,1] or be < 0 to disable. Found "
+    << geometricSizeActivationGrayExit
+    << exit(FatalError);
+}
+if
+(
+  geometricSizeActivationGrayEnter >= 0.0
+  && geometricSizeActivationGrayExit >= 0.0
+  && geometricSizeActivationGrayExit < geometricSizeActivationGrayEnter
+)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.general.activationGrayExit must be >= activationGrayEnter. Found exit="
+    << geometricSizeActivationGrayExit
+    << " enter=" << geometricSizeActivationGrayEnter
+    << exit(FatalError);
+}
+if (geometricSizeActivationXhStepMax < 0.0 && geometricSizeActivationXhStepMax != -1.0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.general.activationXhStepMax must be >= 0 or exactly -1 to disable. Found "
+    << geometricSizeActivationXhStepMax
+    << exit(FatalError);
+}
+if (geometricSizeActivationHoldIters <= 0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.general.activationHoldIters must be > 0. Found "
+    << geometricSizeActivationHoldIters
+    << exit(FatalError);
+}
+if (geometricSizeRampIters <= 0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.general.rampIters must be > 0. Found "
+    << geometricSizeRampIters
+    << exit(FatalError);
+}
+if (geometricSizeConstraintScaleTarget <= 0.0)
+{
+  FatalErrorInFunction
+    << "geometricSizeControlDict.general.constraintScaleTarget must be > 0. Found "
+    << geometricSizeConstraintScaleTarget
+    << exit(FatalError);
+}
 if (useMinSolidGeometryControl && minSolidGeometryFeatureSize <= 0.0)
 {
   FatalErrorInFunction
@@ -968,6 +1118,8 @@ if
     << " min=" << minSolidGeometryFeatureSize
     << exit(FatalError);
 }
+const IOobject::writeOption geometricDiagnosticWriteOption =
+  writeGeometricSizeDiagnosticFields ? IOobject::AUTO_WRITE : IOobject::NO_WRITE;
 Info<< "Reading pseudo-density field\n" << endl;
 volScalarField xp
 (
@@ -997,8 +1149,36 @@ volScalarField xh
     scalar(voluse),
     zeroGradientFvPatchScalarField::typeName
 );
+volScalarField xg
+(
+    IOobject
+    (
+        "xg",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        geometricDiagnosticWriteOption
+    ),
+    mesh,
+    scalar(voluse),
+    zeroGradientFvPatchScalarField::typeName
+);
 volScalarField x(xp);
 volScalarField drho(x);
+volScalarField drhoGeom
+(
+    IOobject
+    (
+        "drhoGeom",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        geometricDiagnosticWriteOption
+    ),
+    mesh,
+    dimensionedScalar("one", dimless, 1.0),
+    zeroGradientFvPatchScalarField::typeName
+);
 
 // find the cells in the non-design area
 labelList cells_solid,cells_fluid,cells_test;
@@ -1031,6 +1211,7 @@ if(test_area)
   {
      x[cells_test[i]]=1.0;
      xh[cells_test[i]]=1.0;
+     xg[cells_test[i]]=1.0;
   }
 }
 volScalarField gsensVol
@@ -1061,8 +1242,6 @@ volScalarField gsensVolRaw
     dimensionedScalar("zero", dimless, 0.0),
     zeroGradientFvPatchScalarField::typeName
 );
-const IOobject::writeOption geometricDiagnosticWriteOption =
-  writeGeometricSizeDiagnosticFields ? IOobject::AUTO_WRITE : IOobject::NO_WRITE;
 volScalarField solidIndicator
 (
     IOobject

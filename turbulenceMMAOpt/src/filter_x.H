@@ -30,14 +30,53 @@ do
   }
 } while ((eta1-eta0)>0.0001);
 
+geometryProjectionEtaActive =
+  geometricSizeProjectionEta >= 0.0 ? geometricSizeProjectionEta : eta5;
+geometryProjectionEtaActive =
+  Foam::min(Foam::max(geometryProjectionEtaActive, scalar(1e-4)), scalar(1.0 - 1e-4));
+
 for(i=0;i<n;i++)
 {
    if(xp[i]<=eta5)
    {
      xh[i]=eta5*(Foam::exp(-del*(1-xp[i]/eta5))-(1-xp[i]/eta5)*Foam::exp(-del)); 
+     drho[i]=del*Foam::exp(-del*(1-xp[i]/eta5))+Foam::exp(-del);
    }
    else
    {
      xh[i]=eta5+(1-eta5)*(1-Foam::exp(-del*(xp[i]-eta5)/(1-eta5))+(xp[i]-eta5)*Foam::exp(-del)/(1-eta5));
+     drho[i]=del*Foam::exp(-del*(xp[i]-eta5)/(1-eta5))+Foam::exp(-del);
+   }
+
+   if(xp[i]<=geometryProjectionEtaActive)
+   {
+     xg[i]=
+       geometryProjectionEtaActive
+       *(
+         Foam::exp(-geometricSizeProjectionBeta*(1-xp[i]/geometryProjectionEtaActive))
+         -(1-xp[i]/geometryProjectionEtaActive)*Foam::exp(-geometricSizeProjectionBeta)
+       );
+     drhoGeom[i]=
+       geometricSizeProjectionBeta
+       *Foam::exp(-geometricSizeProjectionBeta*(1-xp[i]/geometryProjectionEtaActive))
+       + Foam::exp(-geometricSizeProjectionBeta);
+   }
+   else
+   {
+     xg[i]=
+       geometryProjectionEtaActive
+       +(1-geometryProjectionEtaActive)
+       *(
+         1-Foam::exp(-geometricSizeProjectionBeta*(xp[i]-geometryProjectionEtaActive)/(1-geometryProjectionEtaActive))
+         +(xp[i]-geometryProjectionEtaActive)*Foam::exp(-geometricSizeProjectionBeta)/(1-geometryProjectionEtaActive)
+       );
+     drhoGeom[i]=
+       geometricSizeProjectionBeta
+       *Foam::exp(-geometricSizeProjectionBeta*(xp[i]-geometryProjectionEtaActive)/(1-geometryProjectionEtaActive))
+       + Foam::exp(-geometricSizeProjectionBeta);
    }   
 }
+xh.correctBoundaryConditions();
+xg.correctBoundaryConditions();
+drho.correctBoundaryConditions();
+drhoGeom.correctBoundaryConditions();

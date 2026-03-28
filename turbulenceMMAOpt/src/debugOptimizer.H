@@ -1,6 +1,7 @@
 scalar xLocalMin = 1e300, xLocalMax = -1e300;
 scalar xpLocalMin = 1e300, xpLocalMax = -1e300;
 scalar xhLocalMin = 1e300, xhLocalMax = -1e300;
+scalar xgLocalMin = 1e300, xgLocalMax = -1e300;
 scalar alphaLocalMin = 1e300, alphaLocalMax = -1e300;
 scalar DTLocalMin = 1e300, DTLocalMax = -1e300;
 scalar TLocalMin = 1e300, TLocalMax = -1e300;
@@ -9,6 +10,7 @@ scalar paLocalMin = 1e300, paLocalMax = -1e300;
 scalar pbLocalMin = 1e300, pbLocalMax = -1e300;
 scalar xVolumeSumLocal = 0;
 scalar xhVolumeSumLocal = 0;
+scalar xgVolumeSumLocal = 0;
 scalar grayVolumeLocal = 0;
 scalar solidVolumeLocal = 0;
 scalar fluidVolumeLocal = 0;
@@ -21,6 +23,7 @@ label xUpperBoundCountLocal = 0;
 label xMoveLimitHitCountLocal = 0;
 label xNonFiniteCountLocal = 0;
 scalar drhoLocalMin = 1e300, drhoLocalMax = -1e300;
+scalar drhoGeomLocalMin = 1e300, drhoGeomLocalMax = -1e300;
 scalar fsensLocalMin = 1e300, fsensLocalMax = -1e300, fsensL2Local = 0;
 scalar gsensPowerLocalMin = 1e300, gsensPowerLocalMax = -1e300, gsensPowerL2Local = 0;
 scalar gsensVolLocalMin = 1e300, gsensVolLocalMax = -1e300, gsensVolL2Local = 0;
@@ -41,6 +44,7 @@ for(i=0;i<n;i++)
   const scalar xValue = x[i];
   const scalar xpValue = xp[i];
   const scalar xhValue = xh[i];
+  const scalar xgValue = xg[i];
   const scalar alphaValue = alpha[i];
   const scalar DTValue = DT[i];
   const scalar TValue = T[i];
@@ -55,6 +59,7 @@ for(i=0;i<n;i++)
   const scalar UaMag = Foam::mag(Ua[i]);
   const scalar UbMag = Foam::mag(Ub[i]);
   const scalar drhoValue = drho[i];
+  const scalar drhoGeomValue = drhoGeom[i];
   const scalar fsensValue = fsensMeanT[i];
   const scalar gsensPowerValue = gsensPowerDiss[i];
   const scalar gsensVolValue = gsensVol[i];
@@ -67,6 +72,8 @@ for(i=0;i<n;i++)
   xpLocalMax = Foam::max(xpLocalMax, xpValue);
   xhLocalMin = Foam::min(xhLocalMin, xhValue);
   xhLocalMax = Foam::max(xhLocalMax, xhValue);
+  xgLocalMin = Foam::min(xgLocalMin, xgValue);
+  xgLocalMax = Foam::max(xgLocalMax, xgValue);
   alphaLocalMin = Foam::min(alphaLocalMin, alphaValue);
   alphaLocalMax = Foam::max(alphaLocalMax, alphaValue);
   DTLocalMin = Foam::min(DTLocalMin, DTValue);
@@ -85,6 +92,7 @@ for(i=0;i<n;i++)
 
   xVolumeSumLocal += xValue*cellVolume;
   xhVolumeSumLocal += xhValue*cellVolume;
+  xgVolumeSumLocal += xgValue*cellVolume;
   UMeanMagLocal += UMag*cellVolume;
   UaMeanMagLocal += UaMag*cellVolume;
   UbMeanMagLocal += UbMag*cellVolume;
@@ -126,6 +134,8 @@ for(i=0;i<n;i++)
 
   drhoLocalMin = Foam::min(drhoLocalMin, drhoValue);
   drhoLocalMax = Foam::max(drhoLocalMax, drhoValue);
+  drhoGeomLocalMin = Foam::min(drhoGeomLocalMin, drhoGeomValue);
+  drhoGeomLocalMax = Foam::max(drhoGeomLocalMax, drhoGeomValue);
 
   fsensLocalMin = Foam::min(fsensLocalMin, fsensValue);
   fsensLocalMax = Foam::max(fsensLocalMax, fsensValue);
@@ -183,6 +193,8 @@ reduce(xpLocalMin, minOp<scalar>());
 reduce(xpLocalMax, maxOp<scalar>());
 reduce(xhLocalMin, minOp<scalar>());
 reduce(xhLocalMax, maxOp<scalar>());
+reduce(xgLocalMin, minOp<scalar>());
+reduce(xgLocalMax, maxOp<scalar>());
 reduce(alphaLocalMin, minOp<scalar>());
 reduce(alphaLocalMax, maxOp<scalar>());
 reduce(DTLocalMin, minOp<scalar>());
@@ -200,6 +212,7 @@ reduce(UaMaxMagLocal, maxOp<scalar>());
 reduce(UbMaxMagLocal, maxOp<scalar>());
 reduce(xVolumeSumLocal, sumOp<scalar>());
 reduce(xhVolumeSumLocal, sumOp<scalar>());
+reduce(xgVolumeSumLocal, sumOp<scalar>());
 reduce(grayVolumeLocal, sumOp<scalar>());
 reduce(solidVolumeLocal, sumOp<scalar>());
 reduce(fluidVolumeLocal, sumOp<scalar>());
@@ -216,6 +229,8 @@ reduce(xMoveLimitHitCountLocal, sumOp<label>());
 reduce(xNonFiniteCountLocal, sumOp<label>());
 reduce(drhoLocalMin, minOp<scalar>());
 reduce(drhoLocalMax, maxOp<scalar>());
+reduce(drhoGeomLocalMin, minOp<scalar>());
+reduce(drhoGeomLocalMax, maxOp<scalar>());
 reduce(fsensLocalMin, minOp<scalar>());
 reduce(fsensLocalMax, maxOp<scalar>());
 reduce(fsensL2Local, sumOp<scalar>());
@@ -246,6 +261,7 @@ reduce(objectivePnormSumLocal, sumOp<scalar>());
 
 const scalar xMean = xVolumeSumLocal/area;
 const scalar xhMean = xhVolumeSumLocal/area;
+const scalar xgMean = xgVolumeSumLocal/area;
 const scalar grayVolumeFraction = grayVolumeLocal/area;
 const scalar solidVolumeFraction = solidVolumeLocal/area;
 const scalar fluidVolumeFraction = fluidVolumeLocal/area;
@@ -316,12 +332,22 @@ const scalar powerConstraintWeightSafe = Foam::max(optPowerConstraintWeight, SMA
 const scalar powerConstraintMargin = gx[powerConstraintIndex]/powerConstraintWeightSafe;
 const scalar volumeConstraintWeightSafe = Foam::max(optVolumeConstraintWeight, SMALL);
 const scalar volumeConstraintMargin = gx[volumeConstraintIndex]/volumeConstraintWeightSafe;
-const scalar minSolidConstraintWeightSafe = Foam::max(minSolidGeometryConstraintWeight, SMALL);
-const scalar maxSolidConstraintWeightSafe = Foam::max(maxSolidGeometryConstraintWeight, SMALL);
+const bool debugMinSolidConstraintApplied =
+  useMinSolidGeometryControl && minSolidGeometryConstraintWeightApplied > SMALL;
+const bool debugMaxSolidConstraintApplied =
+  useMaxSolidGeometryControl && maxSolidGeometryConstraintWeightApplied > SMALL;
 const scalar minSolidConstraintMargin =
-  useMinSolidGeometryControl ? gx[minSolidConstraintIndex]/minSolidConstraintWeightSafe : 0.0;
+  debugMinSolidConstraintApplied ? solidMinConstraintValue : 0.0;
 const scalar maxSolidConstraintMargin =
-  useMaxSolidGeometryControl ? gx[maxSolidConstraintIndex]/maxSolidConstraintWeightSafe : 0.0;
+  debugMaxSolidConstraintApplied ? solidMaxConstraintValue : 0.0;
+const scalar minSolidConstraintMarginNormalized =
+  debugMinSolidConstraintApplied
+  ? solidMinConstraintValue/Foam::max(minSolidGeometryConstraintScaleApplied, SMALL)
+  : 0.0;
+const scalar maxSolidConstraintMarginNormalized =
+  debugMaxSolidConstraintApplied
+  ? solidMaxConstraintValue/Foam::max(maxSolidGeometryConstraintScaleApplied, SMALL)
+  : 0.0;
 const scalar debugContinuationPowerLimit =
   usePowerConstraintRelaxation ? activePowerLimit : PowerDissMax;
 const scalar debugPowerFeasibilityRatio =
@@ -378,6 +404,7 @@ const bool debugContinuationThrottleAllowsHardening =
 const bool debugContinuationHardeningEnabled =
   !debugContinuationCeilingActive
   && !debugOveractiveTopologyDetected
+  && !geometryControlHardeningFrozen
   && debugContinuationThrottleAllowsHardening
   && (forceContinuationHardening || debugContinuationFloorActive || debugContinuationGateSatisfied);
 const bool debugLateStageFilterRCapActive =
@@ -533,6 +560,7 @@ if (Pstream::master())
   writeRow("x bounds", "min="+fmtScalar(xLocalMin), "max="+fmtScalar(xLocalMax), "mean="+fmtScalar(xMean));
   writeRow("xp bounds", "min="+fmtScalar(xpLocalMin), "max="+fmtScalar(xpLocalMax));
   writeRow("xh bounds", "min="+fmtScalar(xhLocalMin), "max="+fmtScalar(xhLocalMax), "mean="+fmtScalar(xhMean));
+  writeRow("xg bounds", "min="+fmtScalar(xgLocalMin), "max="+fmtScalar(xgLocalMax), "mean="+fmtScalar(xgMean));
   writeRow("xh phases", "gray="+fmtScalar(grayVolumeFraction), "solid="+fmtScalar(solidVolumeFraction), "fluid="+fmtScalar(fluidVolumeFraction));
   writeRow("x step", "max="+fmtScalar(maxAbsXChangeLocal), "l2="+fmtScalar(l2XChange), "l2/sqrtN="+fmtScalar(normalizedL2XChange));
   writeRow("xh step", "max="+fmtScalar(maxAbsXhChangeLocal), "l2="+fmtScalar(l2XhChange), "l2/sqrtN="+fmtScalar(normalizedL2XhChange));
@@ -540,6 +568,7 @@ if (Pstream::master())
   writeSectionHeader("Filter Diagnostics");
   writeRow("projection", "beta="+fmtScalar(del), "eta5="+fmtScalar(eta5));
   writeRow("drho bounds", "min="+fmtScalar(drhoLocalMin), "max="+fmtScalar(drhoLocalMax));
+  writeRow("geom proj", "beta="+fmtScalar(geometricSizeProjectionBeta), "eta="+fmtScalar(geometryProjectionEtaActive), "drhoMin="+fmtScalar(drhoGeomLocalMin), "drhoMax="+fmtScalar(drhoGeomLocalMax));
   writeRow("obj sens", "min="+fmtScalar(fsensLocalMin), "max="+fmtScalar(fsensLocalMax));
   writeRow("power sens", "min="+fmtScalar(gsensPowerLocalMin), "max="+fmtScalar(gsensPowerLocalMax));
   writeRow("vol sens", "min="+fmtScalar(gsensVolLocalMin), "max="+fmtScalar(gsensVolLocalMax));
@@ -555,8 +584,8 @@ if (Pstream::master())
       "solid min",
       "value="+fmtScalar(solidMinConstraintValue),
       "margin="+fmtScalar(minSolidConstraintMargin),
-      "size="+fmtScalar(minSolidGeometryFeatureSize),
-      "fill>="+fmtScalar(minSolidGeometryFillFraction)
+      "mmaNorm="+fmtScalar(minSolidConstraintMarginNormalized),
+      "w="+fmtScalar(minSolidGeometryConstraintWeightApplied)
     );
   }
   if (useMaxSolidGeometryControl)
@@ -566,8 +595,19 @@ if (Pstream::master())
       "solid max",
       "value="+fmtScalar(solidMaxConstraintValue),
       "margin="+fmtScalar(maxSolidConstraintMargin),
-      "size="+fmtScalar(maxSolidGeometryFeatureSize),
-      "fill<="+fmtScalar(maxSolidGeometryFillFraction)
+      "mmaNorm="+fmtScalar(maxSolidConstraintMarginNormalized),
+      "w="+fmtScalar(maxSolidGeometryConstraintWeightApplied)
+    );
+  }
+  if (geometryControlConfigured)
+  {
+    writeRow
+    (
+      "geom size ctl",
+      "stage="+std::string(geometryControlStageActivated ? "on" : "off"),
+      "grayGate="+std::string(geometryControlGrayGateSatisfied ? "yes" : "no"),
+      "stepGate="+std::string(geometryControlStepGateSatisfied ? "yes" : "no"),
+      "ramp="+fmtScalar(geometryControlStageWeight)
     );
   }
   writeRow("thermal", "meanT="+fmtScalar(MeanT), "maxT="+fmtScalar(maxT));
@@ -604,6 +644,17 @@ if (Pstream::master())
   writeRow("continuation", "alphaMax="+fmtScalar(alphaMax.value()), "qAlpha="+fmtScalar(qAlpha), "qKappa="+fmtScalar(qKappa), "qHeat="+fmtScalar(qHeat));
   writeRow("hardening", "profile="+std::string(experimentProfile.c_str()), "gate="+std::string(debugContinuationGateSatisfied ? "open" : "closed"), "force="+std::string(forceContinuationHardening ? "yes" : "no"), "floor="+std::string(debugContinuationFloorActive ? "yes" : "no"));
   writeRow("hardening ctl", "PD/limit="+fmtScalar(debugPowerFeasibilityRatio), "tol<="+fmtScalar(debugContinuationFeasibilityTolActive), "iter<="+fmtCount(forceContinuationHardeningUntilIter), "beta<="+fmtScalar(forceContinuationHardeningUntilBeta));
+  if (geometryControlConfigured)
+  {
+    writeRow
+    (
+      "geom stage",
+      "active="+std::string(geometryControlStageActivated ? "yes" : "no"),
+      "gate="+std::string(geometryControlGateSatisfied ? "open" : "closed"),
+      "frozen="+std::string(geometryControlHardeningFrozen ? "yes" : "no"),
+      "actIter="+fmtCount(geometryControlActivationIter)
+    );
+  }
   if (stopContinuationHardeningBelowGrayFraction >= 0.0)
   {
     writeRow("hardening stop", "gray<="+fmtScalar(stopContinuationHardeningBelowGrayFraction), "gray="+fmtScalar(grayVolumeFraction), "ceiling="+std::string(debugContinuationCeilingActive ? "yes" : "no"), "strict="+std::string(debugLateStageStrictGateActive ? "yes" : "no"));
@@ -683,6 +734,9 @@ if (Pstream::master())
       << ",\"xhMin\":" << xhLocalMin
       << ",\"xhMax\":" << xhLocalMax
       << ",\"xhMean\":" << xhMean
+      << ",\"xgMin\":" << xgLocalMin
+      << ",\"xgMax\":" << xgLocalMax
+      << ",\"xgMean\":" << xgMean
       << ",\"xhGrayVolumeFraction\":" << grayVolumeFraction
       << ",\"xhSolidVolumeFraction\":" << solidVolumeFraction
       << ",\"xhFluidVolumeFraction\":" << fluidVolumeFraction
@@ -696,6 +750,10 @@ if (Pstream::master())
       << ",\"eta5\":" << eta5
       << ",\"drhoMin\":" << drhoLocalMin
       << ",\"drhoMax\":" << drhoLocalMax
+      << ",\"geometryProjectionBeta\":" << geometricSizeProjectionBeta
+      << ",\"geometryProjectionEta\":" << geometryProjectionEtaActive
+      << ",\"drhoGeomMin\":" << drhoGeomLocalMin
+      << ",\"drhoGeomMax\":" << drhoGeomLocalMax
       << ",\"objectiveSensitivityFilteredMin\":" << fsensLocalMin
       << ",\"objectiveSensitivityFilteredMax\":" << fsensLocalMax
       << ",\"powerConstraintSensitivityFilteredMin\":" << gsensPowerLocalMin
@@ -728,6 +786,20 @@ if (Pstream::master())
       << ",\"maxSolidConstraintValue\":" << solidMaxConstraintValue
       << ",\"minSolidConstraintMargin\":" << minSolidConstraintMargin
       << ",\"maxSolidConstraintMargin\":" << maxSolidConstraintMargin
+      << ",\"minSolidConstraintMarginNormalized\":" << minSolidConstraintMarginNormalized
+      << ",\"maxSolidConstraintMarginNormalized\":" << maxSolidConstraintMarginNormalized
+      << ",\"stageConfigured\":" << (geometryControlConfigured ? 1 : 0)
+      << ",\"stageActivated\":" << (geometryControlStageActivated ? 1 : 0)
+      << ",\"stageGateSatisfied\":" << (geometryControlGateSatisfied ? 1 : 0)
+      << ",\"stageGrayGateSatisfied\":" << (geometryControlGrayGateSatisfied ? 1 : 0)
+      << ",\"stageStepGateSatisfied\":" << (geometryControlStepGateSatisfied ? 1 : 0)
+      << ",\"stageActivationIter\":" << geometryControlActivationIter
+      << ",\"stageWeight\":" << geometryControlStageWeight
+      << ",\"hardeningFrozen\":" << (geometryControlHardeningFrozen ? 1 : 0)
+      << ",\"minSolidConstraintWeightApplied\":" << minSolidGeometryConstraintWeightApplied
+      << ",\"maxSolidConstraintWeightApplied\":" << maxSolidGeometryConstraintWeightApplied
+      << ",\"minSolidConstraintScaleApplied\":" << minSolidGeometryConstraintScaleApplied
+      << ",\"maxSolidConstraintScaleApplied\":" << maxSolidGeometryConstraintScaleApplied
     << "}"
     << ",\"mma\":{"
       << "\"iteration\":" << opt
@@ -811,6 +883,13 @@ if (Pstream::master())
       << ",\"overactiveTopologyDetected\":" << (debugOveractiveTopologyDetected ? 1 : 0)
       << ",\"grayVolumeFractionDrop\":" << debugGrayVolumeFractionDrop
       << ",\"previousXhStepMax\":" << previousXhStepMax
+      << ",\"geometryControlGateSatisfied\":" << (geometryControlGateSatisfied ? 1 : 0)
+      << ",\"geometryControlGrayGateSatisfied\":" << (geometryControlGrayGateSatisfied ? 1 : 0)
+      << ",\"geometryControlStepGateSatisfied\":" << (geometryControlStepGateSatisfied ? 1 : 0)
+      << ",\"geometryControlActivationStreak\":" << geometryControlActivationStreak
+      << ",\"geometryControlActivationIter\":" << geometryControlActivationIter
+      << ",\"geometryControlStageWeight\":" << geometryControlStageWeight
+      << ",\"geometryControlHardeningFrozen\":" << (geometryControlHardeningFrozen ? 1 : 0)
       << ",\"forceContinuationHardening\":" << (forceContinuationHardening ? 1 : 0)
       << ",\"forceContinuationHardeningUntilIter\":" << forceContinuationHardeningUntilIter
       << ",\"forceContinuationHardeningUntilBeta\":" << forceContinuationHardeningUntilBeta

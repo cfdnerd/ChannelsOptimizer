@@ -17,13 +17,13 @@ forAll(fsenshMeanT, i)
     gsenshPowerNonFiniteLocal++;
   }
 
-  if (useMinSolidGeometryControl && !std::isfinite(static_cast<double>(gsenshSolidMin[i])))
+  if (applyMinSolidGeometryControl && !std::isfinite(static_cast<double>(gsenshSolidMin[i])))
   {
     gsenshSolidMin[i] = 0.0;
     gsenshSolidMinNonFiniteLocal++;
   }
 
-  if (useMaxSolidGeometryControl && !std::isfinite(static_cast<double>(gsenshSolidMax[i])))
+  if (applyMaxSolidGeometryControl && !std::isfinite(static_cast<double>(gsenshSolidMax[i])))
   {
     gsenshSolidMax[i] = 0.0;
     gsenshSolidMaxNonFiniteLocal++;
@@ -91,13 +91,13 @@ if(opt>1)
   fsenshMeanT=fsenshMeanT*drho;
   gsenshPowerDiss=gsenshPowerDiss*drho;
   gsenshVol=gsenshVol*drho;
-  if (useMinSolidGeometryControl)
+  if (applyMinSolidGeometryControl)
   {
-    gsenshSolidMin=gsenshSolidMin*drho;
+    gsenshSolidMin=gsenshSolidMin*drhoGeom;
   }
-  if (useMaxSolidGeometryControl)
+  if (applyMaxSolidGeometryControl)
   {
-    gsenshSolidMax=gsenshSolidMax*drho;
+    gsenshSolidMax=gsenshSolidMax*drhoGeom;
   }
 }
 //***********************************//PDE filter
@@ -133,7 +133,7 @@ recordLinearSolve
   gsensVolFilterLinearSolvePerformance.nIterations()
 );
 
-if (useMinSolidGeometryControl)
+if (applyMinSolidGeometryControl)
 {
   Info<< "filter chainrule: solid-min filter solve" << endl;
   const auto gsensSolidMinFilterLinearSolvePerformance =
@@ -147,7 +147,7 @@ if (useMinSolidGeometryControl)
   );
 }
 
-if (useMaxSolidGeometryControl)
+if (applyMaxSolidGeometryControl)
 {
   Info<< "filter chainrule: solid-max filter solve" << endl;
   const auto gsensSolidMaxFilterLinearSolvePerformance =
@@ -165,11 +165,11 @@ Info<< "filter chainrule: scale filtered sensitivities" << endl;
 fsensMeanT.primitiveFieldRef()=fsensMeanT.primitiveFieldRef()*mesh.V()/gMax(mesh.V());
 gsensPowerDiss.primitiveFieldRef()=gsensPowerDiss.primitiveFieldRef()*mesh.V()/gMax(mesh.V());
 gsensVol.primitiveFieldRef()=gsensVol.primitiveFieldRef()*mesh.V()/gMax(mesh.V());
-if (useMinSolidGeometryControl)
+if (applyMinSolidGeometryControl)
 {
   gsensSolidMin.primitiveFieldRef()=gsensSolidMin.primitiveFieldRef()*mesh.V()/gMax(mesh.V());
 }
-if (useMaxSolidGeometryControl)
+if (applyMaxSolidGeometryControl)
 {
   gsensSolidMax.primitiveFieldRef()=gsensSolidMax.primitiveFieldRef()*mesh.V()/gMax(mesh.V());
 }

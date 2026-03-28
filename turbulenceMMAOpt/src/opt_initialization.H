@@ -119,6 +119,16 @@ if (Pstream::master())
   writeRuntimeOption("aggregationKSFactor", geometricSizeAggregationKSFactor);
   writeRuntimeOption("smoothPositiveEps", geometricSizeSmoothPositiveEps);
   writeRuntimeSwitch("writeDiagnosticFields", writeGeometricSizeDiagnosticFields);
+  writeRuntimeOption("projectionBeta", geometricSizeProjectionBeta);
+  writeRuntimeOption("projectionEta", geometricSizeProjectionEta);
+  writeRuntimeOption("activationMinIter", geometricSizeActivationMinIter);
+  writeRuntimeOption("activationGrayEnter", geometricSizeActivationGrayEnter);
+  writeRuntimeOption("activationGrayExit", geometricSizeActivationGrayExit);
+  writeRuntimeOption("activationXhStepMax", geometricSizeActivationXhStepMax);
+  writeRuntimeOption("activationHoldIters", geometricSizeActivationHoldIters);
+  writeRuntimeOption("rampIters", geometricSizeRampIters);
+  writeRuntimeSwitch("freezeHardeningWhileInfeasible", freezeGeometricSizeHardeningWhileInfeasible);
+  writeRuntimeOption("constraintScaleTarget", geometricSizeConstraintScaleTarget);
 
   debugLogFile << "\n--- geometricSizeControlDict.minSolidGeometryControl ---\n";
   writeRuntimeSwitch("active", useMinSolidGeometryControl);
@@ -375,6 +385,21 @@ scalar previousGrayVolumeFractionForContinuation(1.0);
 scalar previousXhStepMax(0.0);
 scalar solidMinConstraintValue(0.0);
 scalar solidMaxConstraintValue(0.0);
+const bool geometryControlConfigured =
+  useMinSolidGeometryControl || useMaxSolidGeometryControl;
+label geometryControlActivationStreak(0);
+label geometryControlActivationIter(-1);
+bool geometryControlStageActivated(false);
+bool geometryControlGateSatisfied(false);
+bool geometryControlGrayGateSatisfied(false);
+bool geometryControlStepGateSatisfied(false);
+bool geometryControlHardeningFrozen(false);
+scalar geometryControlStageWeight(0.0);
+scalar geometryProjectionEtaActive(0.5);
+scalar minSolidGeometryConstraintWeightApplied(0.0);
+scalar maxSolidGeometryConstraintWeightApplied(0.0);
+scalar minSolidGeometryConstraintScaleApplied(1.0);
+scalar maxSolidGeometryConstraintScaleApplied(1.0);
 const scalar adjointRunawayRatioLimit(1e6);
 word activeObjectiveLabel("MeanT");
 word activeWallDistanceMode("meshWave");

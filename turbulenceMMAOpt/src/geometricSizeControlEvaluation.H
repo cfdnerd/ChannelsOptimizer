@@ -1,7 +1,7 @@
 solidMinConstraintValue = 0.0;
 solidMaxConstraintValue = 0.0;
 
-solidIndicator = dimensionedScalar("one", dimless, 1.0) - xh;
+solidIndicator = dimensionedScalar("one", dimless, 1.0) - xg;
 solidIndicator.correctBoundaryConditions();
 
 solidMinFiltered = dimensionedScalar("zero", dimless, 0.0);
@@ -31,7 +31,7 @@ auto smoothPositivePartDerivative =
   return 0.5*(1.0 + z/Foam::max(denom, SMALL));
 };
 
-if (useMinSolidGeometryControl)
+if (applyMinSolidGeometryControl)
 {
   const auto solidMinGeomFilterLinearSolvePerformance =
     solve(fvm::laplacian(solidMinFiltered) - fvm::Sp(bSolidMinGeom, solidMinFiltered) + solidIndicator*bSolidMinGeom);
@@ -121,7 +121,7 @@ if (useMinSolidGeometryControl)
   gsenshSolidMin -= gsensSolidMinGeom;
 }
 
-if (useMaxSolidGeometryControl)
+if (applyMaxSolidGeometryControl)
 {
   const auto solidMaxGeomFilterLinearSolvePerformance =
     solve(fvm::laplacian(solidMaxFiltered) - fvm::Sp(bSolidMaxGeom, solidMaxFiltered) + solidIndicator*bSolidMaxGeom);

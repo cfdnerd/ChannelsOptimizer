@@ -15,7 +15,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-// Turbulence suppression is handled directly in turbulenceMMAOpt so the
+// Turbulence suppression is handled directly in turbulenceLSMOpt so the
 // baseline turbulent bring-up case remains self-contained.
 
 // ************************************************************************* //

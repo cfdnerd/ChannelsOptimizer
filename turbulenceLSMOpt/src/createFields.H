@@ -94,6 +94,53 @@ if (tuneOptParameters.found("experimentControl"))
 {
   experimentControl = tuneOptParameters.subDict("experimentControl");
 }
+dictionary hybridStageControl;
+if (tuneOptParameters.found("hybridStageControl"))
+{
+  hybridStageControl = tuneOptParameters.subDict("hybridStageControl");
+}
+dictionary lsmControl;
+if (tuneOptParameters.found("lsmControl"))
+{
+  lsmControl = tuneOptParameters.subDict("lsmControl");
+}
+dictionary lsmSensitivityControl;
+if (tuneOptParameters.found("lsmSensitivityControl"))
+{
+  lsmSensitivityControl = tuneOptParameters.subDict("lsmSensitivityControl");
+}
+dictionary geometryControl;
+if (tuneOptParameters.found("geometryControl"))
+{
+  geometryControl = tuneOptParameters.subDict("geometryControl");
+}
+dictionary wallDistanceControl;
+if (tuneOptParameters.found("wallDistanceControl"))
+{
+  wallDistanceControl = tuneOptParameters.subDict("wallDistanceControl");
+}
+
+dictionary regionwiseChannelWidthMinDict;
+dictionary regionwiseChannelWidthMaxDict;
+dictionary regionwiseRibThicknessMinDict;
+dictionary regionwiseRibThicknessMaxDict;
+
+if (geometryControl.found("regionwiseChannelWidthMin"))
+{
+  regionwiseChannelWidthMinDict = geometryControl.subDict("regionwiseChannelWidthMin");
+}
+if (geometryControl.found("regionwiseChannelWidthMax"))
+{
+  regionwiseChannelWidthMaxDict = geometryControl.subDict("regionwiseChannelWidthMax");
+}
+if (geometryControl.found("regionwiseRibThicknessMin"))
+{
+  regionwiseRibThicknessMinDict = geometryControl.subDict("regionwiseRibThicknessMin");
+}
+if (geometryControl.found("regionwiseRibThicknessMax"))
+{
+  regionwiseRibThicknessMaxDict = geometryControl.subDict("regionwiseRibThicknessMax");
+}
 
 Switch useFrozenTurbulenceAdjoint
 (
@@ -271,6 +318,222 @@ scalar overactiveTopologyAboveXhStepMax
 (
   experimentControl.lookupOrDefault<scalar>("overactiveTopologyAboveXhStepMax", -1.0)
 );
+Switch useHybridMMAtoLSM
+(
+  hybridStageControl.lookupOrDefault<Switch>("useHybridMMAtoLSM", true)
+);
+scalar lsmSwitchGrayFraction
+(
+  hybridStageControl.lookupOrDefault<scalar>("lsmSwitchGrayFraction", 0.20)
+);
+scalar lsmSwitchPowerFeasibility
+(
+  hybridStageControl.lookupOrDefault<scalar>("lsmSwitchPowerFeasibility", 1.05)
+);
+scalar lsmSwitchMaxXhStep
+(
+  hybridStageControl.lookupOrDefault<scalar>("lsmSwitchMaxXhStep", 0.08)
+);
+scalar lsmSwitchMinBeta
+(
+  hybridStageControl.lookupOrDefault<scalar>("lsmSwitchMinBeta", 12.0)
+);
+label lsmSwitchMinIterations
+(
+  hybridStageControl.lookupOrDefault<label>("lsmSwitchMinIterations", 120)
+);
+Switch lsmSwitchRequireConnectivity
+(
+  hybridStageControl.lookupOrDefault<Switch>("lsmSwitchRequireConnectivity", true)
+);
+label lsmBlendIterations
+(
+  hybridStageControl.lookupOrDefault<label>("lsmBlendIterations", 5)
+);
+Switch lsmRollbackEnabled
+(
+  hybridStageControl.lookupOrDefault<Switch>("lsmRollbackEnabled", true)
+);
+Switch requireRestartableLSMCheckpoint
+(
+  hybridStageControl.lookupOrDefault<Switch>("requireRestartableLSMCheckpoint", true)
+);
+Switch allowTopologyChangeInLSM
+(
+  hybridStageControl.lookupOrDefault<Switch>("allowTopologyChangeInLSM", false)
+);
+
+Switch useLevelSetStage
+(
+  lsmControl.lookupOrDefault<Switch>("useLevelSetStage", true)
+);
+scalar phiBandWidthCells
+(
+  lsmControl.lookupOrDefault<scalar>("phiBandWidthCells", 1.5)
+);
+scalar narrowBandHalfWidthCells
+(
+  lsmControl.lookupOrDefault<scalar>("narrowBandHalfWidthCells", 4.0)
+);
+label phiReinitInterval
+(
+  lsmControl.lookupOrDefault<label>("phiReinitInterval", 5)
+);
+scalar phiGradDriftTol
+(
+  lsmControl.lookupOrDefault<scalar>("phiGradDriftTol", 0.25)
+);
+scalar lsmPseudoDt
+(
+  lsmControl.lookupOrDefault<scalar>("lsmPseudoDt", 0.0)
+);
+scalar lsmCfl
+(
+  lsmControl.lookupOrDefault<scalar>("lsmCfl", 0.50)
+);
+Switch useVelocityHelmholtz
+(
+  lsmControl.lookupOrDefault<Switch>("useVelocityHelmholtz", true)
+);
+scalar velocityFilterRadius
+(
+  lsmControl.lookupOrDefault<scalar>("velocityFilterRadius", 2.0)
+);
+Switch useCurvaturePenalty
+(
+  lsmControl.lookupOrDefault<Switch>("useCurvaturePenalty", true)
+);
+scalar curvaturePenaltyWeight
+(
+  lsmControl.lookupOrDefault<scalar>("curvaturePenaltyWeight", 0.05)
+);
+Switch useReactionDiffusionComplexityControl
+(
+  lsmControl.lookupOrDefault<Switch>("useReactionDiffusionComplexityControl", false)
+);
+
+Switch useApproximateNarrowBandSensitivityBridge
+(
+  lsmSensitivityControl.lookupOrDefault<Switch>("useApproximateNarrowBandSensitivityBridge", true)
+);
+scalar lsmSensitivitySmoothingRadius
+(
+  lsmSensitivityControl.lookupOrDefault<scalar>("lsmSensitivitySmoothingRadius", 2.0)
+);
+Switch normalizeInterfaceVelocity
+(
+  lsmSensitivityControl.lookupOrDefault<Switch>("normalizeInterfaceVelocity", true)
+);
+Switch finiteDifferenceCheckStage2
+(
+  lsmSensitivityControl.lookupOrDefault<Switch>("finiteDifferenceCheckStage2", false)
+);
+
+Switch useChannelWidthControl
+(
+  geometryControl.lookupOrDefault<Switch>("useChannelWidthControl", true)
+);
+scalar channelWidthMin
+(
+  geometryControl.lookupOrDefault<scalar>("channelWidthMin", 4.0)
+);
+scalar channelWidthMax
+(
+  geometryControl.lookupOrDefault<scalar>("channelWidthMax", 14.0)
+);
+Switch useRegionwiseWidthTargets
+(
+  geometryControl.lookupOrDefault<Switch>("useRegionwiseWidthTargets", false)
+);
+Switch useBranchwiseWidthTargets
+(
+  geometryControl.lookupOrDefault<Switch>("useBranchwiseWidthTargets", false)
+);
+Switch useRibThicknessControl
+(
+  geometryControl.lookupOrDefault<Switch>("useRibThicknessControl", true)
+);
+scalar ribThicknessMin
+(
+  geometryControl.lookupOrDefault<scalar>("ribThicknessMin", 3.0)
+);
+Switch useRibThicknessMaxControl
+(
+  geometryControl.lookupOrDefault<Switch>("useRibThicknessMaxControl", false)
+);
+scalar ribThicknessMax
+(
+  geometryControl.lookupOrDefault<scalar>("ribThicknessMax", 12.0)
+);
+Switch useRegionwiseRibTargets
+(
+  geometryControl.lookupOrDefault<Switch>("useRegionwiseRibTargets", false)
+);
+Switch useBranchwiseRibTargets
+(
+  geometryControl.lookupOrDefault<Switch>("useBranchwiseRibTargets", false)
+);
+Switch useProtectedGeometryMasks
+(
+  geometryControl.lookupOrDefault<Switch>("useProtectedGeometryMasks", false)
+);
+Switch applyRibTargetsToInternalRibsOnly
+(
+  geometryControl.lookupOrDefault<Switch>("applyRibTargetsToInternalRibsOnly", true)
+);
+Switch useHydraulicDiameterReporting
+(
+  geometryControl.lookupOrDefault<Switch>("useHydraulicDiameterReporting", false)
+);
+scalar hydraulicDiameterExtrusionThickness
+(
+  geometryControl.lookupOrDefault<scalar>("hydraulicDiameterExtrusionThickness", 1.0)
+);
+scalar ksRhoGeom
+(
+  geometryControl.lookupOrDefault<scalar>("ksRhoGeom", 20.0)
+);
+scalar sizeConstraintWeightMin
+(
+  geometryControl.lookupOrDefault<scalar>("sizeConstraintWeightMin", 1.0)
+);
+scalar sizeConstraintWeightMax
+(
+  geometryControl.lookupOrDefault<scalar>("sizeConstraintWeightMax", 1.0)
+);
+scalar widthConstraintWeight
+(
+  geometryControl.lookupOrDefault<scalar>("widthConstraintWeight", 1.0)
+);
+scalar ribConstraintWeight
+(
+  geometryControl.lookupOrDefault<scalar>("ribConstraintWeight", 1.0)
+);
+wordList protectedSolidRegionNames
+(
+  geometryControl.lookupOrDefault<wordList>("protectedSolidRegionNames", wordList())
+);
+wordList protectedFluidRegionNames
+(
+  geometryControl.lookupOrDefault<wordList>("protectedFluidRegionNames", wordList())
+);
+
+word lsmWallDistanceMode
+(
+  wallDistanceControl.lookupOrDefault<word>("lsmWallDistanceMode", "porosity")
+);
+Switch useLSMWallDistance
+(
+  wallDistanceControl.lookupOrDefault<Switch>("useLSMWallDistance", false)
+);
+Switch useHeatMethodWallDistanceFallback
+(
+  wallDistanceControl.lookupOrDefault<Switch>("useHeatMethodWallDistanceFallback", false)
+);
+label lsmWallDistanceBlendIterations
+(
+  wallDistanceControl.lookupOrDefault<label>("lsmWallDistanceBlendIterations", 5)
+);
 
 if (experimentProfile == "baseline")
 {
@@ -446,7 +709,7 @@ else
 if (useGCMMA)
 {
   FatalErrorInFunction
-    << "useGCMMA=true is not implemented in turbulenceMMAOpt yet."
+    << "useGCMMA=true is not implemented in turbulenceLSMOpt yet."
     << exit(FatalError);
 }
 if (adjointMomentumSweeps <= 0)
@@ -499,6 +762,200 @@ if (!usePorosityWallDistance && !useMeshWaveWallDistanceFallback)
     << "At least one wall-distance mode must be enabled."
     << exit(FatalError);
 }
+if (lsmSwitchGrayFraction < 0.0 || lsmSwitchGrayFraction > 1.0)
+{
+  FatalErrorInFunction
+    << "hybridStageControl.lsmSwitchGrayFraction must lie in [0,1]. Found "
+    << lsmSwitchGrayFraction
+    << exit(FatalError);
+}
+if (lsmSwitchPowerFeasibility <= 0.0)
+{
+  FatalErrorInFunction
+    << "hybridStageControl.lsmSwitchPowerFeasibility must be > 0. Found "
+    << lsmSwitchPowerFeasibility
+    << exit(FatalError);
+}
+if (lsmSwitchMaxXhStep < 0.0)
+{
+  FatalErrorInFunction
+    << "hybridStageControl.lsmSwitchMaxXhStep must be >= 0. Found "
+    << lsmSwitchMaxXhStep
+    << exit(FatalError);
+}
+if (lsmSwitchMinBeta < 0.0)
+{
+  FatalErrorInFunction
+    << "hybridStageControl.lsmSwitchMinBeta must be >= 0. Found "
+    << lsmSwitchMinBeta
+    << exit(FatalError);
+}
+if (lsmSwitchMinIterations < 0)
+{
+  FatalErrorInFunction
+    << "hybridStageControl.lsmSwitchMinIterations must be >= 0. Found "
+    << lsmSwitchMinIterations
+    << exit(FatalError);
+}
+if (lsmBlendIterations < 0)
+{
+  FatalErrorInFunction
+    << "hybridStageControl.lsmBlendIterations must be >= 0. Found "
+    << lsmBlendIterations
+    << exit(FatalError);
+}
+if (requireRestartableLSMCheckpoint && !lsmRollbackEnabled && useHybridMMAtoLSM)
+{
+  FatalErrorInFunction
+    << "requireRestartableLSMCheckpoint=true requires lsmRollbackEnabled=true."
+    << exit(FatalError);
+}
+if (phiBandWidthCells <= 0.0)
+{
+  FatalErrorInFunction
+    << "lsmControl.phiBandWidthCells must be > 0. Found "
+    << phiBandWidthCells
+    << exit(FatalError);
+}
+if (narrowBandHalfWidthCells <= 0.0)
+{
+  FatalErrorInFunction
+    << "lsmControl.narrowBandHalfWidthCells must be > 0. Found "
+    << narrowBandHalfWidthCells
+    << exit(FatalError);
+}
+if (phiReinitInterval < 0)
+{
+  FatalErrorInFunction
+    << "lsmControl.phiReinitInterval must be >= 0. Found "
+    << phiReinitInterval
+    << exit(FatalError);
+}
+if (phiGradDriftTol < 0.0)
+{
+  FatalErrorInFunction
+    << "lsmControl.phiGradDriftTol must be >= 0. Found "
+    << phiGradDriftTol
+    << exit(FatalError);
+}
+if (lsmPseudoDt < 0.0)
+{
+  FatalErrorInFunction
+    << "lsmControl.lsmPseudoDt must be >= 0. Found "
+    << lsmPseudoDt
+    << exit(FatalError);
+}
+if (lsmCfl <= 0.0)
+{
+  FatalErrorInFunction
+    << "lsmControl.lsmCfl must be > 0. Found "
+    << lsmCfl
+    << exit(FatalError);
+}
+if (velocityFilterRadius <= 0.0)
+{
+  FatalErrorInFunction
+    << "lsmControl.velocityFilterRadius must be > 0. Found "
+    << velocityFilterRadius
+    << exit(FatalError);
+}
+if (curvaturePenaltyWeight < 0.0)
+{
+  FatalErrorInFunction
+    << "lsmControl.curvaturePenaltyWeight must be >= 0. Found "
+    << curvaturePenaltyWeight
+    << exit(FatalError);
+}
+if (lsmSensitivitySmoothingRadius <= 0.0)
+{
+  FatalErrorInFunction
+    << "lsmSensitivityControl.lsmSensitivitySmoothingRadius must be > 0. Found "
+    << lsmSensitivitySmoothingRadius
+    << exit(FatalError);
+}
+if (channelWidthMin < 0.0)
+{
+  FatalErrorInFunction
+    << "geometryControl.channelWidthMin must be >= 0. Found "
+    << channelWidthMin
+    << exit(FatalError);
+}
+if (channelWidthMax > 0.0 && channelWidthMax < channelWidthMin)
+{
+  FatalErrorInFunction
+    << "geometryControl.channelWidthMax must be >= channelWidthMin when enabled."
+    << exit(FatalError);
+}
+if (ribThicknessMin < 0.0)
+{
+  FatalErrorInFunction
+    << "geometryControl.ribThicknessMin must be >= 0. Found "
+    << ribThicknessMin
+    << exit(FatalError);
+}
+if (useRibThicknessMaxControl && ribThicknessMax < ribThicknessMin)
+{
+  FatalErrorInFunction
+    << "geometryControl.ribThicknessMax must be >= ribThicknessMin when enabled."
+    << exit(FatalError);
+}
+if (hydraulicDiameterExtrusionThickness <= 0.0)
+{
+  FatalErrorInFunction
+    << "geometryControl.hydraulicDiameterExtrusionThickness must be > 0. Found "
+    << hydraulicDiameterExtrusionThickness
+    << exit(FatalError);
+}
+if (ksRhoGeom <= 0.0)
+{
+  FatalErrorInFunction
+    << "geometryControl.ksRhoGeom must be > 0. Found "
+    << ksRhoGeom
+    << exit(FatalError);
+}
+if (sizeConstraintWeightMin < 0.0 || sizeConstraintWeightMax < 0.0)
+{
+  FatalErrorInFunction
+    << "geometryControl.sizeConstraintWeightMin/Max must be >= 0."
+    << exit(FatalError);
+}
+if (widthConstraintWeight < 0.0 || ribConstraintWeight < 0.0)
+{
+  FatalErrorInFunction
+    << "geometryControl.widthConstraintWeight and ribConstraintWeight must be >= 0."
+    << exit(FatalError);
+}
+if (useBranchwiseWidthTargets || useBranchwiseRibTargets)
+{
+  FatalErrorInFunction
+    << "Branchwise geometry targets remain a later milestone and are not implemented yet."
+    << exit(FatalError);
+}
+if
+(
+  lsmWallDistanceMode != "porosity"
+  && lsmWallDistanceMode != "blend"
+  && lsmWallDistanceMode != "phi"
+)
+{
+  FatalErrorInFunction
+    << "wallDistanceControl.lsmWallDistanceMode must be one of porosity, blend, or phi. Found "
+    << lsmWallDistanceMode
+    << exit(FatalError);
+}
+if (lsmWallDistanceBlendIterations < 0)
+{
+  FatalErrorInFunction
+    << "wallDistanceControl.lsmWallDistanceBlendIterations must be >= 0. Found "
+    << lsmWallDistanceBlendIterations
+    << exit(FatalError);
+}
+if (useHeatMethodWallDistanceFallback)
+{
+  Info<< "wallDistanceControl.useHeatMethodWallDistanceFallback=true requested, "
+      << "but the first baseline keeps porosity or phi-based wall distance only."
+      << endl;
+}
 
 label objectiveModeCount = 0;
 objectiveModeCount += useLogMeanTObjective ? 1 : 0;
@@ -513,7 +970,7 @@ if (objectiveModeCount > 1)
 if (useRobustMultiCaseObjective)
 {
   FatalErrorInFunction
-    << "useRobustMultiCaseObjective=true is not implemented yet for turbulenceMMAOpt."
+    << "useRobustMultiCaseObjective=true is not implemented yet for turbulenceLSMOpt."
     << exit(FatalError);
 }
 if (forceContinuationHardeningUntilIter < 0)

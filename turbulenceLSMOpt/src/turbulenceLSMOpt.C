@@ -5,7 +5,10 @@
 #include "simpleControl.H"
 #include "fvOptions.H"//
 #include "MMA/MMA.h"
+#include <cmath>
 #include <cstring>
+#include <queue>
+#include <vector>
 #include <iomanip>
 #include <sstream>
 #include <diff.c>
@@ -21,6 +24,7 @@ int main(int argc, char *argv[])
     #include "readTransportProperties.H" 
     #include "initContinuityErrs.H"
     #include "readThermalProperties.H" 
+    #include "levelSetCreateFields.H"
     #include "opt_initialization.H"
     while (simple.loop(runTime))
     {

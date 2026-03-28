@@ -86,6 +86,7 @@ if (Pstream::master())
       historyFile
         << std::left
         << std::setw(8) << "Iter"
+        << std::setw(16) << "Stage"
         << std::setw(16) << "PDActLog"
         << std::setw(16) << "PDCon"
         << std::setw(16) << "V"
@@ -97,6 +98,7 @@ if (Pstream::master())
     historyFile
       << std::right
       << std::setw(8) << opt
+      << std::setw(16) << hybridStageName
       << std::scientific << std::setprecision(8)
       << std::setw(16) << PDActLog
       << std::setw(16) << PowerDiss

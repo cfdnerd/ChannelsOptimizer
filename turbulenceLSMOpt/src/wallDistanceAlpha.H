@@ -28,3 +28,5 @@ else
     dAlpha = dimensionedScalar("zero", dAlpha.dimensions(), 0.0);
     activeWallDistanceMode = "meshWave";
 }
+
+#include "levelSetWallDistance.H"

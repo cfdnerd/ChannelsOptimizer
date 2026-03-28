@@ -13,11 +13,12 @@ if (Pstream::master())
   std::remove(solverConvergenceFile);
   std::ofstream historyFile(optimizationHistoryFile, std::ios::out);
   historyFile
-    << "# turbulenceMMAOpt optimization history\n"
-    << "# Cols: Iter PDActLog PDCon V MeanT MaxT SolverStat\n"
+    << "# turbulenceLSMOpt optimization history\n"
+    << "# Cols: Iter Stage PDActLog PDCon V MeanT MaxT SolverStat\n"
     << "# PDActLog=PDCon*PowerDiss0, PDCon=PowerDiss used by MMA\n"
     << std::left
     << std::setw(8) << "Iter"
+    << std::setw(16) << "Stage"
     << std::setw(16) << "PDActLog"
     << std::setw(16) << "PDCon"
     << std::setw(16) << "V"
@@ -47,7 +48,7 @@ if (Pstream::master())
   };
 
   debugLogFile
-    << "# turbulenceMMAOpt optimizer debug log\n"
+    << "# turbulenceLSMOpt optimizer debug log\n"
     << "# Structured per-iteration diagnostics for optimizer development\n"
     << "# Format: sectioned human-readable report, one block per optimization iteration\n"
     << "\n[Runtime Option Dump]\n"
@@ -139,6 +140,67 @@ if (Pstream::master())
   writeRuntimeOption("overactiveTopologyBelowGrayFraction", overactiveTopologyBelowGrayFraction);
   writeRuntimeOption("overactiveTopologyAboveXhStepMax", overactiveTopologyAboveXhStepMax);
 
+  debugLogFile << "\n--- hybridStageControl ---\n";
+  writeRuntimeSwitch("useHybridMMAtoLSM", useHybridMMAtoLSM);
+  writeRuntimeOption("lsmSwitchGrayFraction", lsmSwitchGrayFraction);
+  writeRuntimeOption("lsmSwitchPowerFeasibility", lsmSwitchPowerFeasibility);
+  writeRuntimeOption("lsmSwitchMaxXhStep", lsmSwitchMaxXhStep);
+  writeRuntimeOption("lsmSwitchMinBeta", lsmSwitchMinBeta);
+  writeRuntimeOption("lsmSwitchMinIterations", lsmSwitchMinIterations);
+  writeRuntimeSwitch("lsmSwitchRequireConnectivity", lsmSwitchRequireConnectivity);
+  writeRuntimeOption("lsmBlendIterations", lsmBlendIterations);
+  writeRuntimeSwitch("lsmRollbackEnabled", lsmRollbackEnabled);
+  writeRuntimeSwitch("requireRestartableLSMCheckpoint", requireRestartableLSMCheckpoint);
+  writeRuntimeSwitch("allowTopologyChangeInLSM", allowTopologyChangeInLSM);
+
+  debugLogFile << "\n--- lsmControl ---\n";
+  writeRuntimeSwitch("useLevelSetStage", useLevelSetStage);
+  writeRuntimeOption("phiBandWidthCells", phiBandWidthCells);
+  writeRuntimeOption("narrowBandHalfWidthCells", narrowBandHalfWidthCells);
+  writeRuntimeOption("phiReinitInterval", phiReinitInterval);
+  writeRuntimeOption("phiGradDriftTol", phiGradDriftTol);
+  writeRuntimeOption("lsmPseudoDt", lsmPseudoDt);
+  writeRuntimeOption("lsmCfl", lsmCfl);
+  writeRuntimeSwitch("useVelocityHelmholtz", useVelocityHelmholtz);
+  writeRuntimeOption("velocityFilterRadius", velocityFilterRadius);
+  writeRuntimeSwitch("useCurvaturePenalty", useCurvaturePenalty);
+  writeRuntimeOption("curvaturePenaltyWeight", curvaturePenaltyWeight);
+  writeRuntimeSwitch("useReactionDiffusionComplexityControl", useReactionDiffusionComplexityControl);
+
+  debugLogFile << "\n--- lsmSensitivityControl ---\n";
+  writeRuntimeSwitch("useApproximateNarrowBandSensitivityBridge", useApproximateNarrowBandSensitivityBridge);
+  writeRuntimeOption("lsmSensitivitySmoothingRadius", lsmSensitivitySmoothingRadius);
+  writeRuntimeSwitch("normalizeInterfaceVelocity", normalizeInterfaceVelocity);
+  writeRuntimeSwitch("finiteDifferenceCheckStage2", finiteDifferenceCheckStage2);
+
+  debugLogFile << "\n--- geometryControl ---\n";
+  writeRuntimeSwitch("useChannelWidthControl", useChannelWidthControl);
+  writeRuntimeOption("channelWidthMin", channelWidthMin);
+  writeRuntimeOption("channelWidthMax", channelWidthMax);
+  writeRuntimeSwitch("useRegionwiseWidthTargets", useRegionwiseWidthTargets);
+  writeRuntimeSwitch("useBranchwiseWidthTargets", useBranchwiseWidthTargets);
+  writeRuntimeSwitch("useRibThicknessControl", useRibThicknessControl);
+  writeRuntimeOption("ribThicknessMin", ribThicknessMin);
+  writeRuntimeSwitch("useRibThicknessMaxControl", useRibThicknessMaxControl);
+  writeRuntimeOption("ribThicknessMax", ribThicknessMax);
+  writeRuntimeSwitch("useRegionwiseRibTargets", useRegionwiseRibTargets);
+  writeRuntimeSwitch("useBranchwiseRibTargets", useBranchwiseRibTargets);
+  writeRuntimeSwitch("useProtectedGeometryMasks", useProtectedGeometryMasks);
+  writeRuntimeSwitch("applyRibTargetsToInternalRibsOnly", applyRibTargetsToInternalRibsOnly);
+  writeRuntimeSwitch("useHydraulicDiameterReporting", useHydraulicDiameterReporting);
+  writeRuntimeOption("hydraulicDiameterExtrusionThickness", hydraulicDiameterExtrusionThickness);
+  writeRuntimeOption("ksRhoGeom", ksRhoGeom);
+  writeRuntimeOption("sizeConstraintWeightMin", sizeConstraintWeightMin);
+  writeRuntimeOption("sizeConstraintWeightMax", sizeConstraintWeightMax);
+  writeRuntimeOption("widthConstraintWeight", widthConstraintWeight);
+  writeRuntimeOption("ribConstraintWeight", ribConstraintWeight);
+
+  debugLogFile << "\n--- wallDistanceControl ---\n";
+  writeRuntimeWord("lsmWallDistanceMode", lsmWallDistanceMode);
+  writeRuntimeSwitch("useLSMWallDistance", useLSMWallDistance);
+  writeRuntimeSwitch("useHeatMethodWallDistanceFallback", useHeatMethodWallDistanceFallback);
+  writeRuntimeOption("lsmWallDistanceBlendIterations", lsmWallDistanceBlendIterations);
+
   debugLogFile << "\n--- adjointControl ---\n";
   writeRuntimeOption("adjointMomentumSweeps", adjointMomentumSweeps);
   writeRuntimeOption("adjointExplicitStressScale", adjointExplicitStressScale);
@@ -173,12 +235,12 @@ if (Pstream::master())
 
   std::ofstream gradientLogFile(gradientOptFile, std::ios::out);
   gradientLogFile
-    << "# turbulenceMMAOpt gradient and sensitivity diagnostics\n"
+    << "# turbulenceLSMOpt gradient and sensitivity diagnostics\n"
     << "# Structured one-block-per-iteration report\n";
 
   std::ofstream solverConvergenceLogFile(solverConvergenceFile, std::ios::out);
   solverConvergenceLogFile
-    << "# turbulenceMMAOpt solver convergence log\n"
+    << "# turbulenceLSMOpt solver convergence log\n"
     << "# Linear-solver statistics grouped by optimization iteration\n";
 }
 
@@ -347,9 +409,302 @@ word activeObjectiveLabel("MeanT");
 word activeWallDistanceMode("meshWave");
 word activeTurbulenceModelMode("kEpsilon");
 scalar activeFilterR(filterR);
+label previousSolverSeverity(0);
+const label HYBRID_STAGE_DENSITY(0);
+const label HYBRID_STAGE_HANDOVER(1);
+const label HYBRID_STAGE_LSM(2);
+label hybridStageState(HYBRID_STAGE_DENSITY);
+word hybridStageName("density");
+label lsmBlendIteration(0);
+label lsmStageIteration(0);
+scalar lsmBlendWeight(1.0);
+bool lsmCheckpointAvailable(false);
+bool lsmRollbackRequested(false);
+bool lsmSwitchLockedOut(false);
+bool lsmSwitchTriggered(false);
+word lsmRollbackReason("none");
+label lsmRollbackCount(0);
+bool lsmLastStepAccepted(true);
+label lsmRejectedStepCount(0);
+bool lsmLastConnectivitySatisfied(true);
+bool lsmSwitchGateSatisfied(false);
+bool lsmSwitchHealthSatisfied(false);
+bool lsmSwitchCheckpointSatisfied(false);
+scalar lsmLastGrayVolumeFraction(1.0);
+scalar lsmLastPowerFeasibilityRatio(0.0);
+scalar lsmLastSignedDistanceDrift(0.0);
+scalar lsmLastTimeStep(0.0);
+scalar lsmLastChannelWidthMin(0.0);
+scalar lsmLastChannelWidthMax(0.0);
+scalar lsmLastRibThicknessMin(0.0);
+scalar lsmLastRibThicknessMax(0.0);
+scalar lsmLastHydraulicDiameterMean(0.0);
+scalar lsmLastChannelWidthMinKS(0.0);
+scalar lsmLastChannelWidthMaxKS(0.0);
+scalar lsmLastRibThicknessMinKS(0.0);
+scalar lsmLastRibThicknessMaxKS(0.0);
+scalar lsmLastCurvatureKS(0.0);
+scalar lsmLastObjectiveVelocityMax(0.0);
+scalar lsmLastPowerVelocityMax(0.0);
+scalar lsmLastVolumeVelocityMax(0.0);
+scalar lsmLastGeometryVelocityMax(0.0);
+scalar lsmLastVelocityMax(0.0);
+scalar lsmLastPhiStepMax(0.0);
+
 double len=std::pow(area/N, 1.0/3);
 b.value()=1.0/(activeFilterR*len/3.464)/(activeFilterR*len/3.464);
 del=beta0;
+
+Field<scalar> xCheckpoint;
+Field<scalar> xpCheckpoint;
+Field<scalar> xhCheckpoint;
+Field<scalar> xhDensityReferenceCheckpoint;
+Field<scalar> xhLevelSetCheckpoint;
+Field<scalar> phiCheckpoint;
+Field<scalar> pCheckpoint;
+Field<scalar> paCheckpoint;
+Field<scalar> pbCheckpoint;
+Field<scalar> TCheckpoint;
+Field<scalar> TbCheckpoint;
+Field<vector> UCheckpoint;
+Field<vector> UaCheckpoint;
+Field<vector> UbCheckpoint;
+Field<scalar> kCheckpoint;
+Field<scalar> epsilonCheckpoint;
+Field<scalar> nutCheckpoint;
+
+const bool hasKEpsilonCheckpointFields =
+  mesh.foundObject<volScalarField>("k")
+  && mesh.foundObject<volScalarField>("epsilon")
+  && mesh.foundObject<volScalarField>("nut");
+volScalarField* kCheckpointField =
+  hasKEpsilonCheckpointFields
+  ? &const_cast<volScalarField&>(mesh.lookupObject<volScalarField>("k"))
+  : nullptr;
+volScalarField* epsilonCheckpointField =
+  hasKEpsilonCheckpointFields
+  ? &const_cast<volScalarField&>(mesh.lookupObject<volScalarField>("epsilon"))
+  : nullptr;
+volScalarField* nutCheckpointField =
+  hasKEpsilonCheckpointFields
+  ? &const_cast<volScalarField&>(mesh.lookupObject<volScalarField>("nut"))
+  : nullptr;
+
+label optCheckpoint(0);
+double delCheckpoint(0.0);
+scalar alphaMaxCheckpoint(alphaMax.value());
+scalar activePowerLimitCheckpoint(activePowerLimit);
+scalar activeFilterRCheckpoint(activeFilterR);
+scalar qAlphaCheckpoint(qAlpha);
+scalar qKappaCheckpoint(qKappa);
+scalar qHeatCheckpoint(qHeat);
+scalar qSingleCheckpoint(qSingle);
+scalar previousObjectiveValueCheckpoint(0.0);
+bool hasPreviousObjectiveValueCheckpoint(false);
+label optimizerConvergedStreakCheckpoint(0);
+scalar previousGrayVolumeFractionCheckpoint(1.0);
+scalar previousXhStepMaxCheckpoint(0.0);
+label previousSolverSeverityCheckpoint(0);
+word activeObjectiveLabelCheckpoint("MeanT");
+word activeWallDistanceModeCheckpoint("meshWave");
+word activeTurbulenceModelModeCheckpoint("kEpsilon");
+
+auto saveScalarFieldState =
+[&](Field<scalar>& storage, const volScalarField& field)
+{
+  storage = field.primitiveField();
+};
+auto saveVectorFieldState =
+[&](Field<vector>& storage, const volVectorField& field)
+{
+  storage = field.primitiveField();
+};
+auto restoreScalarFieldState =
+[&](volScalarField& field, const Field<scalar>& storage)
+{
+  if (storage.size())
+  {
+    field.primitiveFieldRef() = storage;
+    field.correctBoundaryConditions();
+  }
+};
+auto restoreVectorFieldState =
+[&](volVectorField& field, const Field<vector>& storage)
+{
+  if (storage.size())
+  {
+    field.primitiveFieldRef() = storage;
+    field.correctBoundaryConditions();
+  }
+};
+
+const labelListList& cellCells = mesh.cellCells();
+const labelList inletCells = mesh.boundary()[conPatchList[0]].faceCells();
+const labelList outletCells = mesh.boundary()[conPatchList[nObjPatch-1]].faceCells();
+
+auto hasThresholdedFluidConnectivity =
+[&](const volScalarField& indicatorField, const scalar threshold) -> bool
+{
+  if (inletCells.size() == 0 || outletCells.size() == 0)
+  {
+    return true;
+  }
+
+  std::vector<unsigned char> visited(indicatorField.size(), 0);
+  std::queue<label> floodQueue;
+  forAll(inletCells, inletI)
+  {
+    const label cellI = inletCells[inletI];
+    if (cellI >= 0 && indicatorField[cellI] >= threshold && !visited[cellI])
+    {
+      visited[cellI] = 1;
+      floodQueue.push(cellI);
+    }
+  }
+
+  if (floodQueue.empty())
+  {
+    return false;
+  }
+
+  while (!floodQueue.empty())
+  {
+    const label cellI = floodQueue.front();
+    floodQueue.pop();
+
+    forAll(outletCells, outletI)
+    {
+      if (cellI == outletCells[outletI])
+      {
+        return true;
+      }
+    }
+
+    const labelList& neighbours = cellCells[cellI];
+    forAll(neighbours, neighbourI)
+    {
+      const label neighbourCell = neighbours[neighbourI];
+      if
+      (
+        neighbourCell >= 0
+        && !visited[neighbourCell]
+        && indicatorField[neighbourCell] >= threshold
+      )
+      {
+        visited[neighbourCell] = 1;
+        floodQueue.push(neighbourCell);
+      }
+    }
+  }
+
+  return false;
+};
+
+auto saveLSMCheckpoint =
+[&]()
+{
+  saveScalarFieldState(xCheckpoint, x);
+  saveScalarFieldState(xpCheckpoint, xp);
+  saveScalarFieldState(xhCheckpoint, xh);
+  saveScalarFieldState(xhDensityReferenceCheckpoint, xhDensityReference);
+  saveScalarFieldState(xhLevelSetCheckpoint, xhLevelSet);
+  saveScalarFieldState(phiCheckpoint, phiLS);
+  saveScalarFieldState(pCheckpoint, p);
+  saveScalarFieldState(paCheckpoint, pa);
+  saveScalarFieldState(pbCheckpoint, pb);
+  saveScalarFieldState(TCheckpoint, T);
+  saveScalarFieldState(TbCheckpoint, Tb);
+  saveVectorFieldState(UCheckpoint, U);
+  saveVectorFieldState(UaCheckpoint, Ua);
+  saveVectorFieldState(UbCheckpoint, Ub);
+
+  if (hasKEpsilonCheckpointFields)
+  {
+    saveScalarFieldState(kCheckpoint, *kCheckpointField);
+    saveScalarFieldState(epsilonCheckpoint, *epsilonCheckpointField);
+    saveScalarFieldState(nutCheckpoint, *nutCheckpointField);
+  }
+
+  optCheckpoint = opt;
+  delCheckpoint = del;
+  alphaMaxCheckpoint = alphaMax.value();
+  activePowerLimitCheckpoint = activePowerLimit;
+  activeFilterRCheckpoint = activeFilterR;
+  qAlphaCheckpoint = qAlpha;
+  qKappaCheckpoint = qKappa;
+  qHeatCheckpoint = qHeat;
+  qSingleCheckpoint = qSingle;
+  previousObjectiveValueCheckpoint = previousObjectiveValue;
+  hasPreviousObjectiveValueCheckpoint = hasPreviousObjectiveValue;
+  optimizerConvergedStreakCheckpoint = optimizerConvergedStreak;
+  previousGrayVolumeFractionCheckpoint = previousGrayVolumeFractionForContinuation;
+  previousXhStepMaxCheckpoint = previousXhStepMax;
+  previousSolverSeverityCheckpoint = previousSolverSeverity;
+  activeObjectiveLabelCheckpoint = activeObjectiveLabel;
+  activeWallDistanceModeCheckpoint = activeWallDistanceMode;
+  activeTurbulenceModelModeCheckpoint = activeTurbulenceModelMode;
+  lsmCheckpointAvailable = true;
+};
+
+auto restoreLSMCheckpoint =
+[&]()
+{
+  if (!lsmCheckpointAvailable)
+  {
+    return;
+  }
+
+  restoreScalarFieldState(x, xCheckpoint);
+  restoreScalarFieldState(xp, xpCheckpoint);
+  restoreScalarFieldState(xh, xhCheckpoint);
+  restoreScalarFieldState(xhDensityReference, xhDensityReferenceCheckpoint);
+  restoreScalarFieldState(xhLevelSet, xhLevelSetCheckpoint);
+  restoreScalarFieldState(phiLS, phiCheckpoint);
+  restoreScalarFieldState(p, pCheckpoint);
+  restoreScalarFieldState(pa, paCheckpoint);
+  restoreScalarFieldState(pb, pbCheckpoint);
+  restoreScalarFieldState(T, TCheckpoint);
+  restoreScalarFieldState(Tb, TbCheckpoint);
+  restoreVectorFieldState(U, UCheckpoint);
+  restoreVectorFieldState(Ua, UaCheckpoint);
+  restoreVectorFieldState(Ub, UbCheckpoint);
+
+  if (hasKEpsilonCheckpointFields)
+  {
+    restoreScalarFieldState(*kCheckpointField, kCheckpoint);
+    restoreScalarFieldState(*epsilonCheckpointField, epsilonCheckpoint);
+    restoreScalarFieldState(*nutCheckpointField, nutCheckpoint);
+  }
+
+  phi = linearInterpolate(U) & mesh.Sf();
+  phia = linearInterpolate(Ua) & mesh.Sf();
+  phib = linearInterpolate(Ub) & mesh.Sf();
+
+  opt = optCheckpoint;
+  del = delCheckpoint;
+  alphaMax.value() = alphaMaxCheckpoint;
+  activePowerLimit = activePowerLimitCheckpoint;
+  activeFilterR = activeFilterRCheckpoint;
+  qAlpha = qAlphaCheckpoint;
+  qKappa = qKappaCheckpoint;
+  qHeat = qHeatCheckpoint;
+  qSingle = qSingleCheckpoint;
+  previousObjectiveValue = previousObjectiveValueCheckpoint;
+  hasPreviousObjectiveValue = hasPreviousObjectiveValueCheckpoint;
+  optimizerConvergedStreak = optimizerConvergedStreakCheckpoint;
+  previousGrayVolumeFractionForContinuation = previousGrayVolumeFractionCheckpoint;
+  previousXhStepMax = previousXhStepMaxCheckpoint;
+  previousSolverSeverity = previousSolverSeverityCheckpoint;
+  activeObjectiveLabel = activeObjectiveLabelCheckpoint;
+  activeWallDistanceMode = activeWallDistanceModeCheckpoint;
+  activeTurbulenceModelMode = activeTurbulenceModelModeCheckpoint;
+  lsmRollbackRequested = false;
+  lsmRejectedStepCount = 0;
+  lsmLastStepAccepted = true;
+  lsmLastPhiStepMax = 0.0;
+  stopOptimization = false;
+  optimizerStopReason = word("rollbackRestored");
+};
 //***********************************//MMA
 int m=2;//number of constraint
 MMA mma(n,m);

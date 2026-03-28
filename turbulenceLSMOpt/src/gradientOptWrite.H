@@ -164,5 +164,21 @@ if (Pstream::master())
     << " moveLimit=" << moveLimitGradLocal << "\n"
     << " xh fractions: gray=" << grayVolumeGradLocal/area
     << " solid=" << solidVolumeGradLocal/area
-    << " fluid=" << fluidVolumeGradLocal/area << "\n";
+    << " fluid=" << fluidVolumeGradLocal/area << "\n"
+    << " hybrid: stage=" << hybridStageName
+    << " blendWeight=" << lsmBlendWeight
+    << " switchGate=" << (lsmSwitchGateSatisfied ? "yes" : "no")
+    << " rollbackPending=" << (lsmRollbackRequested ? "yes" : "no") << "\n"
+    << " lsm geometry: wMin=" << lsmLastChannelWidthMin
+    << " wMax=" << lsmLastChannelWidthMax
+    << " ribMin=" << lsmLastRibThicknessMin
+    << " ribMax=" << lsmLastRibThicknessMax
+    << " ksWmin=" << lsmLastChannelWidthMinKS
+    << " ksRmin=" << lsmLastRibThicknessMinKS << "\n"
+    << " lsm velocity: obj=" << lsmLastObjectiveVelocityMax
+    << " pow=" << lsmLastPowerVelocityMax
+    << " geom=" << lsmLastGeometryVelocityMax
+    << " total=" << lsmLastVelocityMax
+    << " dt=" << lsmLastTimeStep
+    << " phiStepMax=" << lsmLastPhiStepMax << "\n";
 }

@@ -15,7 +15,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     turbulenceMMAOpt;
+application     turbulenceLSMOpt;
 //application     simpleFoam;
 
 startFrom       startTime;

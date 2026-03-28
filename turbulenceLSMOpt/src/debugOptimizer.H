@@ -1,6 +1,7 @@
 scalar xLocalMin = 1e300, xLocalMax = -1e300;
 scalar xpLocalMin = 1e300, xpLocalMax = -1e300;
 scalar xhLocalMin = 1e300, xhLocalMax = -1e300;
+scalar phiLSLocalMin = 1e300, phiLSLocalMax = -1e300;
 scalar alphaLocalMin = 1e300, alphaLocalMax = -1e300;
 scalar DTLocalMin = 1e300, DTLocalMax = -1e300;
 scalar TLocalMin = 1e300, TLocalMax = -1e300;
@@ -16,6 +17,8 @@ scalar maxAbsXChangeLocal = 0;
 scalar l2XChangeLocal = 0;
 scalar maxAbsXhChangeLocal = 0;
 scalar l2XhChangeLocal = 0;
+scalar maxAbsPhiStepLocal = 0;
+scalar l2PhiStepLocal = 0;
 label xLowerBoundCountLocal = 0;
 label xUpperBoundCountLocal = 0;
 label xMoveLimitHitCountLocal = 0;
@@ -37,6 +40,7 @@ for(i=0;i<n;i++)
   const scalar xValue = x[i];
   const scalar xpValue = xp[i];
   const scalar xhValue = xh[i];
+  const scalar phiLSValue = phiLS[i];
   const scalar alphaValue = alpha[i];
   const scalar DTValue = DT[i];
   const scalar TValue = T[i];
@@ -45,8 +49,10 @@ for(i=0;i<n;i++)
   const scalar pbValue = pb[i];
   const scalar xChange = xValue - xOld[i];
   const scalar xhChange = xhValue - xhOld[i];
+  const scalar phiLSChange = phiLSValue - phiLSOld[i];
   const scalar absXChange = Foam::mag(xChange);
   const scalar absXhChange = Foam::mag(xhChange);
+  const scalar absPhiStep = Foam::mag(phiLSChange);
   const scalar UMag = Foam::mag(U[i]);
   const scalar UaMag = Foam::mag(Ua[i]);
   const scalar UbMag = Foam::mag(Ub[i]);
@@ -61,6 +67,8 @@ for(i=0;i<n;i++)
   xpLocalMax = Foam::max(xpLocalMax, xpValue);
   xhLocalMin = Foam::min(xhLocalMin, xhValue);
   xhLocalMax = Foam::max(xhLocalMax, xhValue);
+  phiLSLocalMin = Foam::min(phiLSLocalMin, phiLSValue);
+  phiLSLocalMax = Foam::max(phiLSLocalMax, phiLSValue);
   alphaLocalMin = Foam::min(alphaLocalMin, alphaValue);
   alphaLocalMax = Foam::max(alphaLocalMax, alphaValue);
   DTLocalMin = Foam::min(DTLocalMin, DTValue);
@@ -100,6 +108,8 @@ for(i=0;i<n;i++)
   l2XChangeLocal += xChange*xChange;
   maxAbsXhChangeLocal = Foam::max(maxAbsXhChangeLocal, absXhChange);
   l2XhChangeLocal += xhChange*xhChange;
+  maxAbsPhiStepLocal = Foam::max(maxAbsPhiStepLocal, absPhiStep);
+  l2PhiStepLocal += phiLSChange*phiLSChange;
 
   if (xValue <= 1e-8)
   {
@@ -157,6 +167,8 @@ reduce(xpLocalMin, minOp<scalar>());
 reduce(xpLocalMax, maxOp<scalar>());
 reduce(xhLocalMin, minOp<scalar>());
 reduce(xhLocalMax, maxOp<scalar>());
+reduce(phiLSLocalMin, minOp<scalar>());
+reduce(phiLSLocalMax, maxOp<scalar>());
 reduce(alphaLocalMin, minOp<scalar>());
 reduce(alphaLocalMax, maxOp<scalar>());
 reduce(DTLocalMin, minOp<scalar>());
@@ -184,6 +196,8 @@ reduce(maxAbsXChangeLocal, maxOp<scalar>());
 reduce(l2XChangeLocal, sumOp<scalar>());
 reduce(maxAbsXhChangeLocal, maxOp<scalar>());
 reduce(l2XhChangeLocal, sumOp<scalar>());
+reduce(maxAbsPhiStepLocal, maxOp<scalar>());
+reduce(l2PhiStepLocal, sumOp<scalar>());
 reduce(xLowerBoundCountLocal, sumOp<label>());
 reduce(xUpperBoundCountLocal, sumOp<label>());
 reduce(xMoveLimitHitCountLocal, sumOp<label>());
@@ -211,8 +225,10 @@ const scalar solidVolumeFraction = solidVolumeLocal/area;
 const scalar fluidVolumeFraction = fluidVolumeLocal/area;
 const scalar l2XChange = std::sqrt(l2XChangeLocal);
 const scalar l2XhChange = std::sqrt(l2XhChangeLocal);
+const scalar l2PhiStep = std::sqrt(l2PhiStepLocal);
 const scalar normalizedL2XChange = l2XChange/std::sqrt(Foam::max(N, scalar(1)));
 const scalar normalizedL2XhChange = l2XhChange/std::sqrt(Foam::max(N, scalar(1)));
+const scalar normalizedL2PhiStep = l2PhiStep/std::sqrt(Foam::max(N, scalar(1)));
 const scalar UMeanMag = UMeanMagLocal/area;
 const scalar UaMeanMag = UaMeanMagLocal/area;
 const scalar UbMeanMag = UbMeanMagLocal/area;
@@ -225,6 +241,7 @@ const scalar adjointHeatToPrimalRatio = UbMaxMagLocal/primalVelocityScale;
 const bool adjointRunaway =
   adjointPowerToPrimalRatio > adjointRunawayRatioLimit
   || adjointHeatToPrimalRatio > adjointRunawayRatioLimit;
+const bool currentConnectivitySatisfied = hasThresholdedFluidConnectivity(xh, 0.5);
 
 scalar objectiveValue = objectiveValueCurrent;
 word objectiveLabel(activeObjectiveLabel);
@@ -363,18 +380,61 @@ const bool convergenceCandidate =
 optimizerConvergedStreak = convergenceCandidate ? optimizerConvergedStreak + 1 : 0;
 stopOptimization = optimizerConvergedStreak >= optStallWindow;
 optimizerStopReason = stopOptimization ? word("converged") : word("running");
+const scalar rollbackPowerFeasibilityLimit =
+  Foam::max(lsmSwitchPowerFeasibility*1.20, scalar(1.15));
 if (adjointRunaway && stopOnAdjointRunaway)
 {
-  stopOptimization = true;
+  if (hybridStageState != HYBRID_STAGE_DENSITY && lsmRollbackEnabled && lsmCheckpointAvailable)
+  {
+    lsmRollbackRequested = true;
+    lsmRollbackReason = word("adjointRunaway");
+    stopOptimization = false;
+    optimizerConvergedStreak = 0;
+    optimizerStopReason = word("lsmRollbackPending");
+  }
+  else
+  {
+    stopOptimization = true;
+    optimizerConvergedStreak = 0;
+    optimizerStopReason = word("adjointRunaway");
+  }
+}
+if
+(
+  hybridStageState != HYBRID_STAGE_DENSITY
+  && lsmRollbackEnabled
+  && lsmCheckpointAvailable
+  && !lsmRollbackRequested
+  && debugPowerFeasibilityRatio > rollbackPowerFeasibilityLimit
+)
+{
+  lsmRollbackRequested = true;
+  lsmRollbackReason = word("powerFeasibility");
+  stopOptimization = false;
   optimizerConvergedStreak = 0;
-  optimizerStopReason = word("adjointRunaway");
+  optimizerStopReason = word("lsmRollbackPending");
+}
+if
+(
+  hybridStageState != HYBRID_STAGE_DENSITY
+  && lsmRollbackEnabled
+  && lsmCheckpointAvailable
+  && !lsmRollbackRequested
+  && !currentConnectivitySatisfied
+)
+{
+  lsmRollbackRequested = true;
+  lsmRollbackReason = word("connectivityLoss");
+  stopOptimization = false;
+  optimizerConvergedStreak = 0;
+  optimizerStopReason = word("lsmRollbackPending");
 }
 
 if (Pstream::master())
 {
   const scalar clockTime = runTime.elapsedClockTime();
   const char* designHealth =
-    (xNonFiniteCountLocal > 0 || xLocalMin < -1e-8 || xLocalMax > 1.0 + 1e-8 || xhLocalMin < -1e-8 || xhLocalMax > 1.0 + 1e-8)
+    (xNonFiniteCountLocal > 0 || xLocalMin < -1e-8 || xLocalMax > 1.0 + 1e-8 || xhLocalMin < -1e-8 || xhLocalMax > 1.0 + 1e-8 || (hybridStageState != HYBRID_STAGE_DENSITY && !currentConnectivitySatisfied))
     ? "WARN"
     : (grayVolumeFraction > 0.50 ? "OBS" : "OK");
   const char* constraintHealth = (powerConstraintMargin > 0 || volumeConstraintMargin > 0) ? "WARN" : "OK";
@@ -441,7 +501,7 @@ if (Pstream::master())
     << "----------------------------------------------------------------------------------------------------\n";
 
   writeSectionHeader("Overview");
-  writeRow("Run", "Iter="+fmtCount(opt), "Clock[s]="+fmtScalar(clockTime), "ObjMode="+std::string(objectiveLabel.c_str()), "ObjVal="+fmtScalar(objectiveValue));
+  writeRow("Run", "Iter="+fmtCount(opt), "Clock[s]="+fmtScalar(clockTime), "Stage="+std::string(hybridStageName.c_str()), "ObjVal="+fmtScalar(objectiveValue));
   writeRow("Health", std::string("Design=")+designHealth, std::string("Constr=")+constraintHealth, std::string("Sens=")+sensitivityHealth, std::string("Solver=")+solverHealth);
   writeRow("Convergence", "objRel="+fmtScalar(objectiveRelativeDelta), "maxViol="+fmtScalar(maxConstraintViolation), "xhStep="+fmtScalar(maxAbsXhChangeLocal), "streak="+fmtCount(optimizerConvergedStreak)+"/"+fmtCount(optStallWindow));
   writeRow("Stop", "candidate="+std::string(convergenceCandidate ? "yes" : "no"), "stop="+std::string(stopOptimization ? "yes" : "no"), "reason="+std::string(optimizerStopReason.c_str()));
@@ -450,9 +510,16 @@ if (Pstream::master())
   writeRow("x bounds", "min="+fmtScalar(xLocalMin), "max="+fmtScalar(xLocalMax), "mean="+fmtScalar(xMean));
   writeRow("xp bounds", "min="+fmtScalar(xpLocalMin), "max="+fmtScalar(xpLocalMax));
   writeRow("xh bounds", "min="+fmtScalar(xhLocalMin), "max="+fmtScalar(xhLocalMax), "mean="+fmtScalar(xhMean));
+  writeRow("phiLS bounds", "min="+fmtScalar(phiLSLocalMin), "max="+fmtScalar(phiLSLocalMax), "stepMax="+fmtScalar(maxAbsPhiStepLocal), "stepL2/sqrtN="+fmtScalar(normalizedL2PhiStep));
   writeRow("xh phases", "gray="+fmtScalar(grayVolumeFraction), "solid="+fmtScalar(solidVolumeFraction), "fluid="+fmtScalar(fluidVolumeFraction));
   writeRow("x step", "max="+fmtScalar(maxAbsXChangeLocal), "l2="+fmtScalar(l2XChange), "l2/sqrtN="+fmtScalar(normalizedL2XChange));
   writeRow("xh step", "max="+fmtScalar(maxAbsXhChangeLocal), "l2="+fmtScalar(l2XhChange), "l2/sqrtN="+fmtScalar(normalizedL2XhChange));
+
+  writeSectionHeader("Hybrid Stage");
+  writeRow("state", "stage="+std::string(hybridStageName.c_str()), "blendW="+fmtScalar(lsmBlendWeight), "lsmIter="+fmtCount(lsmStageIteration), "rollbacks="+fmtCount(lsmRollbackCount));
+  writeRow("switch gate", "gray<="+fmtScalar(lsmSwitchGrayFraction), "power<="+fmtScalar(lsmSwitchPowerFeasibility), "beta>="+fmtScalar(lsmSwitchMinBeta), "step<="+fmtScalar(lsmSwitchMaxXhStep));
+  writeRow("switch now", "eligible="+std::string(lsmSwitchGateSatisfied ? "yes" : "no"), "health="+std::string(lsmSwitchHealthSatisfied ? "yes" : "no"), "conn="+std::string(currentConnectivitySatisfied ? "yes" : "no"), "locked="+std::string(lsmSwitchLockedOut ? "yes" : "no"));
+  writeRow("rollback", "pending="+std::string(lsmRollbackRequested ? "yes" : "no"), "reason="+std::string(lsmRollbackReason.c_str()), "checkpoint="+std::string(lsmCheckpointAvailable ? "yes" : "no"), "accepted="+std::string(lsmLastStepAccepted ? "yes" : "no"));
 
   writeSectionHeader("Filter Diagnostics");
   writeRow("projection", "beta="+fmtScalar(del), "eta5="+fmtScalar(eta5));
@@ -536,6 +603,15 @@ if (Pstream::master())
   writeRow("modes", "objective="+std::string(activeObjectiveLabel.c_str()), "wallDist="+std::string(activeWallDistanceMode.c_str()), "turbulence="+std::string(activeTurbulenceModelMode.c_str()), "beta="+fmtScalar(del));
   writeRow("thermal props", "heatSource="+fmtScalar(heatSource.value()), "thermalSrc="+fmtScalar(thermalSource.value()), "rhoCp="+fmtScalar(rhoCp.value()));
 
+  if (hybridStageState != HYBRID_STAGE_DENSITY || lsmSwitchTriggered)
+  {
+    writeSectionHeader("LSM Diagnostics");
+    writeRow("geometry", "wMin="+fmtScalar(lsmLastChannelWidthMin), "wMax="+fmtScalar(lsmLastChannelWidthMax), "ribMin="+fmtScalar(lsmLastRibThicknessMin), "ribMax="+fmtScalar(lsmLastRibThicknessMax));
+    writeRow("KS agg", "wMin="+fmtScalar(lsmLastChannelWidthMinKS), "wMax="+fmtScalar(lsmLastChannelWidthMaxKS), "ribMin="+fmtScalar(lsmLastRibThicknessMinKS), "ribMax="+fmtScalar(lsmLastRibThicknessMaxKS));
+    writeRow("velocity", "obj="+fmtScalar(lsmLastObjectiveVelocityMax), "pow="+fmtScalar(lsmLastPowerVelocityMax), "geom="+fmtScalar(lsmLastGeometryVelocityMax), "tot="+fmtScalar(lsmLastVelocityMax));
+    writeRow("signedDist", "drift="+fmtScalar(lsmLastSignedDistanceDrift), "dt="+fmtScalar(lsmLastTimeStep), "phiStep="+fmtScalar(lsmLastPhiStepMax), "connectivity="+std::string(currentConnectivitySatisfied ? "yes" : "no"));
+  }
+
   std::ofstream debugJsonFile(debugOptimizerJsonFile, std::ios::app);
   debugJsonFile
     << std::scientific << std::setprecision(8)
@@ -570,6 +646,8 @@ if (Pstream::master())
       << ",\"xhMin\":" << xhLocalMin
       << ",\"xhMax\":" << xhLocalMax
       << ",\"xhMean\":" << xhMean
+      << ",\"phiLSMin\":" << phiLSLocalMin
+      << ",\"phiLSMax\":" << phiLSLocalMax
       << ",\"xhGrayVolumeFraction\":" << grayVolumeFraction
       << ",\"xhSolidVolumeFraction\":" << solidVolumeFraction
       << ",\"xhFluidVolumeFraction\":" << fluidVolumeFraction
@@ -577,6 +655,8 @@ if (Pstream::master())
       << ",\"xStepL2\":" << l2XChange
       << ",\"xhStepMax\":" << maxAbsXhChangeLocal
       << ",\"xhStepL2\":" << l2XhChange
+      << ",\"phiLSStepMax\":" << maxAbsPhiStepLocal
+      << ",\"phiLSStepL2\":" << l2PhiStep
     << "}"
       << ",\"filter\":{"
       << "\"beta\":" << del
@@ -701,7 +781,39 @@ if (Pstream::master())
       << ",\"thermalSource\":" << thermalSource.value()
       << ",\"rhoCp\":" << rhoCp.value()
     << "}"
+    << ",\"hybrid\":{"
+      << "\"stage\":\"" << hybridStageName << "\""
+      << ",\"switchGateSatisfied\":" << (lsmSwitchGateSatisfied ? 1 : 0)
+      << ",\"switchHealthSatisfied\":" << (lsmSwitchHealthSatisfied ? 1 : 0)
+      << ",\"checkpointSatisfied\":" << (lsmSwitchCheckpointSatisfied ? 1 : 0)
+      << ",\"connectivitySatisfied\":" << (currentConnectivitySatisfied ? 1 : 0)
+      << ",\"blendWeight\":" << lsmBlendWeight
+      << ",\"lsmStageIteration\":" << lsmStageIteration
+      << ",\"rollbackPending\":" << (lsmRollbackRequested ? 1 : 0)
+      << ",\"rollbackReason\":\"" << lsmRollbackReason << "\""
+      << ",\"rollbackCount\":" << lsmRollbackCount
+      << ",\"stepAccepted\":" << (lsmLastStepAccepted ? 1 : 0)
+      << ",\"channelWidthMin\":" << lsmLastChannelWidthMin
+      << ",\"channelWidthMax\":" << lsmLastChannelWidthMax
+      << ",\"ribThicknessMin\":" << lsmLastRibThicknessMin
+      << ",\"ribThicknessMax\":" << lsmLastRibThicknessMax
+      << ",\"channelWidthMinKS\":" << lsmLastChannelWidthMinKS
+      << ",\"channelWidthMaxKS\":" << lsmLastChannelWidthMaxKS
+      << ",\"ribThicknessMinKS\":" << lsmLastRibThicknessMinKS
+      << ",\"ribThicknessMaxKS\":" << lsmLastRibThicknessMaxKS
+      << ",\"curvatureKS\":" << lsmLastCurvatureKS
+      << ",\"objectiveVelocityMax\":" << lsmLastObjectiveVelocityMax
+      << ",\"powerVelocityMax\":" << lsmLastPowerVelocityMax
+      << ",\"volumeVelocityMax\":" << lsmLastVolumeVelocityMax
+      << ",\"geometryVelocityMax\":" << lsmLastGeometryVelocityMax
+      << ",\"velocityMax\":" << lsmLastVelocityMax
+      << ",\"timeStep\":" << lsmLastTimeStep
+      << ",\"signedDistanceDrift\":" << lsmLastSignedDistanceDrift
+    << "}"
     << "}\n";
 }
 
 previousXhStepMax = maxAbsXhChangeLocal;
+previousSolverSeverity = solverSeverity;
+lsmLastConnectivitySatisfied = currentConnectivitySatisfied;
+lsmLastPhiStepMax = maxAbsPhiStepLocal;

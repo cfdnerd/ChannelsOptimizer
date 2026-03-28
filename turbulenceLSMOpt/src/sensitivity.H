@@ -3,10 +3,12 @@ Info<<"sensitivity analysis"<<endl;
 
 std::vector<scalar> xOld(n);
 std::vector<scalar> xhOld(n);
+std::vector<scalar> phiLSOld(n);
 for(i=0;i<n;i++)
 {
  xOld[i]=x[i];
  xhOld[i]=xh[i];
+ phiLSOld[i]=phiLS[i];
 }
 
 Info<< "sensitivity analysis: assemble raw objective sensitivity" << endl;
@@ -91,12 +93,10 @@ if (Pstream::master() && (fsensRawNonFiniteLocal > 0 || gsensRawNonFiniteLocal >
       << " objective=" << fsensRawNonFiniteLocal
       << " power=" << gsensRawNonFiniteLocal << endl;
 }
+
 gsensVolRaw = dimensionedScalar("one", dimless, 1.0);
 fsensMeanTRaw = fsenshMeanT;
 gsensPowerDissRaw = gsenshPowerDiss;
-
-
-#include "filter_chainrule.H"
 
 const scalar powerLimit =
   usePowerConstraintRelaxation
@@ -117,24 +117,79 @@ const scalar weightedVolumeConstraint = optVolumeConstraintWeight*V;
 gx[0]=weightedPowerConstraint;
 gx[1]=weightedVolumeConstraint;
 
-for(i=0;i<n;i++)
+if (hybridStageState == HYBRID_STAGE_DENSITY)
 {
- xmma[i] = x[i];
- dfdx[i]=fsensMeanT[i]/N;//sensitivities of objective function
- dgdx[0][i]=effectivePowerConstraintWeight*(gsensPowerDiss[i]/N);//sensitivities of constraint function
- dgdx[1][i]=optVolumeConstraintWeight*(gsensVol[i]/N);//sensitivities of constraint function
+  #include "filter_chainrule.H"
+
+  for(i=0;i<n;i++)
+  {
+   xmma[i] = x[i];
+   dfdx[i]=fsensMeanT[i]/N;//sensitivities of objective function
+   dgdx[0][i]=effectivePowerConstraintWeight*(gsensPowerDiss[i]/N);//sensitivities of constraint function
+   dgdx[1][i]=optVolumeConstraintWeight*(gsensVol[i]/N);//sensitivities of constraint function
+  }
+
+  Info<< "\n run MMA \n" << endl;
+  mma.MMAsolver(xmma, dfdx, gx, dgdx);
+  for(i=0;i<n;i++)
+  {
+     x[i]=xmma[i];
+  }
+
+  #include "filter_x.H"
+  #include "updateInterpolationFields.H"
+
+  lsmLastObjectiveVelocityMax = 0.0;
+  lsmLastPowerVelocityMax = 0.0;
+  lsmLastVolumeVelocityMax = 0.0;
+  lsmLastGeometryVelocityMax = 0.0;
+  lsmLastVelocityMax = 0.0;
+  lsmLastPhiStepMax = 0.0;
+  lsmLastSignedDistanceDrift = 0.0;
+  lsmLastTimeStep = 0.0;
+  if (!lsmSwitchTriggered)
+  {
+    lsmLastChannelWidthMin = 0.0;
+    lsmLastChannelWidthMax = 0.0;
+    lsmLastRibThicknessMin = 0.0;
+    lsmLastRibThicknessMax = 0.0;
+    lsmLastHydraulicDiameterMean = 0.0;
+    lsmLastChannelWidthMinKS = 0.0;
+    lsmLastChannelWidthMaxKS = 0.0;
+    lsmLastRibThicknessMinKS = 0.0;
+    lsmLastRibThicknessMaxKS = 0.0;
+    lsmLastCurvatureKS = 0.0;
+  }
+}
+else
+{
+  const scalar fsensScale = gMax(mag(fsenshMeanT.primitiveField()));
+  const scalar powerSensScale = gMax(mag(gsenshPowerDiss.primitiveField()));
+  fsensMeanT =
+    fsensScale > SMALL
+    ? fsenshMeanT/fsensScale
+    : dimensionedScalar("zero", fsensMeanT.dimensions(), 0.0);
+  gsensPowerDiss =
+    powerSensScale > SMALL
+    ? gsenshPowerDiss/powerSensScale
+    : dimensionedScalar("zero", gsensPowerDiss.dimensions(), 0.0);
+  gsensVol = dimensionedScalar("one", dimless, 1.0);
+
+  {
+    #include "lsmGeometryMetrics.H"
+  }
+  {
+    #include "lsmSensitivity.H"
+  }
+  {
+    #include "lsmVelocityRegularization.H"
+  }
+  {
+    #include "updateLevelSet.H"
+  }
+  #include "updateInterpolationFields.H"
 }
 
-
-Info<< "\n run MMA \n" << endl;
-mma.MMAsolver(xmma, dfdx, gx, dgdx);
-for(i=0;i<n;i++)
-{
-   x[i]=xmma[i];
-}
-
-#include "filter_x.H"
-#include "updateInterpolationFields.H"
 #include "gradientOptWrite.H"
 #include "debugOptimizer.H"
 #include "solverConvergenceWrite.H"

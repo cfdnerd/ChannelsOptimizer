@@ -79,6 +79,83 @@ adjointControl
     stopOnAdjointRunaway            true; // Abort optimization if adjoint magnitudes blow up.
 }
 
+hybridStageControl
+{
+    useHybridMMAtoLSM               true;  // Enable the staged density-to-level-set workflow.
+    lsmSwitchGrayFraction           0.20;  // Only switch once the density design is mostly crisp.
+    lsmSwitchPowerFeasibility       1.05;  // Require near-feasible power dissipation before handover.
+    lsmSwitchMaxXhStep              0.08;  // Require the density stage to behave like refinement, not exploration.
+    lsmSwitchMinBeta                12;    // Minimum projection sharpness before Stage 2 can begin.
+    lsmSwitchMinIterations          120;   // Minimum density-stage maturity window before considering the switch.
+    lsmSwitchRequireConnectivity    true;  // Require a connected inlet-to-outlet fluid path before switching.
+    lsmBlendIterations              5;     // Blend density and level-set reconstructions over this many iterations.
+    lsmRollbackEnabled              true;  // Allow the run to revert to the Stage-1 checkpoint if Stage 2 goes unstable.
+    requireRestartableLSMCheckpoint true;  // Refuse the handover unless rollback support is available.
+    allowTopologyChangeInLSM        false; // Preserve topology by default during the refinement stage.
+}
+
+lsmControl
+{
+    useLevelSetStage                true;  // Enable the Stage-2 level-set refinement machinery.
+    phiBandWidthCells               1.5;   // Smooth-Heaviside half-width, in cell-length units.
+    narrowBandHalfWidthCells        4.0;   // Restrict Hamilton-Jacobi updates to this signed-distance band.
+    phiReinitInterval               5;     // Reinitialize the signed-distance field every N LSM iterations.
+    phiGradDriftTol                 0.25;  // Also reinitialize when |grad(phi)| drifts too far from one.
+    lsmPseudoDt                     0.0;   // Zero uses CFL-only pseudo-time stepping.
+    lsmCfl                          0.50;  // Cap the pseudo-time step using a CFL-style limit.
+    useVelocityHelmholtz            true;  // Smooth the total normal velocity before updating phi.
+    velocityFilterRadius            2.0;   // Velocity-regularization radius, in cell-length units.
+    useCurvaturePenalty             true;  // Add curvature suppression to the interface motion.
+    curvaturePenaltyWeight          0.05;  // Weight for the curvature-smoothing velocity term.
+    useReactionDiffusionComplexityControl false; // Optional extra smoothing path; off in the baseline.
+}
+
+lsmSensitivityControl
+{
+    useApproximateNarrowBandSensitivityBridge true; // Reuse xh sensitivities through a narrow-band interface bridge.
+    lsmSensitivitySmoothingRadius   2.0;   // Smoothing radius for geometry-control extension fields.
+    normalizeInterfaceVelocity      true;  // Normalize interface-velocity components before combining them.
+    finiteDifferenceCheckStage2     false; // When enabled, keep extra LSM fields for manual FD validation.
+}
+
+geometryControl
+{
+    useChannelWidthControl          true;  // Enable minimum/maximum channel-width refinement.
+    channelWidthMin                 4.0;   // Global minimum channel width target in mesh-length units.
+    channelWidthMax                 14.0;  // Global maximum channel width target in mesh-length units.
+    useRegionwiseWidthTargets       false; // Promote width targets from global to regionwise when needed.
+    useBranchwiseWidthTargets       false; // Later milestone; keep disabled in the first implementation.
+    useRibThicknessControl          true;  // Enforce a minimum rib-thickness target.
+    ribThicknessMin                 3.0;   // Global minimum rib thickness target in mesh-length units.
+    useRibThicknessMaxControl       false; // Optional maximum rib-thickness trimming.
+    ribThicknessMax                 12.0;  // Maximum rib thickness target where that control is enabled.
+    useRegionwiseRibTargets         false; // Promote rib targets from global to regionwise when needed.
+    useBranchwiseRibTargets         false; // Later milestone; keep disabled in the baseline branch.
+    useProtectedGeometryMasks       false; // Apply protected masks only when explicitly configured.
+    applyRibTargetsToInternalRibsOnly true; // Do not erode boundary-attached walls with rib-max control.
+    useHydraulicDiameterReporting   false; // Report hydraulic diameter only when an extrusion thickness is supplied.
+    hydraulicDiameterExtrusionThickness 1.0; // Extrusion thickness used in the hydraulic-diameter report.
+    ksRhoGeom                       20.0;  // KS sharpness for aggregated geometry violations.
+    sizeConstraintWeightMin         1.0;   // Weight for minimum-size corrections.
+    sizeConstraintWeightMax         1.0;   // Weight for maximum-size corrections.
+    widthConstraintWeight           1.0;   // Overall weight for channel-width correction velocities.
+    ribConstraintWeight             1.0;   // Overall weight for rib-thickness correction velocities.
+    protectedSolidRegionNames       ();
+    protectedFluidRegionNames       ();
+    regionwiseChannelWidthMin       {}
+    regionwiseChannelWidthMax       {}
+    regionwiseRibThicknessMin       {}
+    regionwiseRibThicknessMax       {}
+}
+
+wallDistanceControl
+{
+    lsmWallDistanceMode             porosity; // Keep porosity-aware wall distance as the safe baseline.
+    useLSMWallDistance              false;    // Enable only after Stage-2 validation if desired.
+    useHeatMethodWallDistanceFallback false; // Reserved for later wall-distance experiments.
+    lsmWallDistanceBlendIterations  5;        // Blend porosity and phi-based wall distance over early Stage 2.
+}
+
 convergenceControl
 {
     optPowerConstraintWeight        2.0; // Relative penalty weight on power-constraint violation.

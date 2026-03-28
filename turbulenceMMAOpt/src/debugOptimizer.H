@@ -24,9 +24,13 @@ scalar drhoLocalMin = 1e300, drhoLocalMax = -1e300;
 scalar fsensLocalMin = 1e300, fsensLocalMax = -1e300, fsensL2Local = 0;
 scalar gsensPowerLocalMin = 1e300, gsensPowerLocalMax = -1e300, gsensPowerL2Local = 0;
 scalar gsensVolLocalMin = 1e300, gsensVolLocalMax = -1e300, gsensVolL2Local = 0;
+scalar gsensSolidMinLocalMin = 1e300, gsensSolidMinLocalMax = -1e300, gsensSolidMinL2Local = 0;
+scalar gsensSolidMaxLocalMin = 1e300, gsensSolidMaxLocalMax = -1e300, gsensSolidMaxL2Local = 0;
 label fsensNonFiniteCountLocal = 0;
 label gsensPowerNonFiniteCountLocal = 0;
 label gsensVolNonFiniteCountLocal = 0;
+label gsensSolidMinNonFiniteCountLocal = 0;
+label gsensSolidMaxNonFiniteCountLocal = 0;
 scalar UMaxMagLocal = 0, UaMaxMagLocal = 0, UbMaxMagLocal = 0;
 scalar UMeanMagLocal = 0, UaMeanMagLocal = 0, UbMeanMagLocal = 0;
 scalar objectivePnormSumLocal = 0;
@@ -54,6 +58,8 @@ for(i=0;i<n;i++)
   const scalar fsensValue = fsensMeanT[i];
   const scalar gsensPowerValue = gsensPowerDiss[i];
   const scalar gsensVolValue = gsensVol[i];
+  const scalar gsensSolidMinValue = useMinSolidGeometryControl ? gsensSolidMin[i] : 0.0;
+  const scalar gsensSolidMaxValue = useMaxSolidGeometryControl ? gsensSolidMax[i] : 0.0;
 
   xLocalMin = Foam::min(xLocalMin, xValue);
   xLocalMax = Foam::max(xLocalMax, xValue);
@@ -144,6 +150,26 @@ for(i=0;i<n;i++)
   {
     gsensVolNonFiniteCountLocal++;
   }
+  if (useMinSolidGeometryControl)
+  {
+    gsensSolidMinLocalMin = Foam::min(gsensSolidMinLocalMin, gsensSolidMinValue);
+    gsensSolidMinLocalMax = Foam::max(gsensSolidMinLocalMax, gsensSolidMinValue);
+    gsensSolidMinL2Local += gsensSolidMinValue*gsensSolidMinValue;
+    if (!std::isfinite(static_cast<double>(gsensSolidMinValue)))
+    {
+      gsensSolidMinNonFiniteCountLocal++;
+    }
+  }
+  if (useMaxSolidGeometryControl)
+  {
+    gsensSolidMaxLocalMin = Foam::min(gsensSolidMaxLocalMin, gsensSolidMaxValue);
+    gsensSolidMaxLocalMax = Foam::max(gsensSolidMaxLocalMax, gsensSolidMaxValue);
+    gsensSolidMaxL2Local += gsensSolidMaxValue*gsensSolidMaxValue;
+    if (!std::isfinite(static_cast<double>(gsensSolidMaxValue)))
+    {
+      gsensSolidMaxNonFiniteCountLocal++;
+    }
+  }
 
   if (objFunction == 2 && maxT > SMALL)
   {
@@ -202,6 +228,20 @@ reduce(gsensVolLocalMin, minOp<scalar>());
 reduce(gsensVolLocalMax, maxOp<scalar>());
 reduce(gsensVolL2Local, sumOp<scalar>());
 reduce(gsensVolNonFiniteCountLocal, sumOp<label>());
+if (useMinSolidGeometryControl)
+{
+  reduce(gsensSolidMinLocalMin, minOp<scalar>());
+  reduce(gsensSolidMinLocalMax, maxOp<scalar>());
+  reduce(gsensSolidMinL2Local, sumOp<scalar>());
+  reduce(gsensSolidMinNonFiniteCountLocal, sumOp<label>());
+}
+if (useMaxSolidGeometryControl)
+{
+  reduce(gsensSolidMaxLocalMin, minOp<scalar>());
+  reduce(gsensSolidMaxLocalMax, maxOp<scalar>());
+  reduce(gsensSolidMaxL2Local, sumOp<scalar>());
+  reduce(gsensSolidMaxNonFiniteCountLocal, sumOp<label>());
+}
 reduce(objectivePnormSumLocal, sumOp<scalar>());
 
 const scalar xMean = xVolumeSumLocal/area;
@@ -219,6 +259,18 @@ const scalar UbMeanMag = UbMeanMagLocal/area;
 const scalar fsensL2 = std::sqrt(fsensL2Local);
 const scalar gsensPowerL2 = std::sqrt(gsensPowerL2Local);
 const scalar gsensVolL2 = std::sqrt(gsensVolL2Local);
+const scalar gsensSolidMinMin =
+  useMinSolidGeometryControl ? gsensSolidMinLocalMin : 0.0;
+const scalar gsensSolidMinMax =
+  useMinSolidGeometryControl ? gsensSolidMinLocalMax : 0.0;
+const scalar gsensSolidMinL2 =
+  useMinSolidGeometryControl ? std::sqrt(gsensSolidMinL2Local) : 0.0;
+const scalar gsensSolidMaxMin =
+  useMaxSolidGeometryControl ? gsensSolidMaxLocalMin : 0.0;
+const scalar gsensSolidMaxMax =
+  useMaxSolidGeometryControl ? gsensSolidMaxLocalMax : 0.0;
+const scalar gsensSolidMaxL2 =
+  useMaxSolidGeometryControl ? std::sqrt(gsensSolidMaxL2Local) : 0.0;
 const scalar primalVelocityScale = Foam::max(UMaxMagLocal, SMALL);
 const scalar adjointPowerToPrimalRatio = UaMaxMagLocal/primalVelocityScale;
 const scalar adjointHeatToPrimalRatio = UbMaxMagLocal/primalVelocityScale;
@@ -404,7 +456,13 @@ if (Pstream::master())
   const char* constraintHealth =
     (powerConstraintMargin > 0 || volumeConstraintMargin > 0 || geometryConstraintViolated) ? "WARN" : "OK";
   const char* sensitivityHealth =
-    (fsensNonFiniteCountLocal > 0 || gsensPowerNonFiniteCountLocal > 0 || gsensVolNonFiniteCountLocal > 0)
+    (
+      fsensNonFiniteCountLocal > 0
+      || gsensPowerNonFiniteCountLocal > 0
+      || gsensVolNonFiniteCountLocal > 0
+      || (useMinSolidGeometryControl && gsensSolidMinNonFiniteCountLocal > 0)
+      || (useMaxSolidGeometryControl && gsensSolidMaxNonFiniteCountLocal > 0)
+    )
     ? "WARN"
     : "OK";
   const char* solverHealth =
@@ -523,6 +581,14 @@ if (Pstream::master())
   writeRow("objective", "min="+fmtScalar(fsensLocalMin), "max="+fmtScalar(fsensLocalMax), "l2="+fmtScalar(fsensL2), "nonFinite="+fmtCount(fsensNonFiniteCountLocal));
   writeRow("power", "min="+fmtScalar(gsensPowerLocalMin), "max="+fmtScalar(gsensPowerLocalMax), "l2="+fmtScalar(gsensPowerL2), "nonFinite="+fmtCount(gsensPowerNonFiniteCountLocal));
   writeRow("volume", "min="+fmtScalar(gsensVolLocalMin), "max="+fmtScalar(gsensVolLocalMax), "l2="+fmtScalar(gsensVolL2), "nonFinite="+fmtCount(gsensVolNonFiniteCountLocal));
+  if (useMinSolidGeometryControl)
+  {
+    writeRow("solid min", "min="+fmtScalar(gsensSolidMinMin), "max="+fmtScalar(gsensSolidMinMax), "l2="+fmtScalar(gsensSolidMinL2), "nonFinite="+fmtCount(gsensSolidMinNonFiniteCountLocal));
+  }
+  if (useMaxSolidGeometryControl)
+  {
+    writeRow("solid max", "min="+fmtScalar(gsensSolidMaxMin), "max="+fmtScalar(gsensSolidMaxMax), "l2="+fmtScalar(gsensSolidMaxL2), "nonFinite="+fmtCount(gsensSolidMaxNonFiniteCountLocal));
+  }
   writeRow("ratios", "obj/vol="+fmtScalar(objectiveToVolumeSensitivityRatio), "power/vol="+fmtScalar(powerToVolumeSensitivityRatio));
 
   writeSectionHeader("Solver Diagnostics");
@@ -684,6 +750,14 @@ if (Pstream::master())
       << ",\"volumeConstraintMax\":" << gsensVolLocalMax
       << ",\"volumeConstraintL2\":" << gsensVolL2
       << ",\"volumeConstraintNonFiniteCount\":" << gsensVolNonFiniteCountLocal
+      << ",\"solidMinConstraintMin\":" << gsensSolidMinMin
+      << ",\"solidMinConstraintMax\":" << gsensSolidMinMax
+      << ",\"solidMinConstraintL2\":" << gsensSolidMinL2
+      << ",\"solidMinConstraintNonFiniteCount\":" << gsensSolidMinNonFiniteCountLocal
+      << ",\"solidMaxConstraintMin\":" << gsensSolidMaxMin
+      << ",\"solidMaxConstraintMax\":" << gsensSolidMaxMax
+      << ",\"solidMaxConstraintL2\":" << gsensSolidMaxL2
+      << ",\"solidMaxConstraintNonFiniteCount\":" << gsensSolidMaxNonFiniteCountLocal
       << ",\"objectiveToVolumeL2Ratio\":" << objectiveToVolumeSensitivityRatio
       << ",\"powerToVolumeL2Ratio\":" << powerToVolumeSensitivityRatio
     << "}"

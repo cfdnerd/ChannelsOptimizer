@@ -4,10 +4,13 @@ scalar rawVolMinLocal = GREAT, rawVolMaxLocal = -GREAT, rawVolL2Local = 0.0;
 scalar filtObjMinLocal = GREAT, filtObjMaxLocal = -GREAT, filtObjL2Local = 0.0;
 scalar filtPowMinLocal = GREAT, filtPowMaxLocal = -GREAT, filtPowL2Local = 0.0;
 scalar filtVolMinLocal = GREAT, filtVolMaxLocal = -GREAT, filtVolL2Local = 0.0;
+scalar filtSolidMinMinLocal = GREAT, filtSolidMinMaxLocal = -GREAT, filtSolidMinL2Local = 0.0;
+scalar filtSolidMaxMinLocal = GREAT, filtSolidMaxMaxLocal = -GREAT, filtSolidMaxL2Local = 0.0;
 scalar rawObjDotPowLocal = 0.0, rawObjDotVolLocal = 0.0, rawPowDotVolLocal = 0.0;
 scalar filtObjDotPowLocal = 0.0, filtObjDotVolLocal = 0.0, filtPowDotVolLocal = 0.0;
 label rawObjNonFiniteLocal = 0, rawPowNonFiniteLocal = 0, rawVolNonFiniteLocal = 0;
 label filtObjNonFiniteLocal = 0, filtPowNonFiniteLocal = 0, filtVolNonFiniteLocal = 0;
+label filtSolidMinNonFiniteLocal = 0, filtSolidMaxNonFiniteLocal = 0;
 scalar drhoMinGradLocal = GREAT, drhoMaxGradLocal = -GREAT;
 scalar grayVolumeGradLocal = 0.0, solidVolumeGradLocal = 0.0, fluidVolumeGradLocal = 0.0;
 label lowerBoundGradLocal = 0, upperBoundGradLocal = 0, moveLimitGradLocal = 0;
@@ -21,6 +24,8 @@ forAll(fsensMeanTRaw, i)
   const scalar filtObj = fsensMeanT[i];
   const scalar filtPow = gsensPowerDiss[i];
   const scalar filtVol = gsensVol[i];
+  const scalar filtSolidMin = useMinSolidGeometryControl ? gsensSolidMin[i] : 0.0;
+  const scalar filtSolidMax = useMaxSolidGeometryControl ? gsensSolidMax[i] : 0.0;
   const scalar drhoVal = drho[i];
   const scalar cellVolume = mesh.V()[i];
   const scalar designChange = x[i] - xOld[i];
@@ -37,6 +42,16 @@ forAll(fsensMeanTRaw, i)
   filtPowMaxLocal = Foam::max(filtPowMaxLocal, filtPow);
   filtVolMinLocal = Foam::min(filtVolMinLocal, filtVol);
   filtVolMaxLocal = Foam::max(filtVolMaxLocal, filtVol);
+  if (useMinSolidGeometryControl)
+  {
+    filtSolidMinMinLocal = Foam::min(filtSolidMinMinLocal, filtSolidMin);
+    filtSolidMinMaxLocal = Foam::max(filtSolidMinMaxLocal, filtSolidMin);
+  }
+  if (useMaxSolidGeometryControl)
+  {
+    filtSolidMaxMinLocal = Foam::min(filtSolidMaxMinLocal, filtSolidMax);
+    filtSolidMaxMaxLocal = Foam::max(filtSolidMaxMaxLocal, filtSolidMax);
+  }
   drhoMinGradLocal = Foam::min(drhoMinGradLocal, drhoVal);
   drhoMaxGradLocal = Foam::max(drhoMaxGradLocal, drhoVal);
 
@@ -46,6 +61,14 @@ forAll(fsensMeanTRaw, i)
   filtObjL2Local += filtObj*filtObj;
   filtPowL2Local += filtPow*filtPow;
   filtVolL2Local += filtVol*filtVol;
+  if (useMinSolidGeometryControl)
+  {
+    filtSolidMinL2Local += filtSolidMin*filtSolidMin;
+  }
+  if (useMaxSolidGeometryControl)
+  {
+    filtSolidMaxL2Local += filtSolidMax*filtSolidMax;
+  }
 
   rawObjDotPowLocal += rawObj*rawPow;
   rawObjDotVolLocal += rawObj*rawVol;
@@ -60,6 +83,14 @@ forAll(fsensMeanTRaw, i)
   if (!std::isfinite(static_cast<double>(filtObj))) filtObjNonFiniteLocal++;
   if (!std::isfinite(static_cast<double>(filtPow))) filtPowNonFiniteLocal++;
   if (!std::isfinite(static_cast<double>(filtVol))) filtVolNonFiniteLocal++;
+  if (useMinSolidGeometryControl && !std::isfinite(static_cast<double>(filtSolidMin)))
+  {
+    filtSolidMinNonFiniteLocal++;
+  }
+  if (useMaxSolidGeometryControl && !std::isfinite(static_cast<double>(filtSolidMax)))
+  {
+    filtSolidMaxNonFiniteLocal++;
+  }
 
   if (xh[i] > 0.05 && xh[i] < 0.95) grayVolumeGradLocal += cellVolume;
   if (xh[i] <= 0.05) solidVolumeGradLocal += cellVolume;
@@ -89,6 +120,20 @@ reduce(rawVolL2Local, sumOp<scalar>());
 reduce(filtObjL2Local, sumOp<scalar>());
 reduce(filtPowL2Local, sumOp<scalar>());
 reduce(filtVolL2Local, sumOp<scalar>());
+if (useMinSolidGeometryControl)
+{
+  reduce(filtSolidMinMinLocal, minOp<scalar>());
+  reduce(filtSolidMinMaxLocal, maxOp<scalar>());
+  reduce(filtSolidMinL2Local, sumOp<scalar>());
+  reduce(filtSolidMinNonFiniteLocal, sumOp<label>());
+}
+if (useMaxSolidGeometryControl)
+{
+  reduce(filtSolidMaxMinLocal, minOp<scalar>());
+  reduce(filtSolidMaxMaxLocal, maxOp<scalar>());
+  reduce(filtSolidMaxL2Local, sumOp<scalar>());
+  reduce(filtSolidMaxNonFiniteLocal, sumOp<label>());
+}
 reduce(rawObjDotPowLocal, sumOp<scalar>());
 reduce(rawObjDotVolLocal, sumOp<scalar>());
 reduce(rawPowDotVolLocal, sumOp<scalar>());
@@ -118,6 +163,10 @@ const scalar rawVolL2 = std::sqrt(rawVolL2Local);
 const scalar filtObjL2 = std::sqrt(filtObjL2Local);
 const scalar filtPowL2 = std::sqrt(filtPowL2Local);
 const scalar filtVolL2 = std::sqrt(filtVolL2Local);
+const scalar filtSolidMinL2 =
+  useMinSolidGeometryControl ? std::sqrt(filtSolidMinL2Local) : 0.0;
+const scalar filtSolidMaxL2 =
+  useMaxSolidGeometryControl ? std::sqrt(filtSolidMaxL2Local) : 0.0;
 const scalar normL2DesignChange = std::sqrt(l2DesignChangeLocal)/std::sqrt(Foam::max(N, scalar(1)));
 const scalar rawObjPowCos = rawObjDotPowLocal/(Foam::max(rawObjL2*rawPowL2, SMALL));
 const scalar rawObjVolCos = rawObjDotVolLocal/(Foam::max(rawObjL2*rawVolL2, SMALL));
@@ -178,4 +227,20 @@ if (Pstream::master())
     << " xh fractions: gray=" << grayVolumeGradLocal/area
     << " solid=" << solidVolumeGradLocal/area
     << " fluid=" << fluidVolumeGradLocal/area << "\n";
+  if (useMinSolidGeometryControl)
+  {
+    gradientLogFile
+      << " filtered solidMin: min=" << filtSolidMinMinLocal
+      << " max=" << filtSolidMinMaxLocal
+      << " l2=" << filtSolidMinL2
+      << " nonFinite=" << filtSolidMinNonFiniteLocal << "\n";
+  }
+  if (useMaxSolidGeometryControl)
+  {
+    gradientLogFile
+      << " filtered solidMax: min=" << filtSolidMaxMinLocal
+      << " max=" << filtSolidMaxMaxLocal
+      << " l2=" << filtSolidMaxL2
+      << " nonFinite=" << filtSolidMaxNonFiniteLocal << "\n";
+  }
 }

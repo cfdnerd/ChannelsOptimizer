@@ -422,6 +422,7 @@ bool lsmCheckpointAvailable(false);
 bool lsmRollbackRequested(false);
 bool lsmSwitchLockedOut(false);
 bool lsmSwitchTriggered(false);
+label lsmNextSwitchAllowedIter(0);
 word lsmRollbackReason("none");
 label lsmRollbackCount(0);
 bool lsmLastStepAccepted(true);
@@ -704,6 +705,39 @@ auto restoreLSMCheckpoint =
   lsmLastPhiStepMax = 0.0;
   stopOptimization = false;
   optimizerStopReason = word("rollbackRestored");
+};
+
+auto scheduleLSMRetry =
+[&](const word& reason, const scalar grayTarget, const scalar xhStepTarget)
+{
+  const label retryCooldown = lsmBlendIterations > 5 ? lsmBlendIterations : 5;
+  lsmNextSwitchAllowedIter =
+    lsmNextSwitchAllowedIter > opt + retryCooldown
+    ? lsmNextSwitchAllowedIter
+    : opt + retryCooldown;
+  lsmSwitchLockedOut = opt < lsmNextSwitchAllowedIter;
+
+  if (grayTarget > SMALL)
+  {
+    const scalar tightenedGrayGate =
+      Foam::max(scalar(0.75)*grayTarget, scalar(0.02));
+    lsmSwitchGrayFraction =
+      Foam::min(lsmSwitchGrayFraction, tightenedGrayGate);
+  }
+
+  if (xhStepTarget > SMALL)
+  {
+    const scalar tightenedStepGate =
+      Foam::max(scalar(0.85)*xhStepTarget, scalar(0.02));
+    lsmSwitchMaxXhStep =
+      Foam::min(lsmSwitchMaxXhStep, tightenedStepGate);
+  }
+
+  Info<< "Delaying the next LSM handover attempt after " << reason
+      << " until iteration " << lsmNextSwitchAllowedIter
+      << " with gray<=" << lsmSwitchGrayFraction
+      << " and prevXhStep<=" << lsmSwitchMaxXhStep
+      << endl;
 };
 //***********************************//MMA
 int m=2;//number of constraint

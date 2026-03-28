@@ -3,17 +3,24 @@ opt++;
 
 if (lsmRollbackRequested && lsmRollbackEnabled && lsmCheckpointAvailable)
 {
+    const word rollbackReason(lsmRollbackReason);
     Info<< "Restoring density checkpoint after LSM issue: "
-        << lsmRollbackReason << endl;
+        << rollbackReason << endl;
     restoreLSMCheckpoint();
     hybridStageState = HYBRID_STAGE_DENSITY;
     hybridStageName = "densityRollback";
-    lsmSwitchLockedOut = true;
     lsmSwitchTriggered = false;
     lsmBlendIteration = 0;
     lsmStageIteration = 0;
     lsmBlendWeight = 1.0;
     lsmRollbackCount++;
+    lsmRollbackReason = rollbackReason;
+    scheduleLSMRetry
+    (
+        rollbackReason,
+        previousGrayVolumeFractionForContinuation,
+        previousXhStepMax
+    );
 }
 
 scalar grayVolumeContinuationLocal(0.0);
@@ -41,6 +48,7 @@ lsmLastConnectivitySatisfied = connectivitySatisfied;
 lsmSwitchHealthSatisfied = continuationHealthOk && previousSolverSeverity < 2;
 lsmSwitchCheckpointSatisfied =
     !requireRestartableLSMCheckpoint || lsmRollbackEnabled;
+lsmSwitchLockedOut = opt < lsmNextSwitchAllowedIter;
 lsmSwitchGateSatisfied =
     useHybridMMAtoLSM
  && useLevelSetStage
@@ -79,7 +87,70 @@ if (lsmSwitchGateSatisfied)
       : 0.0;
     switchedToLSMThisIteration = true;
     #include "initializeLevelSetFromDensity.H"
-    if (hybridStageState == HYBRID_STAGE_HANDOVER && lsmBlendIterations > 0)
+
+    {
+        #include "lsmGeometryMetrics.H"
+    }
+
+    const bool initializedLevelSetConnectivity =
+        !lsmSwitchRequireConnectivity
+     || hasThresholdedFluidConnectivity(xhLevelSet, 0.5);
+    const bool initializedWidthCollapseDetected =
+        useChannelWidthControl
+     && channelWidthMin > SMALL
+     && lsmLastChannelWidthMin > SMALL
+     && lsmLastChannelWidthMin < 0.5*channelWidthMin;
+    const bool initializedRibCollapseDetected =
+        useRibThicknessControl
+     && ribThicknessMin > SMALL
+     && lsmLastRibThicknessMin > SMALL
+     && lsmLastRibThicknessMin < 0.5*ribThicknessMin;
+    const bool initializedLevelSetAcceptable =
+        allowTopologyChangeInLSM
+     || (
+            initializedLevelSetConnectivity
+         && !initializedWidthCollapseDetected
+         && !initializedRibCollapseDetected
+        );
+
+    if (!initializedLevelSetAcceptable)
+    {
+        const word initRejectReason
+        (
+            !initializedLevelSetConnectivity
+          ? "handoverInitConnectivity"
+          : initializedWidthCollapseDetected
+          ? "handoverInitWidth"
+          : "handoverInitRib"
+        );
+
+        Info<< "Rejecting LSM handover initialization before Stage 2 commit: "
+            << initRejectReason
+            << " gray=" << grayVolumeFractionForContinuation
+            << " wMin=" << lsmLastChannelWidthMin
+            << " ribMin=" << lsmLastRibThicknessMin
+            << endl;
+
+        restoreLSMCheckpoint();
+        hybridStageState = HYBRID_STAGE_DENSITY;
+        hybridStageName = "density";
+        lsmSwitchTriggered = false;
+        lsmSwitchGateSatisfied = false;
+        lsmBlendIteration = 0;
+        lsmStageIteration = 0;
+        lsmBlendWeight = 1.0;
+        lsmLastStepAccepted = true;
+        lsmRollbackRequested = false;
+        lsmRollbackReason = initRejectReason;
+        scheduleLSMRetry
+        (
+            initRejectReason,
+            grayVolumeFractionForContinuation,
+            previousXhStepMax
+        );
+        switchedToLSMThisIteration = false;
+    }
+    else if (hybridStageState == HYBRID_STAGE_HANDOVER && lsmBlendIterations > 0)
     {
         lsmBlendIteration = 1;
     }

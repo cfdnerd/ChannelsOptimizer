@@ -1,32 +1,12 @@
-Info<< "adjoint flow momentum solve" << endl;
-for(i=0;i<adjointMomentumSweeps;i++)
+for(i=0;i<40;i++)
 { 
   volVectorField adjointTransposeConvectiona((fvc::grad(U) & Ua));
-  volVectorField explicitAdjointStressCorrectionA
-  (
-      IOobject
-      (
-          "explicitAdjointStressCorrectionA",
-          runTime.timeName(),
-          mesh,
-          IOobject::NO_READ,
-          IOobject::NO_WRITE
-      ),
-      mesh,
-      dimensionedVector("zero", dimensionSet(0,1,-2,0,0,0,0), vector::zero)
-  );
-  if (useFullAdjointSymmetricStress)
-  {
-      explicitAdjointStressCorrectionA =
-        -adjointExplicitStressScale*fvc::div(nuEffAdjoint*Foam::T(fvc::grad(Ua)));
-  }
 
   tmp<fvVectorMatrix> tUaEqn
   (
       fvm::div(-phi, Ua)
     + adjointTransposeConvectiona
-    - fvm::laplacian(nuEffAdjoint,Ua)
-    + explicitAdjointStressCorrectionA
+    - fvm::laplacian(nu,Ua)
     + fvm::Sp(alpha, Ua)
    ==
       fvOptions(Ua)
@@ -106,43 +86,4 @@ for(i=0;i<adjointMomentumSweeps;i++)
   Ua.storePrevIter();
   pa.storePrevIter();
   phia.storePrevIter();
-}
-{
-    scalar adjointFlowUaMaxMag = 0;
-    label adjointFlowUaNonFinite = 0;
-    forAll(Ua, cellI)
-    {
-        const scalar magValue = mag(Ua[cellI]);
-        if (!std::isfinite(static_cast<double>(magValue)))
-        {
-            adjointFlowUaNonFinite++;
-            continue;
-        }
-        adjointFlowUaMaxMag = Foam::max(adjointFlowUaMaxMag, magValue);
-    }
-    reduce(adjointFlowUaMaxMag, maxOp<scalar>());
-    reduce(adjointFlowUaNonFinite, sumOp<label>());
-
-    scalar adjointFlowPaMin = GREAT;
-    scalar adjointFlowPaMax = -GREAT;
-    label adjointFlowPaNonFinite = 0;
-    forAll(pa, cellI)
-    {
-        const scalar value = pa[cellI];
-        if (!std::isfinite(static_cast<double>(value)))
-        {
-            adjointFlowPaNonFinite++;
-            continue;
-        }
-        adjointFlowPaMin = Foam::min(adjointFlowPaMin, value);
-        adjointFlowPaMax = Foam::max(adjointFlowPaMax, value);
-    }
-    reduce(adjointFlowPaMin, minOp<scalar>());
-    reduce(adjointFlowPaMax, maxOp<scalar>());
-    reduce(adjointFlowPaNonFinite, sumOp<label>());
-
-    Info<< "adjoint flow momentum solve complete: |Ua|max=" << adjointFlowUaMaxMag
-        << " UaNonFinite=" << adjointFlowUaNonFinite
-        << " pa[min,max]=(" << adjointFlowPaMin << ", " << adjointFlowPaMax
-        << ") paNonFinite=" << adjointFlowPaNonFinite << endl;
 }

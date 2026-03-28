@@ -15,7 +15,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     turbulenceLSMOpt;
+application     myadjointShapeOptimizationFoam;
 //application     simpleFoam;
 
 startFrom       startTime;
@@ -24,7 +24,7 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         400;
+endTime         200;
 
 deltaT          1;
 

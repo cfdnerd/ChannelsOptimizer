@@ -1,52 +1,6 @@
-Info<< "filter chainrule: sanitize sensitivities" << endl;
-label fsenshNonFiniteLocal(0);
-label gsenshPowerNonFiniteLocal(0);
-forAll(fsenshMeanT, i)
-{
-  if (!std::isfinite(static_cast<double>(fsenshMeanT[i])))
-  {
-    fsenshMeanT[i] = 0.0;
-    fsenshNonFiniteLocal++;
-  }
-
-  if (!std::isfinite(static_cast<double>(gsenshPowerDiss[i])))
-  {
-    gsenshPowerDiss[i] = 0.0;
-    gsenshPowerNonFiniteLocal++;
-  }
-}
-reduce(fsenshNonFiniteLocal, sumOp<label>());
-reduce(gsenshPowerNonFiniteLocal, sumOp<label>());
-
-if (Pstream::master() && (fsenshNonFiniteLocal > 0 || gsenshPowerNonFiniteLocal > 0))
-{
-  Info<< "filter chainrule: clamped non-finite sensitivities"
-      << " objective=" << fsenshNonFiniteLocal
-      << " power=" << gsenshPowerNonFiniteLocal << endl;
-}
-
-Info<< "filter chainrule: normalize sensitivities" << endl;
-const scalar fsenshMeanTScale = gMax(mag(fsenshMeanT.primitiveField()));
-if (fsenshMeanTScale > SMALL)
-{
-  fsenshMeanT = fsenshMeanT/fsenshMeanTScale;
-}
-else
-{
-  fsenshMeanT = dimensionedScalar("zero", fsenshMeanT.dimensions(), 0.0);
-}
-
-const scalar gsenshPowerDissScale = gMax(mag(gsenshPowerDiss.primitiveField()));
-if (gsenshPowerDissScale > SMALL)
-{
-  gsenshPowerDiss = gsenshPowerDiss/gsenshPowerDissScale;
-}
-else
-{
-  gsenshPowerDiss = dimensionedScalar("zero", gsenshPowerDiss.dimensions(), 0.0);
-}
+fsenshMeanT=fsenshMeanT/gMax(mag(fsenshMeanT.primitiveField()));
+gsenshPowerDiss=gsenshPowerDiss/gMax(mag(gsenshPowerDiss.primitiveField()));
 gsenshVol.primitiveFieldRef() = 1.0;
-Info<< "filter chainrule: objective filter solve" << endl;
 //***********************************//Heaviside_filter
 if(opt>1)
 {
@@ -76,7 +30,6 @@ recordLinearSolve
   fsensFilterLinearSolvePerformance.nIterations()
 );
 
-Info<< "filter chainrule: power filter solve" << endl;
 const auto gsensPowerFilterLinearSolvePerformance =
 solve(fvm::laplacian(gsensPowerDiss)-fvm::Sp(b,gsensPowerDiss)+gsenshPowerDiss*b);
 recordLinearSolve
@@ -87,7 +40,6 @@ recordLinearSolve
   gsensPowerFilterLinearSolvePerformance.nIterations()
 );
 
-Info<< "filter chainrule: volume filter solve" << endl;
 const auto gsensVolFilterLinearSolvePerformance =
 solve(fvm::laplacian(gsensVol)-fvm::Sp(b,gsensVol)+gsenshVol*b);
 recordLinearSolve
@@ -98,7 +50,6 @@ recordLinearSolve
   gsensVolFilterLinearSolvePerformance.nIterations()
 );
 
-Info<< "filter chainrule: scale filtered sensitivities" << endl;
 fsensMeanT.primitiveFieldRef()=fsensMeanT.primitiveFieldRef()*mesh.V()/gMax(mesh.V());
 gsensPowerDiss.primitiveFieldRef()=gsensPowerDiss.primitiveFieldRef()*mesh.V()/gMax(mesh.V());
 gsensVol.primitiveFieldRef()=gsensVol.primitiveFieldRef()*mesh.V()/gMax(mesh.V());

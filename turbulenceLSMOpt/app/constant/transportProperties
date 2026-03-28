@@ -18,8 +18,8 @@ FoamFile
 transportModel  Newtonian;
 
 nu                           nu [0 2 -1 0 0 0 0] 1.0e-6;
-alphaMax               alphaMax [0 0 -1 0 0 0 0] 7.5e3;
-alphaMAX               alphaMAX [0 0 -1 0 0 0 0] 7.5e6;
+alphaMax               alphaMax [0 0 -1 0 0 0 0] 2.5e3;
+alphaMAX               alphaMAX [0 0 -1 0 0 0 0] 2.5e6;
 /*
 alphaMax/alphaMAX are low/high continuation bounds.
 1.05^140=926

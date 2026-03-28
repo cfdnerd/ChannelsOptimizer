@@ -165,14 +165,22 @@ else
 {
   const scalar fsensScale = gMax(mag(fsenshMeanT.primitiveField()));
   const scalar powerSensScale = gMax(mag(gsenshPowerDiss.primitiveField()));
-  fsensMeanT =
-    fsensScale > SMALL
-    ? fsenshMeanT/fsensScale
-    : dimensionedScalar("zero", fsensMeanT.dimensions(), 0.0);
-  gsensPowerDiss =
-    powerSensScale > SMALL
-    ? gsenshPowerDiss/powerSensScale
-    : dimensionedScalar("zero", gsensPowerDiss.dimensions(), 0.0);
+  if (fsensScale > SMALL)
+  {
+    fsensMeanT = fsenshMeanT/fsensScale;
+  }
+  else
+  {
+    fsensMeanT = dimensionedScalar("zero", fsensMeanT.dimensions(), 0.0);
+  }
+  if (powerSensScale > SMALL)
+  {
+    gsensPowerDiss = gsenshPowerDiss/powerSensScale;
+  }
+  else
+  {
+    gsensPowerDiss = dimensionedScalar("zero", gsensPowerDiss.dimensions(), 0.0);
+  }
   gsensVol = dimensionedScalar("one", dimless, 1.0);
 
   {

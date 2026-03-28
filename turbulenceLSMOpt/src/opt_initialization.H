@@ -452,7 +452,25 @@ scalar lsmLastGeometryVelocityMax(0.0);
 scalar lsmLastVelocityMax(0.0);
 scalar lsmLastPhiStepMax(0.0);
 
-double len=std::pow(area/N, 1.0/3);
+scalar cellLengthSumLocal(0.0);
+label cellLengthCountLocal(0);
+const labelListList& cellNeighbours = mesh.cellCells();
+forAll(cellNeighbours, cellI)
+{
+  const labelList& neighbours = cellNeighbours[cellI];
+  forAll(neighbours, neighbourI)
+  {
+    cellLengthSumLocal += Foam::mag(mesh.C()[cellI] - mesh.C()[neighbours[neighbourI]]);
+    cellLengthCountLocal++;
+  }
+}
+reduce(cellLengthSumLocal, sumOp<scalar>());
+reduce(cellLengthCountLocal, sumOp<label>());
+
+double len =
+  cellLengthCountLocal > 0
+  ? cellLengthSumLocal/cellLengthCountLocal
+  : std::pow(area/Foam::max(scalar(N), scalar(1)), 1.0/3);
 const scalar channelWidthMinPhysical = channelWidthMin*len;
 const scalar ribThicknessMinPhysical = ribThicknessMin*len;
 

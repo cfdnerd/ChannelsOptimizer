@@ -128,7 +128,10 @@ if (lsmSwitchGateSatisfied)
             << initRejectReason
             << " gray=" << grayVolumeFractionForContinuation
             << " wMin=" << lsmLastChannelWidthMin
+            << " wMinAccept>=" << 0.5*channelWidthMinPhysical
             << " ribMin=" << lsmLastRibThicknessMin
+            << " ribMinAccept>=" << 0.5*ribThicknessMinPhysical
+            << " len=" << len
             << endl;
 
         restoreLSMCheckpoint();

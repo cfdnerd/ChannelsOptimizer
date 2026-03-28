@@ -163,6 +163,10 @@ Switch useStagnationTriggeredBeta
 (
   continuationSwitches.lookupOrDefault<Switch>("useStagnationTriggeredBeta", false)
 );
+Switch useLateStageFilterRCap
+(
+  continuationSwitches.lookupOrDefault<Switch>("useLateStageFilterRCap", true)
+);
 label adjointMomentumSweeps
 (
   adjointControl.lookupOrDefault<label>("adjointMomentumSweeps", 20)

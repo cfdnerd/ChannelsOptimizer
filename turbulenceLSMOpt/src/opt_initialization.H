@@ -113,6 +113,7 @@ if (Pstream::master())
 
   debugLogFile << "\n--- continuationSwitches ---\n";
   writeRuntimeSwitch("useStagnationTriggeredBeta", useStagnationTriggeredBeta);
+  writeRuntimeSwitch("useLateStageFilterRCap", useLateStageFilterRCap);
 
   debugLogFile << "\n--- experimentControl ---\n";
   writeRuntimeWord("experimentProfile", experimentProfile);

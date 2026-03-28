@@ -22,12 +22,12 @@ general
     writeDiagnosticFields    false;   // Write solid-indicator/filter/violation fields for debugging.
     projectionBeta           4.0;     // Mild projection used only by the geometry-control channel xg.
     projectionEta            -1;      // Geometry-channel threshold. Negative reuses the current physics eta5.
-    activationMinIter        120;     // Wait until the late branch-birth window before enforcing solid-size breakup.
-    activationGrayEnter      0.45;    // Activate once the main trunks are formed but late gray side-branch seeds remain.
-    activationGrayExit       0.50;    // Keep the gate latched through moderate gray rebounds during late branch carving.
-    activationXhStepMax      -1;      // Disable the xh-step gate; the branch-refinement regime stays too mobile for a low step cutoff.
-    activationHoldIters      3;       // Activate quickly once the late-stage gray gate is satisfied.
-    rampIters                12;      // Bring the geometric constraint on faster while side-branch seeds are still present.
+    activationMinIter        60;      // Earliest optimization iteration where geometry control may activate.
+    activationGrayEnter      0.30;    // Open the gray gate once the gray fraction drops below this value.
+    activationGrayExit       0.35;    // Keep the gray gate latched until the gray fraction rises above this value.
+    activationXhStepMax      0.03;    // Activate only once the projected design step has settled below this value.
+    activationHoldIters      5;       // Require this many consecutive satisfied gating iterations before activation.
+    rampIters                20;      // Ramp the geometry-constraint MMA weight over this many iterations.
     freezeHardeningWhileInfeasible true; // Freeze further alpha/beta hardening while an active geometry constraint is violated.
     constraintScaleTarget    0.05;    // MMA normalization floor used for geometric constraints after stage activation.
 }
@@ -43,11 +43,11 @@ minSolidGeometryControl
 
 maxSolidGeometryControl
 {
-    active                   true;    // Turn on explicit breakup of oversized solid trunks/ribs during late branch refinement.
-    featureSize              5.0;     // Match the late-stage active filter scale so bulky solids are split where new sub-branches should nucleate.
-    fillFraction             0.72;    // Penalize dense local solid neighborhoods early enough to stop thick trunks from monopolizing the domain.
-    tolerance                5e-4;    // Allow a small violation band before the MMA max-solid constraint starts pushing back.
-    constraintWeight         0.8;     // Moderate weight so breakup guidance helps branch bifurcation without overwhelming thermal/power sensitivities.
+    active                   false;   // Solid-only maximum-size control. Penalizes overly large solid neighborhoods.
+    featureSize              9.0;     // Feature-size radius in the same effective units as optProperties.filterR.
+    fillFraction             0.85;    // Local solid occupancy ceiling used to trigger block/rib breakup.
+    tolerance                1e-4;    // Allow this much aggregated violation before the MMA constraint activates.
+    constraintWeight         1.0;     // Relative weight applied to the MMA max-solid constraint.
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

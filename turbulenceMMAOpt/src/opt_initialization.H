@@ -120,14 +120,14 @@ if (Pstream::master())
   writeRuntimeOption("smoothPositiveEps", geometricSizeSmoothPositiveEps);
   writeRuntimeSwitch("writeDiagnosticFields", writeGeometricSizeDiagnosticFields);
 
-  debugLogFile << "\n--- geometricSizeControlDict.path2SolidMin ---\n";
+  debugLogFile << "\n--- geometricSizeControlDict.minSolidGeometryControl ---\n";
   writeRuntimeSwitch("active", useMinSolidGeometryControl);
   writeRuntimeOption("featureSize", minSolidGeometryFeatureSize);
   writeRuntimeOption("fillFraction", minSolidGeometryFillFraction);
   writeRuntimeOption("tolerance", minSolidGeometryConstraintTolerance);
   writeRuntimeOption("constraintWeight", minSolidGeometryConstraintWeight);
 
-  debugLogFile << "\n--- geometricSizeControlDict.path3SolidMax ---\n";
+  debugLogFile << "\n--- geometricSizeControlDict.maxSolidGeometryControl ---\n";
   writeRuntimeSwitch("active", useMaxSolidGeometryControl);
   writeRuntimeOption("featureSize", maxSolidGeometryFeatureSize);
   writeRuntimeOption("fillFraction", maxSolidGeometryFillFraction);

@@ -110,7 +110,7 @@ solvers
         nCellsInCoarsestLevel 200;
         maxIter         20000;
     }
-     "(xp|dAlpha2|fsensMeanT|gsensVol|gsensPowerDiss)"
+     "(xp|dAlpha2|fsensMeanT|gsensVol|gsensPowerDiss|solidMinFiltered|solidMaxFiltered|gsensSolidMin|gsensSolidMax|gsensSolidMinGeom|gsensSolidMaxGeom)"
     {
         solver          PCG;
         preconditioner  DIC;

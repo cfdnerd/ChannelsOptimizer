@@ -110,15 +110,27 @@ if (geometricSizeControlDict.found("general"))
 {
   geometricSizeGeneral = geometricSizeControlDict.subDict("general");
 }
-dictionary path2SolidMin;
-if (geometricSizeControlDict.found("path2SolidMin"))
+dictionary minSolidGeometryControl;
+if (geometricSizeControlDict.found("minSolidGeometryControl"))
 {
-  path2SolidMin = geometricSizeControlDict.subDict("path2SolidMin");
+  minSolidGeometryControl = geometricSizeControlDict.subDict("minSolidGeometryControl");
 }
-dictionary path3SolidMax;
-if (geometricSizeControlDict.found("path3SolidMax"))
+else if (geometricSizeControlDict.found("path2SolidMin"))
 {
-  path3SolidMax = geometricSizeControlDict.subDict("path3SolidMax");
+  Info<< "geometricSizeControlDict.path2SolidMin is deprecated; use "
+      << "geometricSizeControlDict.minSolidGeometryControl" << endl;
+  minSolidGeometryControl = geometricSizeControlDict.subDict("path2SolidMin");
+}
+dictionary maxSolidGeometryControl;
+if (geometricSizeControlDict.found("maxSolidGeometryControl"))
+{
+  maxSolidGeometryControl = geometricSizeControlDict.subDict("maxSolidGeometryControl");
+}
+else if (geometricSizeControlDict.found("path3SolidMax"))
+{
+  Info<< "geometricSizeControlDict.path3SolidMax is deprecated; use "
+      << "geometricSizeControlDict.maxSolidGeometryControl" << endl;
+  maxSolidGeometryControl = geometricSizeControlDict.subDict("path3SolidMax");
 }
 
 Switch useFrozenTurbulenceAdjoint
@@ -195,43 +207,43 @@ Switch useLateStageFilterRCap
 );
 Switch useMinSolidGeometryControl
 (
-  path2SolidMin.lookupOrDefault<Switch>("active", false)
+  minSolidGeometryControl.lookupOrDefault<Switch>("active", false)
 );
 Switch useMaxSolidGeometryControl
 (
-  path3SolidMax.lookupOrDefault<Switch>("active", false)
+  maxSolidGeometryControl.lookupOrDefault<Switch>("active", false)
 );
 scalar minSolidGeometryFeatureSize
 (
-  path2SolidMin.lookupOrDefault<scalar>("featureSize", -1.0)
+  minSolidGeometryControl.lookupOrDefault<scalar>("featureSize", -1.0)
 );
 scalar minSolidGeometryFillFraction
 (
-  path2SolidMin.lookupOrDefault<scalar>("fillFraction", 0.55)
+  minSolidGeometryControl.lookupOrDefault<scalar>("fillFraction", 0.55)
 );
 scalar minSolidGeometryConstraintTolerance
 (
-  path2SolidMin.lookupOrDefault<scalar>("tolerance", 1e-4)
+  minSolidGeometryControl.lookupOrDefault<scalar>("tolerance", 1e-4)
 );
 scalar minSolidGeometryConstraintWeight
 (
-  path2SolidMin.lookupOrDefault<scalar>("constraintWeight", 1.0)
+  minSolidGeometryControl.lookupOrDefault<scalar>("constraintWeight", 1.0)
 );
 scalar maxSolidGeometryFeatureSize
 (
-  path3SolidMax.lookupOrDefault<scalar>("featureSize", -1.0)
+  maxSolidGeometryControl.lookupOrDefault<scalar>("featureSize", -1.0)
 );
 scalar maxSolidGeometryFillFraction
 (
-  path3SolidMax.lookupOrDefault<scalar>("fillFraction", 0.85)
+  maxSolidGeometryControl.lookupOrDefault<scalar>("fillFraction", 0.85)
 );
 scalar maxSolidGeometryConstraintTolerance
 (
-  path3SolidMax.lookupOrDefault<scalar>("tolerance", 1e-4)
+  maxSolidGeometryControl.lookupOrDefault<scalar>("tolerance", 1e-4)
 );
 scalar maxSolidGeometryConstraintWeight
 (
-  path3SolidMax.lookupOrDefault<scalar>("constraintWeight", 1.0)
+  maxSolidGeometryControl.lookupOrDefault<scalar>("constraintWeight", 1.0)
 );
 scalar geometricSizeAggregationKSFactor
 (
@@ -882,14 +894,14 @@ if (geometricSizeSmoothPositiveEps <= 0.0)
 if (useMinSolidGeometryControl && minSolidGeometryFeatureSize <= 0.0)
 {
   FatalErrorInFunction
-    << "geometricSizeControlDict.path2SolidMin.featureSize must be > 0 when active=true. Found "
+    << "geometricSizeControlDict.minSolidGeometryControl.featureSize must be > 0 when active=true. Found "
     << minSolidGeometryFeatureSize
     << exit(FatalError);
 }
 if (useMaxSolidGeometryControl && maxSolidGeometryFeatureSize <= 0.0)
 {
   FatalErrorInFunction
-    << "geometricSizeControlDict.path3SolidMax.featureSize must be > 0 when active=true. Found "
+    << "geometricSizeControlDict.maxSolidGeometryControl.featureSize must be > 0 when active=true. Found "
     << maxSolidGeometryFeatureSize
     << exit(FatalError);
 }
@@ -900,7 +912,7 @@ if
 )
 {
   FatalErrorInFunction
-    << "geometricSizeControlDict.path2SolidMin.fillFraction must lie in [0,1]. Found "
+    << "geometricSizeControlDict.minSolidGeometryControl.fillFraction must lie in [0,1]. Found "
     << minSolidGeometryFillFraction
     << exit(FatalError);
 }
@@ -911,35 +923,35 @@ if
 )
 {
   FatalErrorInFunction
-    << "geometricSizeControlDict.path3SolidMax.fillFraction must lie in [0,1]. Found "
+    << "geometricSizeControlDict.maxSolidGeometryControl.fillFraction must lie in [0,1]. Found "
     << maxSolidGeometryFillFraction
     << exit(FatalError);
 }
 if (minSolidGeometryConstraintTolerance < 0.0)
 {
   FatalErrorInFunction
-    << "geometricSizeControlDict.path2SolidMin.tolerance must be >= 0. Found "
+    << "geometricSizeControlDict.minSolidGeometryControl.tolerance must be >= 0. Found "
     << minSolidGeometryConstraintTolerance
     << exit(FatalError);
 }
 if (maxSolidGeometryConstraintTolerance < 0.0)
 {
   FatalErrorInFunction
-    << "geometricSizeControlDict.path3SolidMax.tolerance must be >= 0. Found "
+    << "geometricSizeControlDict.maxSolidGeometryControl.tolerance must be >= 0. Found "
     << maxSolidGeometryConstraintTolerance
     << exit(FatalError);
 }
 if (minSolidGeometryConstraintWeight <= 0.0)
 {
   FatalErrorInFunction
-    << "geometricSizeControlDict.path2SolidMin.constraintWeight must be > 0. Found "
+    << "geometricSizeControlDict.minSolidGeometryControl.constraintWeight must be > 0. Found "
     << minSolidGeometryConstraintWeight
     << exit(FatalError);
 }
 if (maxSolidGeometryConstraintWeight <= 0.0)
 {
   FatalErrorInFunction
-    << "geometricSizeControlDict.path3SolidMax.constraintWeight must be > 0. Found "
+    << "geometricSizeControlDict.maxSolidGeometryControl.constraintWeight must be > 0. Found "
     << maxSolidGeometryConstraintWeight
     << exit(FatalError);
 }

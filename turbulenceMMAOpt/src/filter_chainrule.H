@@ -1,6 +1,7 @@
 Info<< "filter chainrule: sanitize sensitivities" << endl;
 label fsenshNonFiniteLocal(0);
 label gsenshPowerNonFiniteLocal(0);
+label gsenshVolNonFiniteLocal(0);
 label gsenshSolidMinNonFiniteLocal(0);
 label gsenshSolidMaxNonFiniteLocal(0);
 forAll(fsenshMeanT, i)
@@ -17,6 +18,12 @@ forAll(fsenshMeanT, i)
     gsenshPowerNonFiniteLocal++;
   }
 
+  if (!std::isfinite(static_cast<double>(gsenshVol[i])))
+  {
+    gsenshVol[i] = 0.0;
+    gsenshVolNonFiniteLocal++;
+  }
+
   if (applyMinSolidGeometryControl && !std::isfinite(static_cast<double>(gsenshSolidMin[i])))
   {
     gsenshSolidMin[i] = 0.0;
@@ -31,6 +38,7 @@ forAll(fsenshMeanT, i)
 }
 reduce(fsenshNonFiniteLocal, sumOp<label>());
 reduce(gsenshPowerNonFiniteLocal, sumOp<label>());
+reduce(gsenshVolNonFiniteLocal, sumOp<label>());
 reduce(gsenshSolidMinNonFiniteLocal, sumOp<label>());
 reduce(gsenshSolidMaxNonFiniteLocal, sumOp<label>());
 
@@ -40,6 +48,7 @@ if
   && (
     fsenshNonFiniteLocal > 0
     || gsenshPowerNonFiniteLocal > 0
+    || gsenshVolNonFiniteLocal > 0
     || gsenshSolidMinNonFiniteLocal > 0
     || gsenshSolidMaxNonFiniteLocal > 0
   )
@@ -48,6 +57,7 @@ if
   Info<< "filter chainrule: clamped non-finite sensitivities"
   << " objective=" << fsenshNonFiniteLocal
       << " power=" << gsenshPowerNonFiniteLocal
+      << " volume=" << gsenshVolNonFiniteLocal
       << " solidMin=" << gsenshSolidMinNonFiniteLocal
       << " solidMax=" << gsenshSolidMaxNonFiniteLocal << endl;
 }
@@ -77,17 +87,36 @@ Info<< "filter chainrule: objective filter solve" << endl;
 //***********************************//Heaviside_filter
 if(opt>1)
 {
+  const scalar eta5Safe =
+    Foam::min(Foam::max(eta5, scalar(1e-6)), scalar(1.0 - 1e-6));
+  const scalar oneMinusEta5Safe =
+    Foam::max(scalar(1.0) - eta5Safe, scalar(1e-6));
+  label drhoNonFiniteLocal(0);
   for(i=0;i<n;i++)
   {
-     if(xp[i]<=eta5)
+     scalar drhoValue = 0.0;
+     if(xp[i]<=eta5Safe)
      {
-       drho[i]=del*Foam::exp(-del*(1-xp[i]/eta5))+Foam::exp(-del); 
+       drhoValue =
+         del*Foam::exp(-del*(1-xp[i]/eta5Safe))
+         + Foam::exp(-del);
      }
      else
      {
-       drho[i]=del*Foam::exp(-del*(xp[i]-eta5)/(1-eta5))+Foam::exp(-del); 
-     } 
+       drhoValue =
+         del*Foam::exp(-del*(xp[i]-eta5Safe)/oneMinusEta5Safe)
+         + Foam::exp(-del);
+     }
+
+     if (!std::isfinite(static_cast<double>(drhoValue)))
+     {
+       drhoValue = 0.0;
+       drhoNonFiniteLocal++;
+     }
+
+     drho[i] = drhoValue;
   }
+  reduce(drhoNonFiniteLocal, sumOp<label>());
   fsenshMeanT=fsenshMeanT*drho;
   gsenshPowerDiss=gsenshPowerDiss*drho;
   gsenshVol=gsenshVol*drho;
@@ -99,8 +128,81 @@ if(opt>1)
   {
     gsenshSolidMax=gsenshSolidMax*drhoGeom;
   }
+
+  label fsenshProjectedNonFiniteLocal(0);
+  label gsenshPowerProjectedNonFiniteLocal(0);
+  label gsenshVolProjectedNonFiniteLocal(0);
+  label gsenshSolidMinProjectedNonFiniteLocal(0);
+  label gsenshSolidMaxProjectedNonFiniteLocal(0);
+  forAll(fsenshMeanT, i)
+  {
+    if (!std::isfinite(static_cast<double>(fsenshMeanT[i])))
+    {
+      fsenshMeanT[i] = 0.0;
+      fsenshProjectedNonFiniteLocal++;
+    }
+
+    if (!std::isfinite(static_cast<double>(gsenshPowerDiss[i])))
+    {
+      gsenshPowerDiss[i] = 0.0;
+      gsenshPowerProjectedNonFiniteLocal++;
+    }
+
+    if (!std::isfinite(static_cast<double>(gsenshVol[i])))
+    {
+      gsenshVol[i] = 0.0;
+      gsenshVolProjectedNonFiniteLocal++;
+    }
+
+    if (applyMinSolidGeometryControl && !std::isfinite(static_cast<double>(gsenshSolidMin[i])))
+    {
+      gsenshSolidMin[i] = 0.0;
+      gsenshSolidMinProjectedNonFiniteLocal++;
+    }
+
+    if (applyMaxSolidGeometryControl && !std::isfinite(static_cast<double>(gsenshSolidMax[i])))
+    {
+      gsenshSolidMax[i] = 0.0;
+      gsenshSolidMaxProjectedNonFiniteLocal++;
+    }
+  }
+  reduce(fsenshProjectedNonFiniteLocal, sumOp<label>());
+  reduce(gsenshPowerProjectedNonFiniteLocal, sumOp<label>());
+  reduce(gsenshVolProjectedNonFiniteLocal, sumOp<label>());
+  reduce(gsenshSolidMinProjectedNonFiniteLocal, sumOp<label>());
+  reduce(gsenshSolidMaxProjectedNonFiniteLocal, sumOp<label>());
+
+  if
+  (
+    Pstream::master()
+    && (
+      drhoNonFiniteLocal > 0
+      || fsenshProjectedNonFiniteLocal > 0
+      || gsenshPowerProjectedNonFiniteLocal > 0
+      || gsenshVolProjectedNonFiniteLocal > 0
+      || gsenshSolidMinProjectedNonFiniteLocal > 0
+      || gsenshSolidMaxProjectedNonFiniteLocal > 0
+    )
+  )
+  {
+    Info<< "filter chainrule: clamped non-finite projected sensitivities"
+        << " drho=" << drhoNonFiniteLocal
+        << " objective=" << fsenshProjectedNonFiniteLocal
+        << " power=" << gsenshPowerProjectedNonFiniteLocal
+        << " volume=" << gsenshVolProjectedNonFiniteLocal
+        << " solidMin=" << gsenshSolidMinProjectedNonFiniteLocal
+        << " solidMax=" << gsenshSolidMaxProjectedNonFiniteLocal << endl;
+  }
 }
 //***********************************//PDE filter
+if (!std::isfinite(static_cast<double>(b.value())))
+{
+  FatalErrorInFunction
+    << "Non-finite density-filter coefficient b before filter_chainrule solves."
+    << " activeFilterR=" << activeFilterR
+    << " b=" << b.value()
+    << exit(FatalError);
+}
 const auto fsensFilterLinearSolvePerformance =
 solve(fvm::laplacian(fsensMeanT)-fvm::Sp(b,fsensMeanT)+fsenshMeanT*b);
 recordLinearSolve

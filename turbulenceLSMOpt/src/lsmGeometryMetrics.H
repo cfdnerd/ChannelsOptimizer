@@ -52,25 +52,12 @@ lsmCurvature = fvc::div(phiUnitNormal);
 
 const scalar supportTol = Foam::max(0.10*len, scalar(1e-9));
 const scalar supportPeakTol = Foam::max(1e-4*len, scalar(1e-12));
-label widthSupportCountLocal(0);
-label ribSupportCountLocal(0);
-scalar widthMinObservedLocal(GREAT);
-scalar widthMaxObservedLocal(0.0);
-scalar ribMinObservedLocal(GREAT);
-scalar ribMaxObservedLocal(0.0);
-scalar hydraulicDiameterSumLocal(0.0);
-scalar hydraulicDiameterWeightLocal(0.0);
-scalar widthMinMaxViolationLocal(-GREAT), widthMinExpSumLocal(0.0);
-scalar widthMaxMaxViolationLocal(-GREAT), widthMaxExpSumLocal(0.0);
-scalar ribMinMaxViolationLocal(-GREAT), ribMinExpSumLocal(0.0);
-scalar ribMaxMaxViolationLocal(-GREAT), ribMaxExpSumLocal(0.0);
-scalar curvatureMaxViolationLocal(-GREAT), curvatureExpSumLocal(0.0);
-
-forAll(phiLS, cellI)
+auto detectSupportPeaks =
+[&](const label cellI, bool& fluidSupport, bool& solidSupport)
 {
     const labelList& neighbours = cellCells[cellI];
-    bool fluidSupport = phiFluidDistance[cellI] > supportTol;
-    bool solidSupport = phiSolidDistance[cellI] > supportTol;
+    fluidSupport = phiFluidDistance[cellI] > supportTol;
+    solidSupport = phiSolidDistance[cellI] > supportTol;
 
     forAll(neighbours, neighbourI)
     {
@@ -96,6 +83,26 @@ forAll(phiLS, cellI)
             break;
         }
     }
+};
+label widthSupportCountLocal(0);
+label ribSupportCountLocal(0);
+scalar widthMinObservedLocal(GREAT);
+scalar widthMaxObservedLocal(0.0);
+scalar ribMinObservedLocal(GREAT);
+scalar ribMaxObservedLocal(0.0);
+scalar hydraulicDiameterSumLocal(0.0);
+scalar hydraulicDiameterWeightLocal(0.0);
+scalar widthMinMaxViolationLocal(-GREAT), widthMinExpSumLocal(0.0);
+scalar widthMaxMaxViolationLocal(-GREAT), widthMaxExpSumLocal(0.0);
+scalar ribMinMaxViolationLocal(-GREAT), ribMinExpSumLocal(0.0);
+scalar ribMaxMaxViolationLocal(-GREAT), ribMaxExpSumLocal(0.0);
+scalar curvatureMaxViolationLocal(-GREAT), curvatureExpSumLocal(0.0);
+
+forAll(phiLS, cellI)
+{
+    bool fluidSupport(false);
+    bool solidSupport(false);
+    detectSupportPeaks(cellI, fluidSupport, solidSupport);
 
     channelWidthSupport[cellI] = fluidSupport ? 1.0 : 0.0;
     ribThicknessSupport[cellI] = solidSupport ? 1.0 : 0.0;
@@ -131,12 +138,10 @@ forAll(phiLS, cellI)
             if (widthMinViolation > SMALL)
             {
                 widthMinMaxViolationLocal = Foam::max(widthMinMaxViolationLocal, widthMinViolation);
-                widthMinExpSumLocal += Foam::exp(ksRhoGeom*widthMinViolation);
             }
             if (widthMaxViolation > SMALL)
             {
                 widthMaxMaxViolationLocal = Foam::max(widthMaxMaxViolationLocal, widthMaxViolation);
-                widthMaxExpSumLocal += Foam::exp(ksRhoGeom*widthMaxViolation);
             }
 
             lsmWidthVelocitySource[cellI] =
@@ -174,12 +179,10 @@ forAll(phiLS, cellI)
             if (ribMinViolation > SMALL)
             {
                 ribMinMaxViolationLocal = Foam::max(ribMinMaxViolationLocal, ribMinViolation);
-                ribMinExpSumLocal += Foam::exp(ksRhoGeom*ribMinViolation);
             }
             if (ribMaxViolation > SMALL)
             {
                 ribMaxMaxViolationLocal = Foam::max(ribMaxMaxViolationLocal, ribMaxViolation);
-                ribMaxExpSumLocal += Foam::exp(ksRhoGeom*ribMaxViolation);
             }
 
             lsmRibVelocitySource[cellI] =
@@ -195,7 +198,6 @@ forAll(phiLS, cellI)
     {
         const scalar curvatureViolation = Foam::mag(lsmCurvature[cellI])*len;
         curvatureMaxViolationLocal = Foam::max(curvatureMaxViolationLocal, curvatureViolation);
-        curvatureExpSumLocal += Foam::exp(ksRhoGeom*curvatureViolation);
     }
 }
 
@@ -212,6 +214,134 @@ reduce(widthMaxMaxViolationLocal, maxOp<scalar>());
 reduce(ribMinMaxViolationLocal, maxOp<scalar>());
 reduce(ribMaxMaxViolationLocal, maxOp<scalar>());
 reduce(curvatureMaxViolationLocal, maxOp<scalar>());
+
+const bool accumulateWidthMinKS = widthMinMaxViolationLocal > SMALL;
+const bool accumulateWidthMaxKS = widthMaxMaxViolationLocal > SMALL;
+const bool accumulateRibMinKS = ribMinMaxViolationLocal > SMALL;
+const bool accumulateRibMaxKS = ribMaxMaxViolationLocal > SMALL;
+const bool accumulateCurvatureKS = curvatureMaxViolationLocal > SMALL;
+
+scalar geometryOverflowRiskArg(0.0);
+if (accumulateWidthMinKS)
+{
+    geometryOverflowRiskArg = Foam::max(geometryOverflowRiskArg, ksRhoGeom*widthMinMaxViolationLocal);
+}
+if (accumulateWidthMaxKS)
+{
+    geometryOverflowRiskArg = Foam::max(geometryOverflowRiskArg, ksRhoGeom*widthMaxMaxViolationLocal);
+}
+if (accumulateRibMinKS)
+{
+    geometryOverflowRiskArg = Foam::max(geometryOverflowRiskArg, ksRhoGeom*ribMinMaxViolationLocal);
+}
+if (accumulateRibMaxKS)
+{
+    geometryOverflowRiskArg = Foam::max(geometryOverflowRiskArg, ksRhoGeom*ribMaxMaxViolationLocal);
+}
+if (accumulateCurvatureKS)
+{
+    geometryOverflowRiskArg = Foam::max(geometryOverflowRiskArg, ksRhoGeom*curvatureMaxViolationLocal);
+}
+if (Pstream::master() && lsmStageIteration == 0 && geometryOverflowRiskArg > 700.0)
+{
+    Info<< "LSM geometry KS accumulation stabilized a handover overflow risk."
+        << " stage=" << hybridStageName
+        << " maxExpArg=" << geometryOverflowRiskArg
+        << " widthMinViol=" << widthMinMaxViolationLocal
+        << " widthMaxViol=" << widthMaxMaxViolationLocal
+        << " ribMinViol=" << ribMinMaxViolationLocal
+        << " ribMaxViol=" << ribMaxMaxViolationLocal
+        << " curvatureViol=" << curvatureMaxViolationLocal
+        << endl;
+}
+
+// Use a shifted log-sum-exp so the first LSM handover can report large
+// geometry penalties without overflowing exp().
+if
+(
+    accumulateWidthMinKS
+ || accumulateWidthMaxKS
+ || accumulateRibMinKS
+ || accumulateRibMaxKS
+ || accumulateCurvatureKS
+)
+{
+    forAll(phiLS, cellI)
+    {
+        bool fluidSupport(false);
+        bool solidSupport(false);
+        detectSupportPeaks(cellI, fluidSupport, solidSupport);
+
+        if (fluidSupport)
+        {
+            const scalar widthValue = channelWidthMetric[cellI];
+            const scalar widthMinTarget = Foam::max(channelWidthMinTargetField[cellI], scalar(len));
+            const scalar widthMaxTarget = Foam::max(channelWidthMaxTargetField[cellI], scalar(widthMinTarget));
+            if (useChannelWidthControl && (!useProtectedGeometryMasks || protectedFluidMask[cellI] < 0.5))
+            {
+                const scalar widthMinViolation =
+                    Foam::max((widthMinTarget - widthValue)/widthMinTarget, scalar(0.0));
+                const scalar widthMaxViolation =
+                    channelWidthMax > 0.0
+                  ? Foam::max((widthValue - widthMaxTarget)/widthMaxTarget, scalar(0.0))
+                  : 0.0;
+
+                if (accumulateWidthMinKS && widthMinViolation > SMALL)
+                {
+                    widthMinExpSumLocal +=
+                        Foam::exp(ksRhoGeom*(widthMinViolation - widthMinMaxViolationLocal));
+                }
+                if (accumulateWidthMaxKS && widthMaxViolation > SMALL)
+                {
+                    widthMaxExpSumLocal +=
+                        Foam::exp(ksRhoGeom*(widthMaxViolation - widthMaxMaxViolationLocal));
+                }
+            }
+        }
+
+        if (solidSupport)
+        {
+            const scalar ribValue = ribThicknessMetric[cellI];
+            const scalar ribMinTarget = Foam::max(ribThicknessMinTargetField[cellI], scalar(len));
+            const scalar ribMaxTarget = Foam::max(ribThicknessMaxTargetField[cellI], scalar(ribMinTarget));
+            const bool protectedSolid =
+                useProtectedGeometryMasks && protectedSolidMask[cellI] > 0.5;
+            const bool boundaryAttached =
+                applyRibTargetsToInternalRibsOnly && boundaryAttachedSolidMask[cellI] > 0.5;
+            if (useRibThicknessControl && !protectedSolid)
+            {
+                const scalar ribMinViolation =
+                    Foam::max((ribMinTarget - ribValue)/ribMinTarget, scalar(0.0));
+                const scalar ribMaxViolation =
+                    useRibThicknessMaxControl && !boundaryAttached
+                  ? Foam::max((ribValue - ribMaxTarget)/ribMaxTarget, scalar(0.0))
+                  : 0.0;
+
+                if (accumulateRibMinKS && ribMinViolation > SMALL)
+                {
+                    ribMinExpSumLocal +=
+                        Foam::exp(ksRhoGeom*(ribMinViolation - ribMinMaxViolationLocal));
+                }
+                if (accumulateRibMaxKS && ribMaxViolation > SMALL)
+                {
+                    ribMaxExpSumLocal +=
+                        Foam::exp(ksRhoGeom*(ribMaxViolation - ribMaxMaxViolationLocal));
+                }
+            }
+        }
+
+        if (accumulateCurvatureKS && phiInterfaceDelta[cellI] > SMALL)
+        {
+            const scalar curvatureViolation = Foam::mag(lsmCurvature[cellI])*len;
+            if (curvatureViolation > SMALL)
+            {
+                curvatureExpSumLocal +=
+                    Foam::exp(ksRhoGeom*(curvatureViolation - curvatureMaxViolationLocal));
+            }
+        }
+    }
+}
+
 reduce(widthMinExpSumLocal, sumOp<scalar>());
 reduce(widthMaxExpSumLocal, sumOp<scalar>());
 reduce(ribMinExpSumLocal, sumOp<scalar>());

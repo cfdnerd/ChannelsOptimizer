@@ -110,7 +110,7 @@ solvers
         nCellsInCoarsestLevel 200;
         maxIter         20000;
     }
-     "(xp|dAlpha2|fsensMeanT|gsensVol|gsensPowerDiss)"
+     "(xp|dAlpha2|fsensMeanT|gsensVol|gsensPowerDiss|lsmWidthVelocity|lsmRibVelocity|lsmNormalVelocity|phiReactionDiffused)"
     {
         solver          PCG;
         preconditioner  DIC;

@@ -144,7 +144,6 @@ if (Pstream::master())
   writeRuntimeSwitch("useHybridMMAtoLSM", useHybridMMAtoLSM);
   writeRuntimeOption("lsmSwitchGrayFraction", lsmSwitchGrayFraction);
   writeRuntimeOption("lsmSwitchPowerFeasibility", lsmSwitchPowerFeasibility);
-  writeRuntimeOption("lsmSwitchMaxXhStep", lsmSwitchMaxXhStep);
   writeRuntimeOption("lsmSwitchMinBeta", lsmSwitchMinBeta);
   writeRuntimeOption("lsmSwitchMinIterations", lsmSwitchMinIterations);
   writeRuntimeSwitch("lsmSwitchRequireConnectivity", lsmSwitchRequireConnectivity);
@@ -741,7 +740,7 @@ auto restoreLSMCheckpoint =
 };
 
 auto scheduleLSMRetry =
-[&](const word& reason, const scalar grayTarget, const scalar xhStepTarget)
+[&](const word& reason, const scalar grayTarget)
 {
   const label retryCooldown = lsmBlendIterations > 5 ? lsmBlendIterations : 5;
   lsmNextSwitchAllowedIter =
@@ -758,18 +757,9 @@ auto scheduleLSMRetry =
       Foam::min(lsmSwitchGrayFraction, tightenedGrayGate);
   }
 
-  if (xhStepTarget > SMALL)
-  {
-    const scalar tightenedStepGate =
-      Foam::max(scalar(0.85)*xhStepTarget, scalar(0.02));
-    lsmSwitchMaxXhStep =
-      Foam::min(lsmSwitchMaxXhStep, tightenedStepGate);
-  }
-
   Info<< "Delaying the next LSM handover attempt after " << reason
       << " until iteration " << lsmNextSwitchAllowedIter
       << " with gray<=" << lsmSwitchGrayFraction
-      << " and prevXhStep<=" << lsmSwitchMaxXhStep
       << endl;
 };
 //***********************************//MMA

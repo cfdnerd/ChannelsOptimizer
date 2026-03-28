@@ -18,8 +18,7 @@ if (lsmRollbackRequested && lsmRollbackEnabled && lsmCheckpointAvailable)
     scheduleLSMRetry
     (
         rollbackReason,
-        previousGrayVolumeFractionForContinuation,
-        previousXhStepMax
+        previousGrayVolumeFractionForContinuation
     );
 }
 
@@ -57,7 +56,6 @@ lsmSwitchGateSatisfied =
  && opt >= lsmSwitchMinIterations
  && grayVolumeFractionForContinuation <= lsmSwitchGrayFraction
  && powerFeasibilityRatio <= lsmSwitchPowerFeasibility
- && previousXhStepMax <= lsmSwitchMaxXhStep
  && del >= lsmSwitchMinBeta
  && lsmSwitchHealthSatisfied
  && connectivitySatisfied
@@ -71,7 +69,6 @@ if (lsmSwitchGateSatisfied)
         << " gray=" << grayVolumeFractionForContinuation
         << " powerRatio=" << powerFeasibilityRatio
         << " beta=" << del
-        << " prevXhStep=" << previousXhStepMax
         << endl;
 
     saveLSMCheckpoint();
@@ -148,8 +145,7 @@ if (lsmSwitchGateSatisfied)
         scheduleLSMRetry
         (
             initRejectReason,
-            grayVolumeFractionForContinuation,
-            previousXhStepMax
+            grayVolumeFractionForContinuation
         );
         switchedToLSMThisIteration = false;
     }

@@ -159,7 +159,6 @@ These are the main handover controls from density Stage 1 into LSM Stage 2.
 | `useHybridMMAtoLSM` | `true` / `false` | Enable the staged density-to-level-set workflow at all. Set `false` for density-only debugging. |
 | `lsmSwitchGrayFraction` | valid range `[0,1]`; practical start `0.15..0.25` | Require the density design to be sufficiently crisp before handover. Lower values delay the switch; higher values switch earlier. |
 | `lsmSwitchPowerFeasibility` | valid range `> 0`; practical start `1.02..1.10` | Require near-feasible power dissipation before Stage 2 begins. Lower values are safer. |
-| `lsmSwitchMaxXhStep` | valid range `>= 0`; practical start `0.05..0.10` | Require density motion to look like refinement, not exploration. Lower values delay the switch until the design settles. |
 | `lsmSwitchMinBeta` | valid range `>= 0`; practical start `10..15` | Require enough projection sharpness before creating `phi`. Higher values give a crisper density contour at handover. |
 | `lsmSwitchMinIterations` | valid range `>= 0`; practical start `80..150` | Prevent an early switch even if the other metrics look acceptable. |
 | `lsmSwitchRequireConnectivity` | `true` / `false`; usually keep `true` | Require a connected thresholded inlet-to-outlet fluid path before handover. |
@@ -292,7 +291,7 @@ When Stage 2 is active, the most informative written fields are:
 
 ## Quick Tuning Heuristics
 
-- If Stage 2 starts too early and destabilizes: lower `lsmSwitchGrayFraction`, lower `lsmSwitchPowerFeasibility`, lower `lsmSwitchMaxXhStep`, raise `lsmSwitchMinBeta`, or raise `lsmSwitchMinIterations`.
+- If Stage 2 starts too early and destabilizes: lower `lsmSwitchGrayFraction`, lower `lsmSwitchPowerFeasibility`, raise `lsmSwitchMinBeta`, or raise `lsmSwitchMinIterations`.
 - If the handover itself is too abrupt: increase `lsmBlendIterations`, keep `lsmRollbackEnabled=true`, and start with `lsmWallDistanceMode blend` instead of `phi`.
 - If Stage 2 walls look jagged or noisy: keep `useVelocityHelmholtz=true`, increase `velocityFilterRadius`, enable `useCurvaturePenalty`, or raise `curvaturePenaltyWeight` gradually.
 - If Stage 2 is too sluggish to clean geometry: lower `velocityFilterRadius`, lower `curvaturePenaltyWeight`, or raise `lsmCfl` carefully.

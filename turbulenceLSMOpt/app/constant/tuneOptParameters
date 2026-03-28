@@ -84,7 +84,6 @@ hybridStageControl
     useHybridMMAtoLSM               true;                  // Enable the staged density-to-level-set workflow.
     lsmSwitchGrayFraction           0.20;                  // Only switch once the density design is mostly crisp.
     lsmSwitchPowerFeasibility       1.05;                  // Require near-feasible power dissipation before handover.
-    lsmSwitchMaxXhStep              0.08;                  // Require the density stage to behave like refinement, not exploration.
     lsmSwitchMinBeta                12;                    // Minimum projection sharpness before Stage 2 can begin.
     lsmSwitchMinIterations          120;                   // Minimum density-stage maturity window before considering the switch.
     lsmSwitchRequireConnectivity    true;                  // Require a connected inlet-to-outlet fluid path before switching.

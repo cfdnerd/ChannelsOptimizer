@@ -330,10 +330,6 @@ scalar lsmSwitchPowerFeasibility
 (
   hybridStageControl.lookupOrDefault<scalar>("lsmSwitchPowerFeasibility", 1.05)
 );
-scalar lsmSwitchMaxXhStep
-(
-  hybridStageControl.lookupOrDefault<scalar>("lsmSwitchMaxXhStep", 0.08)
-);
 scalar lsmSwitchMinBeta
 (
   hybridStageControl.lookupOrDefault<scalar>("lsmSwitchMinBeta", 12.0)
@@ -774,13 +770,6 @@ if (lsmSwitchPowerFeasibility <= 0.0)
   FatalErrorInFunction
     << "hybridStageControl.lsmSwitchPowerFeasibility must be > 0. Found "
     << lsmSwitchPowerFeasibility
-    << exit(FatalError);
-}
-if (lsmSwitchMaxXhStep < 0.0)
-{
-  FatalErrorInFunction
-    << "hybridStageControl.lsmSwitchMaxXhStep must be >= 0. Found "
-    << lsmSwitchMaxXhStep
     << exit(FatalError);
 }
 if (lsmSwitchMinBeta < 0.0)

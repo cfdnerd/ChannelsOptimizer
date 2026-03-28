@@ -517,7 +517,7 @@ if (Pstream::master())
 
   writeSectionHeader("Hybrid Stage");
   writeRow("state", "stage="+std::string(hybridStageName.c_str()), "blendW="+fmtScalar(lsmBlendWeight), "lsmIter="+fmtCount(lsmStageIteration), "rollbacks="+fmtCount(lsmRollbackCount));
-  writeRow("switch gate", "gray<="+fmtScalar(lsmSwitchGrayFraction), "power<="+fmtScalar(lsmSwitchPowerFeasibility), "beta>="+fmtScalar(lsmSwitchMinBeta), "step<="+fmtScalar(lsmSwitchMaxXhStep));
+  writeRow("switch gate", "gray<="+fmtScalar(lsmSwitchGrayFraction), "power<="+fmtScalar(lsmSwitchPowerFeasibility), "beta>="+fmtScalar(lsmSwitchMinBeta));
   writeRow("switch now", "eligible="+std::string(lsmSwitchGateSatisfied ? "yes" : "no"), "health="+std::string(lsmSwitchHealthSatisfied ? "yes" : "no"), "conn="+std::string(currentConnectivitySatisfied ? "yes" : "no"), "locked="+std::string(lsmSwitchLockedOut ? "yes" : "no"));
   writeRow("rollback", "pending="+std::string(lsmRollbackRequested ? "yes" : "no"), "reason="+std::string(lsmRollbackReason.c_str()), "checkpoint="+std::string(lsmCheckpointAvailable ? "yes" : "no"), "accepted="+std::string(lsmLastStepAccepted ? "yes" : "no"));
 

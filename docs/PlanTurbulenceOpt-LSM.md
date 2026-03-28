@@ -227,12 +227,11 @@ All of the following should be satisfied:
 
 1. `grayVolumeFraction <= 0.15 - 0.25`
 2. `powerFeasibilityRatio <= 1.02 - 1.05`
-3. `previousXhStepMax <= 0.05 - 0.10`
-4. `beta >= 10 - 15`
-5. no adjoint runaway and no solver health warning
-6. a connected inlet-to-outlet fluid path exists in the thresholded design
-7. the density stage has already run for a minimum maturity window, typically at least `80 - 150` iterations depending on the case
-8. checkpoint/restart support for rollback is available
+3. `beta >= 10 - 15`
+4. no adjoint runaway and no solver health warning
+5. a connected inlet-to-outlet fluid path exists in the thresholded design
+6. the density stage has already run for a minimum maturity window, typically at least `80 - 150` iterations depending on the case
+7. checkpoint/restart support for rollback is available
 
 ### 5.2 Important interpretation
 

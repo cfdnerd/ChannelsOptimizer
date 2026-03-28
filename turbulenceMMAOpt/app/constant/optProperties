@@ -15,40 +15,40 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-raa0                1e-5;   // MMA regularization; larger values damp noisy updates.
-voluse              0.4;    // Target fluid-volume fraction used by the volume constraint.
-mma_init            0.3;    // Initial MMA asymptote width; larger gives bolder early moves.
-mma_dec             0.7;    // MMA asymptote shrink factor after oscillatory updates.
-mma_inc             1.2;    // MMA asymptote growth factor when updates stay consistent.
-movlim              0.4;    // Per-iteration design move cap in x-space.
-filterR             10;     // PDE filter radius; larger values suppress fine branches.
-PowerDiss0          8e-4;   // Power normalization reference for logging/constraint scaling.
-PowerDissMax        10;     // Final power-dissipation limit after relaxation ends.
-PowerDissRelax      15;     // Relaxed starting power limit used in early iterations.
-powerConstraintRelaxationRate 0.02; // Per-iteration decay from relaxed to final power limit.
-continuationFeasibilityTol 1.15; // Hardening gate tolerance on PowerDiss/activeLimit.
-GeoDim              2;      // Geometric dimension of the optimization domain.
-fluid_area          yes;    // Keep prescribed fluid zones fixed at x=1.
-solid_area          no;     // Keep prescribed solid zones fixed at x=0.
-test_area           no;     // Legacy debug switch; keep disabled for normal runs.
-Pnorm               300;    // KS/p-norm sharpness used by hotspot-style objectives.
-objFunction         1;      // Legacy objective selector; current thermal mode is set elsewhere.
-qAlpha0             0.005;  // Initial RAMP q for flow resistance interpolation.
-qAlphaMin           1e-3;   // Minimum allowed qAlpha after continuation.
-qKappa0             0.005;  // Initial RAMP q for conductivity interpolation.
-qKappaMin           1e-3;   // Minimum allowed qKappa after continuation.
-qHeat0              0.005;  // Initial RAMP q for volumetric heat/source interpolation.
-qHeatMin            1e-3;   // Minimum allowed qHeat after continuation.
-qSingle0            0.005;  // Initial shared q when single-q mode is enabled.
-qSingleMin          0.005;  // Minimum shared q; keep equal to freeze single-q continuation.
-qContinuationStartIter 1000; // Iteration at which q continuation begins.
-qContinuationInterval 10;   // Apply q continuation every N iterations.
-qContinuationFactor 0.9;    // Multiply q by this factor at each continuation step.
-beta0               0.5;    // Initial projection sharpness for x -> xh.
-betaMax             100;    // Hard upper cap on projection sharpness.
-betaIncrement       0.12;   // Default beta increase per hardening step.
-alphaRampEarlySlope 0.08;   // Early alphaMax ramp slope before late continuation takes over.
-alphaRampLateFactor 1.0;    // Multiplicative late alphaMax growth factor after Iter 100.
-dAlphaPorosityEps   1e-3;   // Floor used to avoid singular porosity-gradient evaluations.
+raa0                1e-5;              // MMA regularization; larger values damp noisy updates.
+voluse              0.4;               // Target fluid-volume fraction used by the volume constraint.
+mma_init            0.3;               // Initial MMA asymptote width; larger gives bolder early moves.
+mma_dec             0.7;               // MMA asymptote shrink factor after oscillatory updates.
+mma_inc             1.2;               // MMA asymptote growth factor when updates stay consistent.
+movlim              0.4;               // Per-iteration design move cap in x-space.
+filterR             10;                // PDE filter radius; larger values suppress fine branches.
+PowerDiss0          8e-4;              // Power normalization reference for logging/constraint scaling.
+PowerDissMax        10;                // Final power-dissipation limit after relaxation ends.
+PowerDissRelax      15;                // Relaxed starting power limit used in early iterations.
+powerConstraintRelaxationRate 0.02;    // Per-iteration decay from relaxed to final power limit.
+continuationFeasibilityTol 1.15;       // Hardening gate tolerance on PowerDiss/activeLimit.
+GeoDim              2;                 // Geometric dimension of the optimization domain.
+fluid_area          yes;               // Keep prescribed fluid zones fixed at x=1.
+solid_area          no;                // Keep prescribed solid zones fixed at x=0.
+test_area           no;                // Legacy debug switch; keep disabled for normal runs.
+Pnorm               300;               // KS/p-norm sharpness used by hotspot-style objectives.
+objFunction         1;                 // Legacy objective selector; current thermal mode is set elsewhere.
+qAlpha0             0.005;             // Initial RAMP q for flow resistance interpolation.
+qAlphaMin           1e-3;              // Minimum allowed qAlpha after continuation.
+qKappa0             0.005;             // Initial RAMP q for conductivity interpolation.
+qKappaMin           1e-3;              // Minimum allowed qKappa after continuation.
+qHeat0              0.005;             // Initial RAMP q for volumetric heat/source interpolation.
+qHeatMin            1e-3;              // Minimum allowed qHeat after continuation.
+qSingle0            0.005;             // Initial shared q when single-q mode is enabled.
+qSingleMin          0.005;             // Minimum shared q; keep equal to freeze single-q continuation.
+qContinuationStartIter 1000;           // Iteration at which q continuation begins.
+qContinuationInterval 10;              // Apply q continuation every N iterations.
+qContinuationFactor 0.9;               // Multiply q by this factor at each continuation step.
+beta0               0.5;               // Initial projection sharpness for x -> xh.
+betaMax             100;               // Hard upper cap on projection sharpness.
+betaIncrement       0.12;              // Default beta increase per hardening step.
+alphaRampEarlySlope 0.08;              // Early alphaMax ramp slope before late continuation takes over.
+alphaRampLateFactor 1.0;               // Multiplicative late alphaMax growth factor after Iter 100.
+dAlphaPorosityEps   1e-3;              // Floor used to avoid singular porosity-gradient evaluations.
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //  

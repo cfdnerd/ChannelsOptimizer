@@ -10,7 +10,6 @@ recordLinearSolve
   xpFilterLinearSolvePerformance.nIterations()
 );
 //***********************************//Heaviside_filter
-del=Foam::min(0.2*opt,100);
 eta0=0.0001;
 eta1=1.0;
 y0=diff(xp,mesh.V(),del,eta0,n);

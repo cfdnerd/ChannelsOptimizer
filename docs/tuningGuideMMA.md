@@ -98,6 +98,7 @@ Notes:
 | Key | Scope / values | Intended goal |
 | --- | --- | --- |
 | `useStagnationTriggeredBeta` | `true` / `false` | Harden beta only after convergence/stagnation events instead of every allowed iteration. |
+| `useLateStageFilterRCap` | `true` / `false` | Enable or disable the late-stage `filterR` cap feature without changing its numeric settings. |
 
 ### `experimentControl`
 
@@ -115,8 +116,8 @@ Notes:
 | `lateStageBetaRampFactor` | `-1` or scalar `>= 0` | Multiply `betaIncrement` by this factor during refinement. |
 | `lateStageAlphaRampFactor` | `-1` or scalar `>= 0` | Replace late `alphaRampLateFactor` during refinement. |
 | `lateStageMaxBeta` | `-1` or scalar `>= 0` | Cap beta during refinement. |
-| `lateStageFilterRStartIter` | integer `>= 0` | Keep the dictionary `filterR` through this iteration, then allow the late filter cap to take over. |
-| `lateStageFilterRCap` | `-1` or scalar `> 0` | Late-stage cap applied to `filterR`; the effective value becomes `min(filterR, lateStageFilterRCap)`. |
+| `lateStageFilterRStartIter` | integer `>= 0` | Keep the dictionary `filterR` through this iteration, then allow the late filter cap to take over if `useLateStageFilterRCap=true`. |
+| `lateStageFilterRCap` | `-1` or scalar `> 0` | Late-stage cap applied to `filterR`; the effective value becomes `min(filterR, lateStageFilterRCap)` when the feature is enabled. |
 | `laggingGrayCollapseStartIter` | integer `>= 0` | Start checking for stalled gray collapse from this iteration. |
 | `laggingGrayCollapseAboveGrayFraction` | `-1` or scalar in `[0,1]` | Only call it stalled while gray remains above this value. |
 | `laggingGrayCollapseBelowXhStepMax` | `-1` or scalar `>= 0` | Stagnation trigger when topology motion is below this threshold. |
@@ -130,7 +131,7 @@ Usage patterns:
 
 - Raise hardening aggressiveness with `forceContinuationHardening*`, higher `lateStageContinuationFeasibilityTol`, or more aggressive profiles.
 - Protect fine sub-branching with `lateStageRefinement*`, lower `lateStageMaxBeta`, and earlier `overactiveTopology*`.
-- Keep large smooth trunks early and finer carving late with `lateStageFilterRStartIter` plus `lateStageFilterRCap`.
+- Keep large smooth trunks early and finer carving late with `useLateStageFilterRCap=true` plus `lateStageFilterRStartIter` and `lateStageFilterRCap`.
 - Stop late speckle/noise by lowering `stopContinuationHardeningBelowGrayFraction` only if gray collapse is already achieved.
 
 ### `adjointControl`

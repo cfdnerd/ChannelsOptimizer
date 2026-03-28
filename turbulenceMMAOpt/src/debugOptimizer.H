@@ -317,7 +317,8 @@ const bool debugContinuationHardeningEnabled =
   && debugContinuationThrottleAllowsHardening
   && (forceContinuationHardening || debugContinuationFloorActive || debugContinuationGateSatisfied);
 const bool debugLateStageFilterRCapActive =
-  lateStageFilterRStartIter > 0
+  useLateStageFilterRCap
+  && lateStageFilterRStartIter > 0
   && lateStageFilterRCap >= 0.0
   && opt > lateStageFilterRStartIter;
 const bool debugLateStageRefinementActive =

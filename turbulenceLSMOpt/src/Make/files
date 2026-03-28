@@ -5,5 +5,5 @@ adjointOutletPressurePower/adjointOutletPressurePowerFvPatchScalarField.C
 adjointOutletVelocityPower/adjointOutletVelocityPowerFvPatchVectorField.C
 MMA/MMA.C
 
-turbulenceLSMOpt.C
-EXE = $(FOAM_USER_APPBIN)/turbulenceLSMOpt
+turbulenceMMAOpt.C
+EXE = $(FOAM_USER_APPBIN)/turbulenceMMAOpt

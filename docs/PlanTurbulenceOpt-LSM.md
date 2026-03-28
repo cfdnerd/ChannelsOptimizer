@@ -1,590 +1,918 @@
-# PlanTurbulenceOpt-LSM: Independent Quasi-2D Turbulent Level-Set Optimizer
+# PlanTurbulenceOpt-LSM: Hybrid Turbulent MMA-to-LSM Channel Optimizer
 
 **Target folder:** `turbulenceLSMOpt/`  
-**Method:** Level-set topology optimization on a quasi-2D domain  
-**Target product:** 2D cooling topology for later **extrusion into a cold plate**
+**Method:** one continuous quasi-2D optimization run with a staged design update  
+**Stage 1:** density-based `x -> xp -> xh` topology discovery using MMA  
+**Stage 2:** signed-distance level-set refinement for geometry control  
+**Primary LSM role:** control channel width, rib thickness, branch shape, and local hydraulic size after topology has already been discovered  
+**Target product:** planar channel topology for later extrusion into a prescribed cold-plate thickness
+
+See also:
+
+- [PlanTurbulenceOpt-MMA.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/PlanTurbulenceOpt-MMA.md)
+- [TurbulenceMMAOptDebugFindings.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceMMAOptDebugFindings.md)
 
 ---
 
 ## 1. Development Position
 
-This branch is to be developed **independently** from the MMA branch in its own folder:
+This document **completely supersedes** the earlier idea of building `turbulenceLSMOpt/` as an independent level-set topology optimizer that explores topology from scratch.
 
-- `turbulenceLSMOpt/src`
-- `turbulenceLSMOpt/app`
+That is no longer the intended architecture.
 
-It may inherit selected utilities from `laminarOptimizer/`, but it is **not** expected to share the same design-update logic.
+The correct development position is:
 
-The intended scope is:
+1. `turbulenceLSMOpt/` starts from the current `turbulenceMMAOpt/` baseline, exactly as already done.
+2. The density/MMA machinery remains the **primary topology-exploration engine**.
+3. LSM is added as a **secondary in-run refinement stage**, not as a separate optimizer and not as a fresh topology generator.
+4. The LSM stage exists mainly to impose **explicit geometric control** after the topology has become physically meaningful.
 
-- quasi-2D optimization only
-- no full 3D topology optimization
-- final 2D contour extraction followed by extrusion
+This directly matches the archived 2026 debugging context summarized in [TurbulenceMMAOptDebugFindings.md](/home/tomathew/work/jobs/chaos/wDir/ChannelsOptimizer/docs/TurbulenceMMAOptDebugFindings.md):
 
-This branch exists because level-set methods can produce cleaner final geometry than density methods, but the LSM branch is still the **higher-risk branch** relative to MMA and should therefore be documented with explicit runtime fallbacks from the start.
+- early topology evolution is highly sensitive to continuation and interpolation startup
+- the density stage must remain soft and robust during discovery
+- LSM must **not** be used as a workaround for a poorly conditioned density startup
 
----
+The practical intent is therefore:
 
-## 2. Selected SOTA Direction for This Branch
-
-For the intended goal, the preferred LSM direction is:
-
-1. signed-distance level-set field `phiLS`
-2. explicit interface-aware turbulent wall treatment
-3. level-set-native sensitivity-to-velocity pipeline
-4. reaction-diffusion regularization of the interface motion field
-5. Hamilton-Jacobi update of `phiLS`
-6. contour extraction of `phiLS = 0`
-7. extrusion to cold-plate thickness
-
-This is intentionally **not** the same update logic as the MMA branch.
-
-### 2.1 Why this is selected
-
-For a quasi-2D extruded cold-plate workflow:
-
-- the geometry crispness of LSM is useful
-- direct interface handling is more valuable than gray-region optimization
-- level-set-native motion regularization is more defensible than reusing the density-chain-rule as the primary formulation
-- the reduced 2D scope makes explicit interface handling tractable
+- **MMA discovers where channels should exist**
+- **LSM tunes what those channels should look like**
 
 ---
 
-## 3. Roadblock Resolution Strategy
+## 2. Core Decision
 
-This section resolves the critical ambiguities with an ordered preference list. The first option in each subsection is the selected baseline. Lower options remain runtime-selectable fallbacks if instability appears.
+### 2.1 Selected baseline
 
-### 3.1 LSM Update Strategy
+The selected baseline for `turbulenceLSMOpt/` is:
 
-#### Preferred option: level-set-native interface motion with reaction-diffusion regularization
+1. Run the same turbulent primal and adjoint framework already used in the MMA branch.
+2. Use cell-wise density design variables and MMA until the topology becomes connected, feasible, and sufficiently low-gray.
+3. Extract a signed-distance level-set field from the mature density topology.
+4. Freeze large topological changes by default.
+5. Continue the **same optimization run** with an LSM boundary-evolution stage that refines channel shape and size under the same global objective and constraints.
 
-The selected baseline is:
+### 2.2 What LSM is for in this branch
 
-1. compute a raw interface sensitivity from the turbulent primal + adjoint fields
-2. convert that sensitivity into a normal velocity field near the interface
-3. regularize that velocity with a reaction-diffusion or Helmholtz-type smoothing step
-4. advect `phiLS` with a Hamilton-Jacobi update
-5. reinitialize `phiLS` to a signed-distance field
+In this branch, LSM is **primarily a geometry controller**, not a topology explorer.
 
-This is the preferred compromise between:
+Its first responsibilities are:
 
-- SOTA LSM practice
-- the practical realities of OpenFOAM-6 implementation
-- the need for explicit debug fallbacks
+- minimum channel width control
+- maximum channel width control where needed
+- minimum rib or wall thickness control
+- maximum rib thickness control where useful
+- local branch-size tuning
+- regionwise size tuning
+- branchwise size tuning
+- curvature and shape smoothing
+- sharper wall definition for the turbulent wall-distance treatment
 
-It is more level-set-native than routing all sensitivities through the density `x/xp/xh` machinery.
+### 2.3 What LSM is not for in this branch
 
-#### Alternative A: pure Hamilton-Jacobi update with direct interface sensitivity
+By default, the LSM stage is **not** intended to:
 
-This remains available as a simpler fallback:
-
-$$\frac{\partial \phi}{\partial \tau} + V_n |\nabla \phi| = 0$$
-
-with classical reinitialization and no separate reaction-diffusion smoothing step.
-
-This is acceptable if the reaction-diffusion regularization introduces too much implementation complexity during bring-up.
-
-#### Alternative B: density-assisted debug mode
-
-As a last-resort debugging mode, permit reconstruction of auxiliary `x/xp/xh` fields from `phiLS` and use the existing density-style sensitivity infrastructure to isolate primal/adjoint bugs.
-
-This mode is explicitly a **debug fallback**, not the selected production formulation.
-
-### 3.2 RAMP Continuation Inside the LSM Fictitious Domain
-
-Even though LSM is the design method, the primal equations still use interpolated material properties in the narrow band.
-
-#### Preferred option: split interpolation controls
-
-Use:
-
-- `qAlphaLSM` for Brinkman flow resistance
-- `qKappaLSM` for thermal interpolation
-
-with decreasing schedules:
-
-$$qAlphaLSM^{(k+1)} \le qAlphaLSM^{(k)}, \qquad qKappaLSM^{(k+1)} \le qKappaLSM^{(k)}$$
-
-This is selected for the same reason as in the MMA branch: hydraulic hardening and thermal hardening should not be forced to occur on one shared schedule.
-
-#### Alternative A: single `qLSM`
-
-Allowed for simplified debugging only.
-
-#### Alternative B: hard-binary interface forcing
-
-If narrow-band interpolation proves unstable in late iterations, allow a hard-interface experimental mode after convergence of the main topology. This is not the preferred baseline because it is less numerically forgiving.
-
-### 3.3 Turbulent Wall Treatment
-
-#### Preferred option: interface-derived wall distance for the LSM boundary
-
-The selected baseline is to compute an evolving wall distance from the level-set geometry each optimization iteration.
-
-For a reinitialized signed-distance field, the fluid-side distance to the moving interface is already available from `phiLS`. The selected implementation stance is:
-
-$$d_{LS} = \min(\phi^+, d_{fixed})$$
-
-used only after reinitialization has restored the signed-distance property. This gives a practical interface-aware wall distance for the quasi-2D branch.
-
-This is selected because:
-
-- the branch is only quasi-2D
-- the interface is explicit
-- it avoids building a porous gray-wall model into the LSM branch
-
-#### Alternative A: auxiliary PDE wall distance
-
-If the direct `phiLS` distance proves too noisy, solve a Poisson/heat-method distance field from the reconstructed interface each iteration.
-
-This is the preferred fallback because it remains interface-aware and is still inexpensive in 2D.
-
-#### Alternative B: turbulence-model fallback
-
-If the interface-aware `kEpsilon` wall treatment remains unstable, the controlled fallback is to switch the LSM branch to a simpler closure such as Wray-Agarwal or another wall-distance-light model. This should remain a fallback, not the first implementation.
-
-### 3.4 Scope Resolution: quasi-2D extrusion workflow
-
-The selected workflow is:
-
-- optimize in a 2D planar domain
-- treat plate thickness as prescribed
-- report hydraulic and thermal quantities either per-unit-depth or using the selected extrusion depth
-- export a final 2D contour for extrusion
-
-The LSM branch therefore does **not** need:
-
-- full 3D remeshing
-- 3D level-set reinitialization
-- 3D topological nucleation logic
+- create brand-new disconnected channels
+- seed holes from a uniform starting domain
+- replace the density stage
+- become a separate standalone solver workflow
+- require XFEM, CutFEM, remeshing, or full body-fitted 3D geometry handling before the branch becomes useful
 
 ---
 
-## 4. Governing Formulation
+## 3. Why This Hybrid Direction Is the Right One
 
-### 4.1 Level-Set Representation
+The literature is consistent on the tradeoff:
 
-Use a signed-distance level-set field:
+- density methods are still the most practical route for early topology discovery in fluid and thermal-fluid topology optimization, especially when porous Brinkman interpolation and robust continuation are needed [1, 2, 3]
+- level-set methods become most valuable once the interface must be explicit and geometry must be controlled directly [4, 5, 6, 7]
+- level-set methods are sensitive to initial design and to missing hole seeding if asked to discover topology from scratch [5, 8, 9]
 
-$$|\nabla \phi| = 1$$
+That makes the hybrid staging natural for this project:
+
+- **Stage 1** uses density because it tolerates unknown topology and gray transitions better.
+- **Stage 2** uses level sets because channel size, spacing, and shape are easier to control from an explicit interface.
+
+This is also the best fit to the current code reality:
+
+- `turbulenceLSMOpt/` is now copied from `turbulenceMMAOpt/`
+- the current primal, adjoint, cost, logging, and continuation framework already exist
+- adding an LSM stage on top of that baseline is lower risk than building a fresh LSM stack from zero
+
+---
+
+## 4. Selected Solver Architecture
+
+### 4.1 Stage A - Density/MMA topology discovery
+
+The first stage is the existing density pipeline:
+
+$$x \rightarrow xp \rightarrow xh$$
 
 with:
 
-$$\phi > 0: \text{fluid}, \qquad \phi < 0: \text{solid}, \qquad \phi = 0: \Gamma$$
+- Helmholtz filtering
+- Heaviside projection
+- Brinkman-penalized turbulent RANS primal
+- frozen-turbulence adjoint as the initial baseline
+- MMA update on the cell-wise design field
 
-### 4.2 Narrow-Band Physical Field Reconstruction
+This stage keeps the current strengths of the copied solver:
 
-Reconstruct a physical fluid indicator:
+- robust continuation machinery
+- established debug logs
+- power and volume constraints already wired into the optimization loop
+- the current `k-epsilon` infrastructure
 
-$$xh = H_\epsilon(\phiLS)$$
+### 4.2 Stage B - Controlled handover from density to level set
 
-using a smoothed Heaviside over a narrow band.
+The handover is **not** iteration-only and **must not** happen too early.
 
-This field exists only to provide stable coefficients for the primal equations. It is **not** the primary design variable.
+At handover:
 
-### 4.3 Turbulent Primal Momentum
+1. checkpoint the full optimizer state
+2. extract the `xh = 0.5` contour
+3. initialize a signed-distance field `phi`
+4. derive compatibility fields from `phi`
+5. blend density- and level-set-based physical indicators over a short transition window
 
-Use a Brinkman-penalized turbulent RANS momentum equation:
+The transition should be smooth enough that the primal and adjoint equations do not see a violent physics jump.
 
-$$({\bf U}\cdot\nabla){\bf U} = -\nabla p + \nabla\cdot[(\nu+\nu_t)(\nabla{\bf U}+(\nabla{\bf U})^T)] - \alpha(xh){\bf U}$$
+### 4.3 Stage C - Level-set refinement
 
-with
+After handover, the level-set field becomes the master geometry description:
 
-$$\alpha(xh) = \alpha_{max}\frac{qAlphaLSM(1-xh)}{qAlphaLSM+xh}$$
+$$
+\phi > 0 \; \text{fluid}, \qquad
+\phi < 0 \; \text{solid}, \qquad
+\phi = 0 \; \Gamma
+$$
 
-### 4.4 Turbulence Suppression
+The density fields remain in the code, but as **compatibility carriers**:
 
-The selected baseline is equation-level damping in the turbulence equations:
+- `x`, `xp`, and `xh` are reconstructed from `phi`
+- the existing interpolation and logging infrastructure stays usable
+- the physics code path changes as little as possible
 
-$$S_k = -\alpha(xh)\rho k, \qquad S_\epsilon = -\alpha(xh)\rho \epsilon$$
+The LSM stage then moves the interface by a constrained normal velocity:
 
-kept behind a runtime switch.
+$$
+V_n = V_J + \lambda_P V_P + \lambda_V V_V + \lambda_{w,\min} V_{w,\min}
+      + \lambda_{w,\max} V_{w,\max} + \lambda_{r,\min} V_{r,\min}
+      + \lambda_{r,\max} V_{r,\max} + \lambda_\kappa V_\kappa
+$$
 
-### 4.5 Thermal Transport
+where:
 
-Use separate thermal interpolation:
+- `V_J` refines the global objective
+- `V_P` enforces power dissipation feasibility
+- `V_V` enforces volume feasibility
+- `V_{w,min}` and `V_{w,max}` enforce channel width bounds
+- `V_{r,min}` and `V_{r,max}` enforce rib-thickness bounds
+- `V_\kappa` regularizes curvature and suppresses noisy boundary motion
 
-$$D_T(xh)=\frac{k_s+(k_f-k_s)\,xh\,(1+qKappaLSM)/(qKappaLSM+xh)}{\rho c_p}$$
+### 4.4 Stage D - rollback and recovery
 
-with optional turbulent thermal contribution:
+The handover must always support rollback.
 
-$$D_{T,eff}=D_T+\nu_t/Pr_t$$
+If the LSM stage:
 
----
+- breaks feasibility badly
+- destroys connectivity
+- creates unphysical width collapse
+- shows adjoint sign failure or runaway behavior
 
-## 5. Adjoint and Interface Sensitivity
+then the run must revert to the density checkpoint and either:
 
-### 5.1 Selected baseline
+- retry with gentler LSM controls, or
+- continue with density-only optimization
 
-Use the same dual-adjoint structure as the MMA branch:
-
-- power adjoint `(Ua, pa)`
-- thermal adjoint `(Ub, pb, Tb)`
-
-### 5.2 Frozen Turbulence
-
-The selected baseline is Frozen Turbulence:
-
-$$\delta \nu_t = 0$$
-
-for the same stability reasons as the MMA branch.
-
-### 5.3 Interface sensitivity pipeline
-
-Selected baseline:
-
-1. compute raw sensitivity with respect to the reconstructed physical field `xh`
-2. map the sensitivity to the interface with the regularized Dirac delta
-3. regularize the resulting normal velocity
-4. update `phiLS`
-
-$$\frac{dJ}{d\phi} = -\frac{\partial J}{\partial xh}\,\delta_\epsilon(\phi)$$
-
-This is the selected production path.
-
-The density-assisted chain rule remains available only as a debugging switch.
-
----
-
-## 6. Objective Stack for Electronics Cooling
-
-The LSM branch should use the same objective hierarchy as the MMA branch so that comparisons between branches remain meaningful.
-
-### 6.1 Bring-up objective
-
-$$J = MeanT$$
-
-### 6.2 Preferred production objective
-
-$$J_{log} = \ln\left(\frac{MeanT}{T_{ref}}\right)$$
-
-### 6.3 Preferred hotspot-aware objective
-
-$$J_{KS} = T_{max}^\star + \frac{1}{\rho_{KS}}\ln\left(\sum_e \exp[\rho_{KS}(T_e-T_{max}^\star)]\right)$$
-
-### 6.4 Alternative uniformity objective
-
-$$J_\sigma = \frac{1}{|\Omega_h|}\int_{\Omega_h}(T-\bar{T}_h)^2\,dV$$
-
-### 6.5 Multi-case robustness
-
-Keep disabled initially, but available:
-
-$$J_{robust}=\sum_{s=1}^{N_s} w_s J_s$$
+This rollback is part of the selected baseline, not an optional luxury.
 
 ---
 
-## 7. Runtime Toggle Philosophy
+## 5. Stage-Switch Criteria
 
-Every unstable or experimental LSM feature must be runtime-selectable through `constant/tuneOptParameters`.
+The switch from density to LSM should be governed by the existing optimizer diagnostics, not by a hardcoded iteration count alone.
 
-### 7.1 Division of responsibility
+### 5.1 Selected default switch gate
 
-- `constant/optProperties`
-  - physical constants
-  - continuation magnitudes
-  - extrusion-thickness reference values
+All of the following should be satisfied:
 
-- `constant/tuneOptParameters`
-  - formulation switches
-  - update-model switches
-  - turbulence-model fallbacks
-  - debug-safe modes for physics and optimizer behavior, but not for core logging
+1. `grayVolumeFraction <= 0.15 - 0.25`
+2. `powerFeasibilityRatio <= 1.02 - 1.05`
+3. `previousXhStepMax <= 0.05 - 0.10`
+4. `beta >= 10 - 15`
+5. no adjoint runaway and no solver health warning
+6. a connected inlet-to-outlet fluid path exists in the thresholded design
+7. the density stage has already run for a minimum maturity window, typically at least `80 - 150` iterations depending on the case
 
-### 7.2 Required LSM branch switches
+### 5.2 Important interpretation
 
-| Key in `tuneOptParameters` | Purpose |
-|----------------------------|---------|
-| `useFrozenTurbulenceAdjoint` | Toggle FT adjoint assumption |
-| `useKEpsilonModel` | Baseline turbulence model |
-| `useWrayAgarwalFallback` | Simplified fallback turbulence closure |
-| `useBrinkmanSinkInKEpsilon` | Enable `k` and `epsilon` sinks |
-| `useSplitRAMPControlsLSM` | Enable `qAlphaLSM` and `qKappaLSM` |
-| `useSingleQLSMFallback` | One-parameter interpolation fallback |
-| `useReactionDiffusionLSMUpdate` | Preferred motion regularization |
-| `usePureHamiltonJacobiFallback` | Simpler advection fallback |
-| `useDensityAssistedLSMDebug` | Last-resort debugging mode |
-| `useTopologicalNucleation` | Optional later experimental feature |
-| `useInterfaceDerivedWallDistance` | Baseline wall treatment |
-| `useAuxiliaryPDEWallDistance` | Fallback wall-distance solve |
-| `useMeshWaveWallDistanceFallback` | Debug-only fallback |
-| `useTurbulentThermalDiffusivity` | Toggle `nut/Prt` contribution |
-| `useLogMeanTObjective` | Toggle `Jlog` |
-| `useKSHotspotObjective` | Toggle `JKS` |
-| `useVarianceObjective` | Toggle `Jsigma` |
-| `useRobustMultiCaseObjective` | Toggle multi-scenario aggregation |
-| `useWENO5ForPhiAdvection` | Higher-order advection option |
-| `useSussmanReinitialization` | Signed-distance restoration |
+The switch criterion is intentionally conservative.
 
-### 7.3 Consistency rules for runtime switches
+The LSM stage should begin only after:
 
-To keep the framework mutually stable and internally consistent, the following runtime rules apply:
+- the optimizer has found the main branches
+- the power constraint is close to feasible
+- the topology is moving less like exploration and more like refinement
 
-- Exactly one turbulence-closure path is active:
-  - baseline: `useKEpsilonModel = true`, `useWrayAgarwalFallback = false`
-  - fallback: `useKEpsilonModel = false`, `useWrayAgarwalFallback = true`
-- Exactly one primary LSM update path is active:
-  - baseline: `useReactionDiffusionLSMUpdate = true`, `usePureHamiltonJacobiFallback = false`
-  - simplified fallback: `useReactionDiffusionLSMUpdate = false`, `usePureHamiltonJacobiFallback = true`
-- `useDensityAssistedLSMDebug` is a debug-only fallback and must not be combined with the production LSM update path for performance claims
-- Exactly one wall-distance path is active:
-  - baseline: `useInterfaceDerivedWallDistance = true`
-  - fallback: `useAuxiliaryPDEWallDistance = true`
-  - bring-up/debug only: `useMeshWaveWallDistanceFallback = true`
-- Exactly one primary thermal objective is active at a time:
-  - baseline bring-up: all advanced objective switches off, which implies `MeanT`
-  - advanced mode: one of `useLogMeanTObjective`, `useKSHotspotObjective`, or `useVarianceObjective` may be true
-- `useRobustMultiCaseObjective` is a wrapper over the active primary objective, not an additional competing objective
-- Logging is not controlled by these switches and remains always enabled during current development
+That is exactly the point where LSM becomes valuable.
 
-### 7.4 Recommended `tuneOptParameters` layout
+### 5.3 Blended handover
 
-```text
-frameworkSwitches
-{
-    useFrozenTurbulenceAdjoint     true;
-    useKEpsilonModel               true;
-    useWrayAgarwalFallback         false;
-    useBrinkmanSinkInKEpsilon      true;
-    useSplitRAMPControlsLSM        true;
-    useSingleQLSMFallback          false;
-    useInterfaceDerivedWallDistance true;
-    useAuxiliaryPDEWallDistance    false;
-    useMeshWaveWallDistanceFallback false;
-    useTurbulentThermalDiffusivity true;
-}
+The selected baseline includes `3 - 10` blending iterations:
 
-lsmSwitches
-{
-    useReactionDiffusionLSMUpdate  true;
-    usePureHamiltonJacobiFallback  false;
-    useDensityAssistedLSMDebug     false;
-    useTopologicalNucleation       false;
-    useWENO5ForPhiAdvection        false;
-    useSussmanReinitialization     true;
-}
+$$
+xh_{\text{blend}} = \omega \, xh_{\text{density}} + (1-\omega)\,H_\epsilon(\phi)
+$$
 
-objectiveSwitches
-{
-    useLogMeanTObjective           false;
-    useKSHotspotObjective          false;
-    useVarianceObjective           false;
-    useRobustMultiCaseObjective    false;
-}
-```
+with `omega` decaying from `1` to `0`.
+
+This reduces the risk of a sudden step in:
+
+- Brinkman resistance
+- thermal interpolation
+- wall distance
+- adjoint sensitivities
 
 ---
 
-## 8. Optimizer Debug Instrumentation
+## 6. Governing Formulation
 
-The LSM branch must extend the `debugOptimizer` framework with dedicated logging for interface sensitivities, normal velocities, and level-set evolution diagnostics.
+### 6.1 Stage 1 physics
 
-### 8.1 Required debug log files
+The density stage keeps the current turbulent MMA formulation:
 
-The LSM branch must write, at minimum:
+$$
+({\bf U}\cdot\nabla){\bf U}
+= -\nabla p
++ \nabla \cdot \left[ (\nu+\nu_t)(\nabla {\bf U}+(\nabla {\bf U})^T) \right]
+- \alpha(xh)\,{\bf U}
+$$
 
-- `debugOptimizer.log` — human-readable optimizer diagnostics
-- `debugOptimizer.jsonl` — structured per-iteration diagnostics
-- `gradientOpt.log` — dedicated per-iteration gradient, interface-sensitivity, and velocity diagnostics
-- `solverConvergences.log` — linear-solver residual summary
+with:
 
-These logs are part of the default optimizer framework and must be enabled unconditionally during current development.
+$$
+\alpha(xh)=\alpha_{max}\frac{q_\alpha(1-xh)}{q_\alpha+xh}
+$$
 
-### 8.2 `gradientOpt.log` requirements
+and thermal transport:
 
-`gradientOpt.log` is mandatory and must be updated every optimization iteration.
+$$
+D_T(xh)=\frac{k_s+(k_f-k_s)\,xh\,(1+q_\kappa)/(q_\kappa+xh)}{\rho c_p}
+$$
 
-Its purpose is to isolate:
+The current split-`q` continuation logic remains the correct baseline for this branch as well.
 
-- sign errors in the interface sensitivity
-- loss of localization of the Dirac-delta band
-- noisy or unstable normal velocities
-- reinitialization failure
-- sensitivity collapse away from the interface
-- instability caused by reaction-diffusion regularization or advection
+### 6.2 Level-set master field after handover
 
-For every optimization iteration, log at least the following quantities:
+After the switch:
 
-- objective value and active objective label
-- constraint values and weighted constraint values
-- `qAlphaLSM`, `qKappaLSM`, `alphaMax`, `epsilonLSM`
-- min/max/L2/non-finite count of raw `dJ/dxh`
-- min/max/L2/non-finite count of raw constraint sensitivities
-- min/max/L2/non-finite count of interface-mapped `dJ/dphi`
-- min/max/L2/non-finite count of interface-mapped constraint sensitivities
-- min/max/L2/non-finite count of regularized normal velocity `Vn`
-- min/max of `delta_epsilon(phi)`
-- interface-band volume fraction `|phi| <= epsilonLSM`
-- max absolute change and L2 change of `phiLS`
-- min/max of `|grad(phiLS)|`
-- signed-distance reinitialization residual indicators
-- optional top-N interface cells by sensitivity magnitude when detailed debug is enabled
+$$
+xh_\phi = H_\epsilon(\phi)
+$$
 
-If the branch enters density-assisted debug mode, `gradientOpt.log` must additionally include the auxiliary `x/xp/xh` sensitivity metrics used in that fallback mode.
+where `H_epsilon` is a smooth Heaviside over a narrow band.
 
-### 8.3 `debugOptimizer.log` runtime-option dump
+Then the existing interpolation path becomes:
 
-At optimizer startup, write a complete dump of all active runtime options from:
+$$
+\phi \rightarrow xh_\phi \rightarrow \alpha(xh_\phi), \; D_T(xh_\phi)
+$$
 
-- `constant/optProperties`
-- `constant/tuneOptParameters`
+This allows the current solver infrastructure to remain intact while the geometry is now controlled by `phi`.
 
-into `debugOptimizer.log`.
+### 6.3 Compatibility-field rule
 
-This startup section must include:
+During the LSM stage:
 
-- all physical interpolation parameters
-- all continuation settings
-- all LSM update switches
-- all wall-distance switches
-- all objective switches
+- `phi` is the **master** geometry field
+- `xh` is a **derived** physical indicator
+- `x` and `xp` are compatibility fields kept for logging, restart simplicity, and minimum code disruption
 
-This is mandatory so the exact formulation used in any run can be reconstructed from the logs alone.
+The LSM stage must **not** keep competing masters for geometry.
 
-### 8.4 Per-iteration option echo for active modes
+### 6.4 Objective and global constraints
 
-If any algorithmic mode can change during a run, echo the active mode and current control values into `debugOptimizer.log` and `gradientOpt.log`, including:
+The LSM stage keeps the same global objective family as the MMA branch:
 
-- `alphaMax`
-- `qAlphaLSM`, `qKappaLSM`
-- `epsilonLSM`
-- active wall-distance mode
-- active LSM update mode
-- active turbulence-model mode
-- active objective selector
+- `MeanT`
+- `log(MeanT/Tref)`
+- KS hotspot objective
+- temperature variance objective
 
-### 8.5 Logging activation policy
+The primary global constraints remain:
 
-For the current development phase:
+$$
+g_P = \frac{PowerDiss}{PowerLimit} - 1 \le 0
+$$
 
-- `debugOptimizer.log` is always enabled
-- `debugOptimizer.jsonl` is always enabled
-- `gradientOpt.log` is always enabled
-- runtime-option dumping is always enabled
+$$
+g_V = V(\phi) - V_{max} \le 0
+$$
 
-Do not place these core logging features behind `tuneOptParameters` switches for now. If log-volume reduction becomes necessary later, that can be introduced as a future refinement after the optimizer frameworks are stable.
+where `V(phi)` is evaluated from `xh_phi`.
 
 ---
 
-## 9. Development Order
+## 7. LSM Geometry-Control Formulation
 
-### Phase A - branch creation
+This section is the main reason the branch exists.
 
-Create:
+### 7.1 Primary size quantities
 
-- `turbulenceLSMOpt/src`
-- `turbulenceLSMOpt/app`
+For the quasi-2D extruded channel design, the preferred primary quantity is the **local channel width**.
 
-in the same general style as `laminarOptimizer/`, but without forcing the MMA update logic into this branch.
+Let `S_f` denote the fluid skeleton or centerline set. Then the local half-width is:
 
-### Phase B - turbulent primal bring-up
+$$
+r_f(s) = \operatorname{dist}(S_f, \Gamma)
+$$
 
-Implement and verify:
+and the local channel width is:
 
-- `kEpsilon` case files
-- turbulence sinks
-- split `qAlphaLSM/qKappaLSM`
-- interface reconstruction fields
-- startup option dump into `debugOptimizer.log`
+$$
+w(s)=2r_f(s)
+$$
 
-### Phase C - wall treatment
+For the solid skeleton `S_s`, the local rib thickness is:
 
-Implement:
+$$
+t_{rib}(s)=2\,\operatorname{dist}(S_s,\Gamma)
+$$
 
-- interface-derived wall distance
-- auxiliary PDE fallback
-- logging of active wall-distance mode and wall-distance health indicators
+If the extrusion thickness `h_ext` is fixed, the local hydraulic diameter can also be reported as:
 
-### Phase D - interface evolution
+$$
+D_h(s)=\frac{2\,w(s)\,h_{ext}}{w(s)+h_{ext}}
+$$
 
-Implement in order:
+but **width control should remain the primary implemented control**, because it is more direct geometrically.
 
-1. direct sensitivity-to-velocity mapping
-2. reaction-diffusion regularization
-3. Hamilton-Jacobi update
-4. reinitialization
+### 7.2 Selected geometric constraints
 
-Only after this is stable should higher-order advection or topological nucleation be enabled.
+The selected initial LSM constraints are:
 
-During this phase, `gradientOpt.log` must report:
+1. minimum channel width
+2. maximum channel width
+3. minimum rib thickness
+4. maximum rib thickness
+5. optional curvature cap
 
-- raw interface sensitivities
-- mapped `dJ/dphi`
-- regularized `Vn`
-- `phiLS` update norms
-- reinitialization quality metrics
+The preferred aggregated forms are KS-type inequalities:
 
-### Phase E - objective upgrades
+$$
+g_{w,\min} = KS_s\left(\frac{w_{\min}(s)-w(s)}{w_{ref}}\right) \le 0
+$$
 
-Promote:
+$$
+g_{w,\max} = KS_s\left(\frac{w(s)-w_{\max}(s)}{w_{ref}}\right) \le 0
+$$
 
-- `MeanT` -> `Jlog`
-- `Jlog` -> `JKS` or `Jsigma`
-- extend `gradientOpt.log` to objective-specific adjoint-source diagnostics
+$$
+g_{r,\min} = KS_s\left(\frac{t_{rib,\min}(s)-t_{rib}(s)}{t_{ref}}\right) \le 0
+$$
 
-### Phase F - final geometry workflow
+$$
+g_{r,\max} = KS_s\left(\frac{t_{rib}(s)-t_{rib,\max}(s)}{t_{ref}}\right) \le 0
+$$
 
-Deliver:
+$$
+g_{\kappa} = KS_\Gamma\left(\frac{|\kappa|-\kappa_{\max}}{\kappa_{ref}}\right) \le 0
+$$
 
-- stable 2D zero-contour
-- contour smoothing/cleanup if needed
-- extrusion to prescribed plate thickness
+This is preferred over simple perimeter-only control because the user requirement is **size control**, not merely smoothness.
+
+The intended meaning of the rib limits is:
+
+$$
+t_{rib,\min}(s) \le t_{rib}(s) \le t_{rib,\max}(s)
+$$
+
+with `t_{rib,\max}` typically used more selectively than `t_{rib,\min}` so the optimizer does not accidentally thin protected outer walls or non-design support regions.
+
+### 7.3 How the size control acts
+
+The size-control velocity must be local and directional:
+
+- if a channel branch is too narrow, the interface should move outward locally
+- if a channel branch is too wide, the interface should move inward locally
+- if a rib is too thin, the neighboring fluid interface should retreat locally
+- if a rib is too thick, the neighboring fluid interface should advance locally
+
+The important implementation rule is:
+
+- geometry constraints act on `phi = 0` through normal motion
+- they do not modify the global objective definition
+- they are enforced alongside the thermal and hydraulic constraints
+
+### 7.4 Selected baseline for extracting width and rib metrics
+
+The selected baseline is:
+
+1. threshold `xh_phi` to a fluid mask
+2. compute a distance transform
+3. extract a skeleton or centerline representation
+4. sample local width and rib thickness from the skeleton-to-interface distance
+
+For this quasi-2D project, this approach is practical and sufficiently explicit.
+
+### 7.5 Specialized target modes
+
+The geometry targets should support three levels of specificity:
+
+1. global scalar targets
+2. regionwise targets
+3. branchwise targets
+
+#### Global scalar targets
+
+These are the simplest manufacturing controls:
+
+- one `channelWidthMin`
+- one `channelWidthMax`
+- one `ribThicknessMin`
+- one `ribThicknessMax`
+
+They are the correct first implementation baseline.
+
+#### Regionwise targets
+
+Regionwise targets allow different size rules in different zones of the design domain, for example:
+
+- inlet manifold region
+- heated core region
+- outlet collector region
+- peripheral bypass region
+
+In notation, this simply means the size limits become piecewise fields:
+
+$$
+w_{\min}(s) \rightarrow w_{\min}^{(m)} , \qquad
+w_{\max}(s) \rightarrow w_{\max}^{(m)}
+$$
+
+$$
+t_{rib,\min}(s) \rightarrow t_{rib,\min}^{(m)} , \qquad
+t_{rib,\max}(s) \rightarrow t_{rib,\max}^{(m)}
+$$
+
+for region index `m`.
+
+#### Branchwise targets
+
+Branchwise targets are more specialized and become useful once the channel network has a stable skeleton graph.
+
+The intended workflow is:
+
+1. extract the fluid and solid skeletons
+2. convert the skeleton into a graph
+3. identify branch segments between junctions and boundaries
+4. assign each branch a `branchId`
+5. apply size targets per branch
+
+Then the limits become:
+
+$$
+w_{\min}(s) \rightarrow w_{\min}^{(b)} , \qquad
+w_{\max}(s) \rightarrow w_{\max}^{(b)}
+$$
+
+$$
+t_{rib,\min}(s) \rightarrow t_{rib,\min}^{(b)} , \qquad
+t_{rib,\max}(s) \rightarrow t_{rib,\max}^{(b)}
+$$
+
+for branch index `b`.
+
+This supports designs such as:
+
+- thicker main-trunk channels
+- narrower side branches
+- thicker ribs near hot spots
+- thinner but still manufacturable ribs in low-load peripheral regions
+
+Branchwise targets should be considered a second implementation tier after global controls are working reliably.
+
+#### Protected-region logic
+
+Maximum-rib-thickness control should normally support protected masks so it does not incorrectly erode:
+
+- boundary-attached walls
+- non-design solid anchors
+- inlet and outlet support ligaments
+- any region reserved for structural or sealing purposes
+
+The plan therefore assumes selective application masks for advanced rib-thickness control, especially for `ribThicknessMax`.
+
+### Alternative A: thickness PDE
+
+If skeleton extraction is noisy on the mesh, use an auxiliary thickness field or heat-method-like distance solve.
+
+### Alternative B: regionwise width control only
+
+If local pointwise skeleton control is too complex for the first implementation, begin with regionwise or branchwise width aggregates before moving to full centerline-resolved width control.
 
 ---
 
-## 10. Target File Map
+## 8. Level-Set Update Strategy
 
-| File | Role |
-|------|------|
-| `turbulenceLSMOpt/src/turbulenceLSMOpt.C` | Main optimization loop |
-| `turbulenceLSMOpt/src/createFields.H` | Base fields + tuning-switch reads |
-| `turbulenceLSMOpt/src/readTransportProperties.H` | Flow properties + `qAlphaLSM` initialization |
-| `turbulenceLSMOpt/src/readThermalProperties.H` | Thermal properties + `qKappaLSM` setup |
-| `turbulenceLSMOpt/src/Primal_U.H` | Turbulent primal momentum |
-| `turbulenceLSMOpt/src/Primal_kEpsilon.H` | Turbulence-equation hooks / sink terms |
-| `turbulenceLSMOpt/src/Primal_T.H` | Energy equation |
-| `turbulenceLSMOpt/src/AdjointFlow_Ua.H` | Power adjoint |
-| `turbulenceLSMOpt/src/AdjointHeat_Ub.H` | Thermal adjoint momentum |
-| `turbulenceLSMOpt/src/AdjointHeat_Tb.H` | Thermal adjoint scalar |
-| `turbulenceLSMOpt/src/lsmInterfaceReconstruct.H` | `xh = H(phiLS)` and narrow-band coefficients |
-| `turbulenceLSMOpt/src/lsmWallDistance.H` | Interface-derived wall distance or PDE fallback |
-| `turbulenceLSMOpt/src/lsmSensitivity.H` | Raw interface sensitivity |
-| `turbulenceLSMOpt/src/lsmVelocityRegularization.H` | Reaction-diffusion or alternative smoothing |
-| `turbulenceLSMOpt/src/lsmAdvection.H` | Hamilton-Jacobi update |
-| `turbulenceLSMOpt/src/lsmReinitialize.H` | Signed-distance restoration |
-| `turbulenceLSMOpt/src/update.H` | Split continuation schedules |
-| `turbulenceLSMOpt/src/debugOptimizer.H` | Human-readable iteration diagnostics + runtime-option echo |
-| `turbulenceLSMOpt/src/gradientOptWrite.H` | Dedicated per-iteration gradient/interface-sensitivity logging |
-| `turbulenceLSMOpt/app/constant/tuneOptParameters` | Runtime formulation switches |
+### 8.1 Selected baseline
+
+The selected baseline is:
+
+1. compute objective and constraint shape signals on the interface
+2. add explicit geometry-control velocities
+3. regularize the total normal velocity
+4. advect the level set with a Hamilton-Jacobi update
+5. periodically reinitialize `phi` as a signed-distance field
+
+The update equation is:
+
+$$
+\frac{\partial \phi}{\partial \tau} + \tilde{V}_n |\nabla \phi| = 0
+$$
+
+where `\tilde{V}_n` is the regularized normal velocity.
+
+### 8.2 Velocity regularization
+
+The selected initial regularization is a Helmholtz-type smoothing of the normal velocity:
+
+$$
+\left(I-\ell_v^2 \nabla^2\right)\tilde{V}_n = V_n
+$$
+
+This is preferred because it is:
+
+- easy to integrate into the current finite-volume framework
+- easy to debug
+- compatible with the existing solver architecture
+
+### 8.3 Curvature control
+
+Curvature suppression should be present from the first LSM implementation:
+
+$$
+V_\kappa \propto -\kappa
+$$
+
+with:
+
+$$
+\kappa = \nabla \cdot \left(\frac{\nabla \phi}{|\nabla \phi|}\right)
+$$
+
+This is important because the goal is not only better objective value but also **manufacturable and size-controlled channels**.
+
+### 8.4 Reinitialization
+
+The selected baseline is periodic reinitialization using the standard pseudo-time signed-distance restoration:
+
+$$
+\frac{\partial \phi}{\partial \tau_r}
++ \operatorname{sign}(\phi_0)\left(|\nabla \phi|-1\right)=0
+$$
+
+Reinitialization should be triggered:
+
+- every few LSM iterations, or
+- when the signed-distance drift exceeds a threshold
+
+### 8.5 Yamada-inspired complexity control
+
+Yamada's fictitious-interface-energy and reaction-diffusion direction [10] is highly relevant for this branch.
+
+However, for the first OpenFOAM implementation, it should be treated as a **runtime-selectable complexity-control enhancement**, not the mandatory first path.
+
+That means:
+
+- baseline: HJ update + velocity smoothing + curvature control
+- enhancement: reaction-diffusion or fictitious-interface-energy regularization for stronger complexity management
+
+This gives a better risk profile for the current codebase.
 
 ---
 
-## 11. Critical References
+## 9. Turbulence and Wall Treatment by Stage
 
-| Reference | Relevance |
-|-----------|-----------|
-| Kubo et al. (2021) | 2D turbulent level-set TO with immersed-boundary treatment |
-| Noel and Maute (2022/2023) | Turbulent CHT level-set topology optimization |
-| Wang et al. (2026) | Level-set CHT with turbulence-model simplification |
-| Sun et al. (2023) | Turbulent cooling-channel TO baseline for comparison |
-| Othmer (2008, 2014) | Continuous adjoint and FT practice |
-| Alonso et al. (2022) | Wray-Agarwal fallback option |
-| Haertel et al. (2018) | Reduced-order heat-sink optimization |
-| Huang et al. (2024/2025) | Pseudo-3D/extruded electronics-cooling optimization scope |
+### 9.1 Density stage
+
+The density stage should stay aligned with the MMA branch:
+
+- `k-epsilon` remains the production turbulence model
+- frozen-turbulence adjoint remains the initial baseline
+- porosity-aware wall distance remains the initial wall-distance method
+
+### 9.2 LSM stage
+
+Once the interface is explicit, the preferred wall-distance treatment changes.
+
+The selected LSM-stage baseline is:
+
+$$
+d_{LS} = \max(\phi,0)
+$$
+
+on the fluid side after signed-distance reinitialization, with clipping against fixed physical walls where required.
+
+This is one of the strongest practical reasons to use LSM late in the run:
+
+- the explicit interface can define the moving wall geometry directly
+- local channel-width control and wall distance now become consistent with each other
+
+### 9.3 Fallback wall-distance options
+
+If direct `phi`-based wall distance is noisy:
+
+1. use a Poisson or heat-method auxiliary distance solve from the zero contour
+2. keep the old porosity-aware wall-distance solve as a temporary debug fallback
+
+### 9.4 Adjoint stance
+
+The literature is clear that frozen-turbulence assumptions can be inaccurate for turbulent optimization [1, 11, 12, 13].
+
+For this branch, the selected practical stance is:
+
+- keep frozen turbulence as the first implementation baseline
+- explicitly validate LSM-stage sensitivities against finite differences on small 2D perturbation tests
+- only then decide whether stage-2 needs partial turbulence-adjoint corrections
+
+That is the correct reliability-first order for the current OpenFOAM-6 codebase.
 
 ---
 
-## 12. Final Position
+## 10. Topology-Freezing Policy in the LSM Stage
 
-For the intended extruded-cold-plate workflow, this LSM branch should be developed as an **independent geometry-focused alternative** to MMA.
+The default policy for Stage 2 is:
 
-Its selected baseline is:
+- preserve topology
+- preserve inlet-outlet connectivity
+- do not intentionally nucleate new channels
+- reject interface steps that trigger accidental branch pinch-off or merger
 
-- quasi-2D only
-- explicit level-set design variable
-- interface-aware wall treatment
-- reaction-diffusion-regularized interface motion
-- Hamilton-Jacobi advection and reinitialization
-- all unstable choices guarded by `tuneOptParameters`
+This is essential because the branch objective is **shape and size refinement**.
 
-This gives the branch a clear SOTA-informed identity while still preserving debug-safe alternatives if instability appears during development.
+### Experimental exception
+
+An experimental toggle may later allow limited topology change in the LSM stage, but this must remain off by default:
+
+- `allowTopologyChangeInLSM = false`
+
+---
+
+## 11. Runtime Control Philosophy
+
+All major LSM decisions must be exposed in dictionaries, not hardcoded.
+
+### 11.1 New dictionary groups to add
+
+### `hybridStageControl`
+
+- `useHybridMMAtoLSM`
+- `lsmSwitchGrayFraction`
+- `lsmSwitchPowerFeasibility`
+- `lsmSwitchMinBeta`
+- `lsmSwitchMinIterations`
+- `lsmSwitchRequireConnectivity`
+- `lsmBlendIterations`
+- `lsmRollbackEnabled`
+- `allowTopologyChangeInLSM`
+
+### `lsmControl`
+
+- `useLevelSetStage`
+- `phiBandWidthCells`
+- `phiReinitInterval`
+- `phiGradDriftTol`
+- `lsmPseudoDt`
+- `lsmCfl`
+- `useVelocityHelmholtz`
+- `velocityFilterRadius`
+- `useCurvaturePenalty`
+- `curvaturePenaltyWeight`
+- `useReactionDiffusionComplexityControl`
+
+### `geometryControl`
+
+- `useChannelWidthControl`
+- `channelWidthMin`
+- `channelWidthMax`
+- `useRegionwiseWidthTargets`
+- `useBranchwiseWidthTargets`
+- `useRibThicknessControl`
+- `ribThicknessMin`
+- `useRibThicknessMaxControl`
+- `ribThicknessMax`
+- `useRegionwiseRibTargets`
+- `useBranchwiseRibTargets`
+- `useProtectedGeometryMasks`
+- `applyRibTargetsToInternalRibsOnly`
+- `branchwiseChannelWidthMin`
+- `branchwiseChannelWidthMax`
+- `branchwiseRibThicknessMin`
+- `branchwiseRibThicknessMax`
+- `regionwiseChannelWidthMin`
+- `regionwiseChannelWidthMax`
+- `regionwiseRibThicknessMin`
+- `regionwiseRibThicknessMax`
+- `useHydraulicDiameterReporting`
+- `ksRhoGeom`
+- `sizeConstraintWeightMin`
+- `sizeConstraintWeightMax`
+- `widthConstraintWeight`
+- `ribConstraintWeight`
+- `protectedSolidRegionNames`
+- `protectedFluidRegionNames`
+
+### `wallDistanceControl`
+
+- `useLSMWallDistance`
+- `useHeatMethodWallDistanceFallback`
+- `lsmWallDistanceBlendIterations`
+
+---
+
+## 12. Repo-Level Implementation Plan
+
+This plan is intentionally aligned with the copied MMA baseline now present in `turbulenceLSMOpt/`.
+
+### Phase A - stabilize the copied baseline
+
+Goal:
+
+- make `turbulenceLSMOpt/` build and run as a clean copy of the current turbulent MMA optimizer before adding LSM logic
+
+Actions:
+
+- keep the current primal, adjoint, objective, continuation, and logging behavior intact
+- restore naming consistency where needed so the branch is clearly `turbulenceLSMOpt`
+- ensure the existing logs remain valid references before the stage split is introduced
+
+### Phase B - add stage-switch infrastructure
+
+Goal:
+
+- support one continuous run with a controlled handover
+
+Actions:
+
+- add stage-state variables such as `densityStage`, `handoverStage`, `lsmStage`
+- add checkpoint and rollback support
+- add switch gates using existing diagnostics such as gray fraction, `xhStepMax`, feasibility ratio, and solver health
+
+### Phase C - add level-set fields and reconstruction
+
+Goal:
+
+- create the minimum `phi` infrastructure without breaking the existing solver
+
+Actions:
+
+- create `phi`
+- initialize `phi` from the `xh = 0.5` contour
+- reconstruct `xh_phi`
+- derive compatibility fields used by the existing interpolation and output logic
+
+### Phase D - add geometry metrics
+
+Goal:
+
+- make channel width and rib thickness measurable first
+
+Actions:
+
+- threshold the fluid mask
+- compute distance transform
+- build skeleton or centerline representation
+- assign region IDs and optional branch IDs
+- compute `w(s)` and `t_rib(s)`
+- write these metrics into `gradientOpt.log` and `debugOptimizer.log`
+- verify mask-aware application of `ribThicknessMax`
+
+### Phase E - add the LSM update kernel
+
+Goal:
+
+- move the interface in a constrained and reversible way
+
+Actions:
+
+- compute interface objective and constraint signals
+- add geometry-control velocities
+- regularize the velocity
+- advect `phi`
+- reinitialize
+- update wall distance from `phi`
+
+### Phase F - add validation and branch-specific controls
+
+Goal:
+
+- make the branch trustworthy before extending objectives
+
+Actions:
+
+- finite-difference check of stage-2 interface sensitivities
+- narrow-channel widening test
+- over-wide branch contraction test
+- rib-protection test
+- switch-and-rollback test
+- compare density-stage final design vs. LSM-refined design on the same base case
+
+---
+
+## 13. Recommended File Map
+
+The branch should evolve from the current MMA copy with the following additions.
+
+| File | Responsibility |
+|---|---|
+| `turbulenceLSMOpt/src/createFields.H` | new stage-control, LSM-control, and geometry-control dictionary entries |
+| `turbulenceLSMOpt/src/opt_initialization.H` | initialize stage state, checkpoint metadata, and new logs |
+| `turbulenceLSMOpt/src/update.H` | stage gate, handover logic, and rollback decision |
+| `turbulenceLSMOpt/src/levelSetCreateFields.H` | create `phi`, derived masks, and interface fields |
+| `turbulenceLSMOpt/src/initializeLevelSetFromDensity.H` | build signed-distance `phi` from mature `xh` |
+| `turbulenceLSMOpt/src/updateDerivedDensityFromLevelSet.H` | reconstruct `xh` and compatibility fields from `phi` |
+| `turbulenceLSMOpt/src/lsmGeometryMetrics.H` | width, rib-thickness, skeleton, and hydraulic-diameter metrics |
+| `turbulenceLSMOpt/src/lsmBranchGraph.H` | branch extraction, branch IDs, and region/branch target mapping |
+| `turbulenceLSMOpt/src/lsmSensitivity.H` | boundary objective and constraint velocity terms |
+| `turbulenceLSMOpt/src/lsmVelocityRegularization.H` | Helmholtz or RD smoothing of `V_n` |
+| `turbulenceLSMOpt/src/updateLevelSet.H` | Hamilton-Jacobi update and reinitialization |
+| `turbulenceLSMOpt/src/levelSetWallDistance.H` | `phi`-based wall distance during stage 2 |
+| `turbulenceLSMOpt/src/gradientOptWrite.H` | write width, rib, curvature, and stage diagnostics |
+| `turbulenceLSMOpt/src/debugOptimizer.H` | report stage state, switch gates, and geometry-constraint health |
+| `turbulenceLSMOpt/src/turbulenceLSMOpt.C` | top-level loop with stage-specific includes |
+
+---
+
+## 14. Verification Ladder
+
+The LSM stage should not be trusted until it passes the following ladder.
+
+### 14.1 Geometric unit checks
+
+1. straight channel initialized too narrow expands toward `channelWidthMin`
+2. straight channel initialized too wide contracts toward `channelWidthMax`
+3. thin separating rib grows away from `ribThicknessMin` violation
+4. over-thick rib contracts toward `ribThicknessMax` when that control is enabled
+5. width and rib metrics remain stable under mesh refinement
+
+### 14.2 Physics consistency checks
+
+1. `xh(phi)` reproduces the handover design with small error
+2. power and temperature fields change smoothly through the blend window
+3. level-set wall distance behaves consistently near moving internal walls
+
+### 14.3 Sensitivity checks
+
+1. compare stage-2 interface motion direction against finite differences on simple 2D branches
+2. verify sign of width-control response for inward and outward motions
+3. verify sign of rib-thickness response for both `ribThicknessMin` and `ribThicknessMax`
+4. confirm objective and power sensitivities remain finite in the narrow band
+
+### 14.4 Run-level checks
+
+1. handover does not break the run
+2. rollback restores the last density checkpoint
+3. LSM stage improves geometry metrics without unacceptable objective loss
+4. branchwise and regionwise targets are honored when enabled
+5. connectivity is preserved unless explicitly allowed otherwise
+
+---
+
+## 15. Selected Reference Map
+
+These are the references that most directly justify the plan.
+
+| Ref | Why it matters for this branch |
+|---|---|
+| [1] Alexandersen and Andreasen, *Fluids* 2020, DOI: `10.3390/fluids5010029` | Broad review. Useful for positioning density vs. level-set tradeoffs in fluid topology optimization and for the turbulence-related cautionary context. |
+| [2] Dilgen et al., *Struct Multidisc Optim* 2018, DOI: `10.1007/s00158-018-1967-6` | Strong density-based turbulent conjugate heat transfer reference. Supports keeping density as the topology-discovery stage. |
+| [3] Yoon, *Comput Methods Appl Mech Eng* 2020, DOI: `10.1016/j.cma.2019.112784` | Direct `k-epsilon` turbulent topology optimization reference. Relevant because this branch already uses `k-epsilon`. |
+| [4] Yaji et al., *J Comput Phys* 2021, DOI: `10.1016/j.jcp.2021.110630` | Turbulent level-set topology optimization with explicit interfaces and wall treatment. Strong motivation for LSM as the geometry-refinement stage. |
+| [5] Noel and Maute, *Struct Multidisc Optim* 2022, DOI: `10.1007/s00158-022-03353-3` | Turbulent conjugate heat transfer with level sets and explicit interface treatment. Relevant for late-stage sharp-interface refinement logic. |
+| [6] Andreasen et al., *Struct Multidisc Optim* 2020, DOI: `10.1007/s00158-020-02527-1` | Shows that many density-method ingredients can be reused to drive a crisp level-set method with length-scale control. Very relevant to this repo transition. |
+| [7] Barrera et al., *Struct Multidisc Optim* 2022, DOI: `10.1007/s00158-021-03096-7` | Extremely relevant for combining density assistance with level sets and for minimum feature-size control. Strong conceptual support for the hybrid stage design. |
+| [8] Hoghøj et al., *Struct Multidisc Optim* 2024, DOI: `10.1007/s00158-024-03956-y` | Modern fluid-specific density-assisted hole seeding in level-set optimization. Reinforces that hybrid density/level-set workflows are state-of-the-art. |
+| [9] Guo et al., *Comput Methods Appl Mech Eng* 2014, DOI: `10.1016/j.cma.2014.01.010` | Explicit feature control with signed-distance fields. Important for channel-size control strategy. |
+| [10] Yamada et al., *Comput Methods Appl Mech Eng* 2010, DOI: `10.1016/j.cma.2010.05.013` | Fictitious-interface-energy and reaction-diffusion regularization. Key reference for complexity control and stable LSM evolution. |
+| [11] Othmer, *Int J Numer Methods Fluids* 2008, DOI: `10.1002/fld.1770` | Foundational continuous-adjoint fluid topology optimization reference. Relevant to the adjoint philosophy in this codebase. |
+| [12] Dilgen et al., *Comput Methods Appl Mech Eng* 2018, DOI: `10.1016/j.cma.2017.11.029` | Exact-sensitivity turbulent topology optimization reference. Important caution against over-trusting frozen turbulence. |
+| [13] Zhou and Li, *J Comput Phys* 2008, DOI: `10.1016/j.jcp.2008.08.022` | Foundational variational level-set Navier-Stokes optimization reference. Helpful for the stage-2 update philosophy. |
+| [14] Yaji et al., *Int J Heat Mass Transfer* 2015, DOI: `10.1016/j.ijheatmasstransfer.2014.11.005` | Thermal-fluid level-set optimization with complexity control. Good supporting reference for channel-shape refinement. |
+| [15] Chen and Hasegawa, *Applied Thermal Engineering* 2025, DOI: `10.1016/j.applthermaleng.2025.127626` | Recent OpenFOAM-native level-set conjugate heat transfer reference. Not turbulent, but highly relevant for implementation style inside OpenFOAM. |
+
+---
+
+## 16. Final Branch Decision
+
+The final planning decision is:
+
+- `turbulenceLSMOpt/` should remain an **MMA-first turbulent optimizer**
+- level set should be added as a **secondary geometric refinement stage in the same run**
+- the **primary deliverable of the LSM stage is channel size control**
+- topology discovery remains the job of density/MMA
+
+This is the most robust, code-aligned, and literature-supported path for the current project state.

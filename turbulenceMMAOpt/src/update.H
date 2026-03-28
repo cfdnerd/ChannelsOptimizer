@@ -88,7 +88,8 @@ const bool allowContinuationHardening =
   && continuationThrottleAllowsHardening
   && (forceContinuationHardening || continuationFloorActive || continuationGateSatisfied);
 const bool lateStageFilterRCapActive =
-  lateStageFilterRStartIter > 0
+  useLateStageFilterRCap
+  && lateStageFilterRStartIter > 0
   && lateStageFilterRCap >= 0.0
   && opt > lateStageFilterRStartIter;
 activeFilterR =

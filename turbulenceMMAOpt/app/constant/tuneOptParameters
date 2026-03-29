@@ -51,7 +51,7 @@ experimentControl
     forceContinuationHardening      false;                 // Ignore the feasibility gate and always harden continuation.
     forceContinuationHardeningUntilIter 0;                 // Keep hardening forced until this iteration.
     forceContinuationHardeningUntilBeta -1;                // Keep hardening forced until beta reaches this value.
-    stopContinuationHardeningBelowGrayFraction 0.10;       // Fully stop hardening once gray is already low enough.
+    stopContinuationHardeningBelowGrayFraction 0.015;      // Severely lowered to force continuous hardening until branches are crisp and binary (was 0.10).
     lateStageStrictGateBelowGrayFraction 0.14;             // Switch to a stricter power-feasibility gate below this gray level.
     lateStageContinuationFeasibilityTol 0.98;              // Stricter late-stage PowerDiss/limit tolerance.
     lateStageRefinementStartIter   160;                    // Start late refinement taper a bit earlier so the lower late beta ceiling engages before lock-in.

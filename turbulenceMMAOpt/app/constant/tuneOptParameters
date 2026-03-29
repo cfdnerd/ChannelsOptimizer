@@ -28,7 +28,7 @@ frameworkSwitches
     useTurbulentThermalDiffusivity  true;  // Include turbulent thermal diffusivity in heat transport.
     usePowerConstraintRelaxation    true;  // Relax the power constraint early, then tighten it.
     useGCMMA                        false; // GCMMA path is not implemented here.
-    useFullAdjointSymmetricStress   true;  // Use the stronger adjoint stress term when probing sensitivity fidelity.
+    useFullAdjointSymmetricStress   false; // Use the stronger adjoint stress term when probing sensitivity fidelity.
 }
 
 objectiveSwitches
@@ -72,8 +72,8 @@ experimentControl
 
 adjointControl
 {
-    adjointMomentumSweeps           30;   // Slightly higher adjoint fidelity for stronger late-stage branch sensitivities.
-    adjointExplicitStressScale      0.30; // Conservative increase to strengthen the symmetric-stress contribution without reverting to runaway.
+    adjointMomentumSweeps           50;   // Slightly higher adjoint fidelity for stronger late-stage branch sensitivities.
+    adjointExplicitStressScale      0.10; // Conservative increase to strengthen the symmetric-stress contribution without reverting to runaway.
     resetAdjointsEachIteration      true; // Reinitialize adjoints each loop for robustness.
     stopOnAdjointRunaway            true; // Abort optimization if adjoint magnitudes blow up.
 }

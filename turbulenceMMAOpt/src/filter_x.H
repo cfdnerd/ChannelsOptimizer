@@ -48,6 +48,9 @@ for(i=0;i<n;i++)
      drho[i]=del*Foam::exp(-del*(xp[i]-eta5)/(1-eta5))+Foam::exp(-del);
    }
 
+   xh[i] = (1.0 - 1e-4)*xh[i] + 1e-4*xp[i];
+   drho[i] = (1.0 - 1e-4)*drho[i] + 1e-4;
+
    if(xp[i]<=geometryProjectionEtaActive)
    {
      xg[i]=
@@ -75,6 +78,9 @@ for(i=0;i<n;i++)
        *Foam::exp(-geometricSizeProjectionBeta*(xp[i]-geometryProjectionEtaActive)/(1-geometryProjectionEtaActive))
        + Foam::exp(-geometricSizeProjectionBeta);
    }   
+
+   xg[i] = (1.0 - 1e-4)*xg[i] + 1e-4*xp[i];
+   drhoGeom[i] = (1.0 - 1e-4)*drhoGeom[i] + 1e-4;
 }
 xh.correctBoundaryConditions();
 xg.correctBoundaryConditions();

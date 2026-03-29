@@ -108,6 +108,8 @@ if(opt>1)
          + Foam::exp(-del);
      }
 
+     drhoValue = (1.0 - 1e-4)*drhoValue + 1e-4;
+
      if (!std::isfinite(static_cast<double>(drhoValue)))
      {
        drhoValue = 0.0;

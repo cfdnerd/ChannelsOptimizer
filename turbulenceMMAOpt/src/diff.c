@@ -14,6 +14,7 @@ scalar diff(scalarField gamma, scalarField V, double del, double eta, int n)
         {
           x[i]=eta+(1-eta)*(1-Foam::exp(-del*(gamma[i]-eta)/(1-eta))+(gamma[i]-eta)*Foam::exp(-del)/(1-eta));
         }
+        x[i] = (1.0 - 1e-4)*x[i] + 1e-4*gamma[i];
      }
      for(i=0;i<n;i++)
      {

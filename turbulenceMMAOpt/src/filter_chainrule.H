@@ -62,26 +62,26 @@ if
       << " solidMax=" << gsenshSolidMaxNonFiniteLocal << endl;
 }
 
-Info<< "filter chainrule: normalize sensitivities" << endl;
-const scalar fsenshMeanTScale = gMax(mag(fsenshMeanT.primitiveField()));
-if (fsenshMeanTScale > SMALL)
-{
-  fsenshMeanT = fsenshMeanT/fsenshMeanTScale;
-}
-else
-{
-  fsenshMeanT = dimensionedScalar("zero", fsenshMeanT.dimensions(), 0.0);
-}
+// Info<< "filter chainrule: normalize sensitivities" << endl;
+// const scalar fsenshMeanTScale = gMax(mag(fsenshMeanT.primitiveField()));
+// if (fsenshMeanTScale > SMALL)
+// {
+//   fsenshMeanT = fsenshMeanT/fsenshMeanTScale;
+// }
+// else
+// {
+//   fsenshMeanT = dimensionedScalar("zero", fsenshMeanT.dimensions(), 0.0);
+// }
 
-const scalar gsenshPowerDissScale = gMax(mag(gsenshPowerDiss.primitiveField()));
-if (gsenshPowerDissScale > SMALL)
-{
-  gsenshPowerDiss = gsenshPowerDiss/gsenshPowerDissScale;
-}
-else
-{
-  gsenshPowerDiss = dimensionedScalar("zero", gsenshPowerDiss.dimensions(), 0.0);
-}
+// const scalar gsenshPowerDissScale = gMax(mag(gsenshPowerDiss.primitiveField()));
+// if (gsenshPowerDissScale > SMALL)
+// {
+//   gsenshPowerDiss = gsenshPowerDiss/gsenshPowerDissScale;
+// }
+// else
+// {
+//   gsenshPowerDiss = dimensionedScalar("zero", gsenshPowerDiss.dimensions(), 0.0);
+// }
 gsenshVol.primitiveFieldRef() = 1.0;
 Info<< "filter chainrule: objective filter solve" << endl;
 //***********************************//Heaviside_filter

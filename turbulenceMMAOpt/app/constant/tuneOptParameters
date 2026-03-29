@@ -81,7 +81,8 @@ adjointControl
 
 convergenceControl
 {
-    optPowerConstraintWeight        2.0;                   // Relative penalty weight on power-constraint violation.
+    optVolumeConstraintWeight       200.0;                 // Added to properly balance raw objective scale.
+    optPowerConstraintWeight        400.0;                 // Scaled up to match new objective magnitude.
     optPowerViolationScaleExponent  1.0;                   // Nonlinear scaling exponent for power-violation weighting.
 }
 

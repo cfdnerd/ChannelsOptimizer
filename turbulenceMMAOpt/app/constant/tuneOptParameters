@@ -57,7 +57,7 @@ experimentControl
     lateStageRefinementBelowGrayFraction 0.18; // Also start refinement taper once gray drops below this level.
     lateStageBetaRampFactor        0.25; // Scale betaIncrement during late refinement.
     lateStageAlphaRampFactor       1.0; // Replace late alpha growth factor during refinement.
-    lateStageMaxBeta               40; // Cap beta during late refinement to preserve carveable gray.
+    lateStageMaxBeta               20; // Cap beta during late refinement to preserve carveable gray.
     lateStageFilterRStartIter      120; // Keep the dictionary filterR through this iteration, then switch to the cap.
     lateStageFilterRCap            6.0; // Late-stage filter-radius cap used after lateStageFilterRStartIter.
     laggingGrayCollapseStartIter   140; // Start checking for stalled gray collapse from this iteration.

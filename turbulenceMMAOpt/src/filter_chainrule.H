@@ -82,7 +82,7 @@ else
 {
   gsenshPowerDiss = dimensionedScalar("zero", gsenshPowerDiss.dimensions(), 0.0);
 }
-gsenshVol.primitiveFieldRef() = 1.0;
+gsenshVol = dimensionedScalar("one", gsenshVol.dimensions(), 1.0);
 Info<< "filter chainrule: objective filter solve" << endl;
 //***********************************//Heaviside_filter
 if(opt>1)

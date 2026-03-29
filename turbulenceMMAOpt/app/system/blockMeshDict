@@ -19,61 +19,111 @@ xMin 0;
 xMax 1.65;
 yMin 0;
 yMax 4.65;
-zMin -0.003;
-zMax 0;
+zMin 0;
+zMax 0.0025;
 xD 1.25;
-yDMin -0.8;
-yDMax 5.45;
+yDi 0.725;
+yDii 1.525;
+yDiii 3.125;
+yDiv 3.925;
 
 fNx 40;
 fNy 80;
-Ny 465;
+tNy 73;
+Ny 160;
 Nx 125;
 
 vertices
 (
-    ($xMin $yMin $zMin)
-    ($xMax $yMin $zMin)
-    ($xMax $yMax $zMin)
-    ($xMin $yMax $zMin)
-    ($xMax $yDMax $zMin)
-    ($xD $yDMax $zMin)
-    ($xD $yMax $zMin)
-    ($xD $yMin $zMin)
-    ($xD $yDMin $zMin)
-    ($xMax $yDMin $zMin)
-
     ($xMin $yMin $zMax)
-    ($xMax $yMin $zMax)
-    ($xMax $yMax $zMax)
-    ($xMin $yMax $zMax)
-    ($xMax $yDMax $zMax)
-    ($xD $yDMax $zMax)
-    ($xD $yMax $zMax)
-    ($xD $yMin $zMax)
-    ($xD $yDMin $zMax)
-    ($xMax $yDMin $zMax)
+	($xD $yMin $zMax)
+	($xMax $yMin $zMax)
+	($xMax $yDi $zMax)
+	($xD $yDi $zMax)
+	($xD $yDii $zMax)
+	($xMax $yDii $zMax)
+	($xD $yDiii $zMax)
+	($xMax $yDiii $zMax)
+	($xMax $yDiv $zMax)
+	($xD $yDiv $zMax)
+	($xMax $yMax $zMax)
+	($xD $yMax $zMax)
+	($xMin $yMax $zMax)
+	($xMin $yDiv $zMax)
+	($xMin $yDiii $zMax)
+	($xMin $yDii $zMax)
+	($xMin $yDi $zMax)
+
+	($xMin $yMin $zMin)
+    ($xD $yMin $zMin)
+    ($xMax $yMin $zMin)
+    ($xMax $yDi $zMin)
+    ($xD $yDi $zMin)
+    ($xD $yDii $zMin)
+    ($xMax $yDii $zMin)
+    ($xD $yDiii $zMin)
+    ($xMax $yDiii $zMin)
+    ($xMax $yDiv $zMin)
+    ($xD $yDiv $zMin)
+    ($xMax $yMax $zMin)
+    ($xD $yMax $zMin)
+    ($xMin $yMax $zMin)
+    ($xMin $yDiv $zMin)
+    ($xMin $yDiii $zMin)
+    ($xMin $yDii $zMin)
+    ($xMin $yDi $zMin)
 );
 
 blocks
 (
-    hex (0 7 6 3 10 17 16 13)
-    ($Nx $Ny 1)
+    hex (17 4 1 0 35 22 19 18)
+	test_area
+    ($Nx $tNy 1)
     simpleGrading (1 1 1)
 
-    hex (7 1 2 6 17 11 12 16)
+	hex (16 5 4 17 34 23 22 35)
+    test_area
+    ($Nx $fNy 1)
+    simpleGrading (1 1 1)
+
+	hex (15 7 5 16 33 25 23 34)
+    test_area
+    ($Nx $Ny 1)
+    simpleGrading (1 1 1)
+	
+	hex (7 8 6 5 25 26 24 23)
     test_area
     ($fNx $Ny 1)
     simpleGrading (1 1 1)
 
-    hex (6 2 4 5 16 12 14 15)
+    hex (14 10 7 15 32 28 25 33)
+    test_area
+    ($Nx $fNy 1)
+    simpleGrading (1 1 1)
+
+	hex (13 12 10 14 31 30 28 32)
+    test_area
+    ($Nx $tNy 1)
+    simpleGrading (1 1 1)
+
+	hex (12 11 9 10 30 29 27 28)
+    test_area
+    ($fNx $tNy 1)
+    simpleGrading (1 1 1)
+
+	hex (10 9 8 7 28 27 26 25)
     fluid_area
     ($fNx $fNy 1)
     simpleGrading (1 1 1)
 
-    hex (1 7 8 9 11 17 18 19)
+	hex (5 6 3 4 23 24 21 22)
     fluid_area
     ($fNx $fNy 1)
+    simpleGrading (1 1 1)
+
+	hex (4 3 2 1 22 21 20 19)
+    test_area
+    ($fNx $tNy 1)
     simpleGrading (1 1 1)
 );
 
@@ -88,7 +138,7 @@ boundary
         type patch;
         faces
         (
-            (4 5 15 14)
+            (9 8 26 27)
         );
     }
     outlet
@@ -96,7 +146,7 @@ boundary
         type patch;
         faces
         (
-            (19 18 8 9)
+            (6 3 21 24)
         );
     }
     Wall
@@ -104,11 +154,15 @@ boundary
         type wall;
         faces
         (
-            (0 10 13 3)
-            (0 7 17 10)
-            (7 8 18 17)
-            (5 6 16 15)
-            (6 3 13 16)
+            (0 1 19 18)
+			(1 2 20 19)
+			(12 11 29 30)
+			(13 12 30 31)
+			(13 14 32 31)
+			(14 15 33 32)
+			(15 16 34 33)
+			(16 17 35 34)
+			(17 0 18 35)
         );
     }
     right
@@ -116,9 +170,9 @@ boundary
         type symmetry;
         faces
         (
-            (1 2 12 11)
-            (2 4 14 12)
-            (9 1 11 19)
+			(11 9 27 29)
+			(3 2 20 21)	
+			(8 6 24 26)
         );
     }
     frontAndBack
@@ -126,14 +180,26 @@ boundary
         type empty;
         faces
         (
-            (0 3 6 7)
-            (6 2 1 7)
-            (9 8 7 1)
-            (6 5 4 2)
-            (10 17 16 13)
-            (17 11 12 16)
-            (11 17 18 19)
-            (12 14 15 16)
+            (13 12 10 14)
+			(31 30 28 32)
+			(12 11 9 10)
+			(30 29 27 28)
+			(14 10 7 15)
+			(32 28 25 33)
+			(10 9 8 7)
+			(28 27 26 25)
+			(15 7 5 16)
+			(33 25 23 34)
+			(16 5 4 17)
+			(34 23 22 35)
+			(5 6 3 4)
+			(23 24 21 22)
+			(4 3 2 1)
+			(22 21 20 19)
+			(17 4 1 0)
+			(35 22 19 18)
+			(7 8 6 5)
+			(25 26 24 23)
         );
     }
 );

@@ -16,10 +16,10 @@ FoamFile
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 
-kf                           kf [1 1 -3 -1 0 0 0] 0.61;
-ks                           ks [1 1 -3 -1 0 0 0] 237;
-rhoCp                     rhoCp [1 -1 -2 -1 0 0 0] 4180000;
-heatSource           heatSource [1 -1 -3 0 0 0 0] 1e8;
+kf                           kf [1 1 -3 -1 0 0 0] 44;
+ks                           ks [1 1 -3 -1 0 0 0] 390;
+rhoCp                     rhoCp [1 -1 -2 -1 0 0 0] 2281250;
+heatSource           heatSource [1 -1 -3 0 0 0 0] 1e6;
 Talpha                       Taplha [0 0 0 -1 0 0 0] 2e-5;
 thermalStress   no;
 DDHS no;
